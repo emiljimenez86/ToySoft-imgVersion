@@ -7702,4 +7702,7 @@ window.mostrarEstadoNotificaciones = mostrarEstadoNotificaciones;
 // Funciones de vista previa
 window.mostrarVistaPreviaPedido = mostrarVistaPreviaPedido;
 window.mostrarVistaPreviaRecibo = mostrarVistaPreviaRecibo;
+
+// Funciones del sistema
+window.reiniciarSistema = reiniciarSistema;
   

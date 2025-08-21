@@ -1756,4 +1756,124 @@ document.addEventListener('DOMContentLoaded', function() {
         cargarConfiguracionEmailJS();
         actualizarHistorialEmails();
     }, 1000);
-}); 
+});
+
+// ===== HERRAMIENTAS DEL SISTEMA =====
+
+// Función para confirmar reinicio del sistema
+function confirmarReinicioSistema() {
+    const mensaje = `⚠️ ¡ADVERTENCIA CRÍTICA! ⚠️
+
+Esta acción eliminará PERMANENTEMENTE:
+• Todas las categorías
+• Todos los productos  
+• Todos los clientes
+• Todas las ventas
+• Todos los gastos
+• Toda la configuración
+• Todo el historial
+
+¿Estás COMPLETAMENTE seguro de que quieres reiniciar el sistema?
+
+Esta acción NO se puede deshacer.`;
+
+    if (confirm(mensaje)) {
+        const confirmacionFinal = confirm(`🚨 CONFIRMACIÓN FINAL 🚨
+
+¿Estás 100% seguro? 
+Esta acción eliminará TODOS los datos de la aplicación.
+
+Escribe "SI" en el siguiente prompt para confirmar:`);
+        
+        if (confirmacionFinal) {
+            const respuesta = prompt('Escribe "SI" para confirmar el reinicio completo del sistema:');
+            if (respuesta && respuesta.toUpperCase() === 'SI') {
+                reiniciarSistema();
+            } else {
+                alert('❌ Reinicio cancelado. El sistema permanece intacto.');
+            }
+        }
+    }
+}
+
+// Función para limpiar datos temporales
+function limpiarDatosTemporales() {
+    const mensaje = `🧹 Limpiar Datos Temporales
+
+Esta acción eliminará:
+• Ventas del día actual
+• Gastos del día actual
+• Contadores de delivery y recoger
+• Mesas activas
+• Historial de cocina temporal
+
+¿Quieres continuar?`;
+
+    if (confirm(mensaje)) {
+        try {
+            // Limpiar ventas y gastos temporales
+            localStorage.setItem('ventas', JSON.stringify([]));
+            localStorage.removeItem('gastos');
+            
+            // Limpiar contadores
+            localStorage.setItem('contadorDelivery', '0');
+            localStorage.setItem('contadorRecoger', '0');
+            
+            // Limpiar mesas activas
+            localStorage.setItem('mesasActivas', JSON.stringify([]));
+            
+            // Limpiar historial de cocina temporal
+            localStorage.setItem('historialCocina', JSON.stringify([]));
+            
+            // Limpiar variables globales si están disponibles
+            if (typeof window.ventas !== 'undefined') window.ventas = [];
+            if (typeof window.gastos !== 'undefined') window.gastos = [];
+            
+            alert('✅ Datos temporales limpiados correctamente.\n\nLa aplicación se recargará para aplicar los cambios.');
+            
+            // Recargar la página después de un delay
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+            
+        } catch (error) {
+            console.error('Error al limpiar datos temporales:', error);
+            alert('❌ Error al limpiar datos temporales: ' + error.message);
+        }
+    }
+}
+
+// Función para reiniciar el sistema (llama a la función de app.js)
+function reiniciarSistema() {
+    try {
+        console.log('🔄 Iniciando reinicio completo del sistema...');
+        
+        // Verificar si la función existe en app.js
+        if (typeof window.reiniciarSistema === 'function') {
+            window.reiniciarSistema();
+        } else {
+            // Si no existe, hacer el reinicio manualmente
+            console.log('⚠️ Función reiniciarSistema no encontrada, ejecutando reinicio manual...');
+            
+            // Limpiar todo el localStorage
+            localStorage.clear();
+            
+            // Limpiar variables globales
+            if (typeof window.categorias !== 'undefined') window.categorias = [];
+            if (typeof window.productos !== 'undefined') window.productos = [];
+            if (typeof window.ventas !== 'undefined') window.ventas = [];
+            if (typeof window.clientes !== 'undefined') window.clientes = [];
+            
+            alert('✅ Sistema reiniciado completamente.\n\nTodos los datos han sido eliminados.\n\nLa aplicación se recargará en 3 segundos.');
+            
+            // Recargar la página
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error al reiniciar sistema:', error);
+        alert('❌ Error al reiniciar sistema: ' + error.message);
+    }
+} 
