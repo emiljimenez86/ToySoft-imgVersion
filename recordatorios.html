@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recordatorios - ToySoft IMG Version</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1a1a1a">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+    <div class="container-fluid mt-4 px-2 px-md-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-center">
+                    <h1 class="text-white mb-3 mb-md-0 fs-2 fs-md-1">
+                        <i class="fas fa-bell me-2"></i>Recordatorios de Tareas
+                    </h1>
+                                         <div class="d-flex gap-2">
+                         <button class="btn btn-outline-info" onclick="activarNotificacionesNavegador()" id="btnNotificaciones">
+                             <i class="fas fa-bell me-1"></i>
+                             <span id="estadoNotificaciones">⏳ Pendientes</span>
+                         </button>
+                         <a href="index.html" class="btn btn-outline-light">
+                             <i class="fas fa-home me-1"></i>Volver al Inicio
+                         </a>
+                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de Crear Recordatorio -->
+        <div class="card bg-dark text-white mb-4">
+            <div class="card-header">
+                <h2 class="mb-0 fs-3 fs-md-2">
+                    <i class="fas fa-plus-circle me-2"></i>Crear Nuevo Recordatorio
+                </h2>
+            </div>
+            <div class="card-body">
+                <form id="formRecordatorio" onsubmit="event.preventDefault(); crearRecordatorioDesdeFormulario();">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label for="tituloRecordatorio" class="form-label">Título *</label>
+                            <input type="text" id="tituloRecordatorio" class="form-control" placeholder="Ej: Limpiar mesa 5" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label for="tipoRecordatorio" class="form-label">Tipo *</label>
+                            <select id="tipoRecordatorio" class="form-select" required>
+                                <option value="">Seleccionar tipo</option>
+                                <option value="pedido">Pedido</option>
+                                <option value="limpieza">Limpieza</option>
+                                <option value="inventario">Inventario</option>
+                                <option value="cocina">Cocina</option>
+                                <option value="general">General</option>
+                                <option value="cierre">Cierre</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label for="prioridadRecordatorio" class="form-label">Prioridad</label>
+                            <select id="prioridadRecordatorio" class="form-select">
+                                <option value="baja">Baja</option>
+                                <option value="media" selected>Media</option>
+                                <option value="alta">Alta</option>
+                                <option value="urgente">Urgente</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label for="fechaLimiteRecordatorio" class="form-label">Fecha Límite</label>
+                            <input type="datetime-local" id="fechaLimiteRecordatorio" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <label for="descripcionRecordatorio" class="form-label">Descripción</label>
+                            <textarea id="descripcionRecordatorio" class="form-control" rows="3" placeholder="Descripción detallada de la tarea..."></textarea>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="repetirRecordatorio">
+                                <label class="form-check-label" for="repetirRecordatorio">
+                                    Repetir diariamente
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-info">
+                                <i class="fas fa-save me-1"></i>Crear Recordatorio
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Filtros y Búsqueda -->
+        <div class="card bg-dark text-white mb-4">
+            <div class="card-header">
+                <h2 class="mb-0 fs-3 fs-md-2">
+                    <i class="fas fa-filter me-2"></i>Filtros
+                </h2>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12 col-md-3">
+                        <select id="filtroTipo" class="form-select" onchange="filtrarRecordatorios()">
+                            <option value="">Todos los tipos</option>
+                            <option value="pedido">Pedidos</option>
+                            <option value="limpieza">Limpieza</option>
+                            <option value="inventario">Inventario</option>
+                            <option value="cocina">Cocina</option>
+                            <option value="general">General</option>
+                            <option value="cierre">Cierre</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <select id="filtroPrioridad" class="form-select" onchange="filtrarRecordatorios()">
+                            <option value="">Todas las prioridades</option>
+                            <option value="baja">Baja</option>
+                            <option value="media">Media</option>
+                            <option value="alta">Alta</option>
+                            <option value="urgente">Urgente</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <select id="filtroEstado" class="form-select" onchange="filtrarRecordatorios()">
+                            <option value="activos" selected>Activos</option>
+                            <option value="completados">Completados</option>
+                            <option value="todos">Todos</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <input type="text" id="buscarRecordatorio" class="form-control" placeholder="Buscar..." onkeyup="filtrarRecordatorios()">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de Recordatorios -->
+        <div class="card bg-dark text-white mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h2 class="mb-0 fs-3 fs-md-2">
+                    <i class="fas fa-tasks me-2"></i>Lista de Recordatorios
+                </h2>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-warning btn-sm" onclick="limpiarRecordatoriosCompletados()">
+                        <i class="fas fa-broom me-1"></i>Limpiar Completados
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="eliminarTodosRecordatorios()">
+                        <i class="fas fa-trash me-1"></i>Eliminar Todos
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="listaRecordatorios">
+                    <!-- Los recordatorios se cargarán aquí -->
+                </div>
+                <div id="sinRecordatorios" class="text-center text-muted py-5" style="display: none;">
+                    <i class="fas fa-bell-slash fa-3x mb-3"></i>
+                    <h4>No hay recordatorios</h4>
+                    <p>Crea tu primer recordatorio para comenzar a organizar tus tareas</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estadísticas -->
+        <div class="row">
+            <div class="col-12 col-md-3 mb-3">
+                <div class="card bg-primary text-white text-center">
+                    <div class="card-body">
+                        <i class="fas fa-clock fa-2x mb-2"></i>
+                        <h5 id="contadorPendientes">0</h5>
+                        <small>Pendientes</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-md-3 mb-3">
+                <div class="card bg-warning text-dark text-center">
+                    <div class="card-body">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                        <h5 id="contadorUrgentes">0</h5>
+                        <small>Urgentes</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-md-3 mb-3">
+                <div class="card bg-success text-white text-center">
+                    <div class="card-body">
+                        <i class="fas fa-check-circle fa-2x mb-2"></i>
+                        <h5 id="contadorCompletados">0</h5>
+                        <small>Completados</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-md-3 mb-3">
+                <div class="card bg-info text-white text-center">
+                    <div class="card-body">
+                        <i class="fas fa-calendar-day fa-2x mb-2"></i>
+                        <h5 id="contadorHoy">0</h5>
+                        <small>Para Hoy</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Editar Recordatorio -->
+    <div class="modal fade" id="modalEditarRecordatorio" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-edit me-2"></i>Editar Recordatorio
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formEditarRecordatorio">
+                        <input type="hidden" id="editIdRecordatorio">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <label for="editTituloRecordatorio" class="form-label">Título *</label>
+                                <input type="text" id="editTituloRecordatorio" class="form-control" required>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label for="editTipoRecordatorio" class="form-label">Tipo *</label>
+                                <select id="editTipoRecordatorio" class="form-select" required>
+                                    <option value="pedido">Pedido</option>
+                                    <option value="limpieza">Limpieza</option>
+                                    <option value="inventario">Inventario</option>
+                                    <option value="cocina">Cocina</option>
+                                    <option value="general">General</option>
+                                    <option value="cierre">Cierre</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label for="editPrioridadRecordatorio" class="form-label">Prioridad</label>
+                                <select id="editPrioridadRecordatorio" class="form-select">
+                                    <option value="baja">Baja</option>
+                                    <option value="media">Media</option>
+                                    <option value="alta">Alta</option>
+                                    <option value="urgente">Urgente</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label for="editFechaLimiteRecordatorio" class="form-label">Fecha Límite</label>
+                                <input type="datetime-local" id="editFechaLimiteRecordatorio" class="form-control">
+                            </div>
+                            <div class="col-12">
+                                <label for="editDescripcionRecordatorio" class="form-label">Descripción</label>
+                                <textarea id="editDescripcionRecordatorio" class="form-control" rows="3"></textarea>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="editRepetirRecordatorio">
+                                    <label class="form-check-label" for="editRepetirRecordatorio">
+                                        Repetir diariamente
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-info" onclick="guardarCambiosRecordatorio()">
+                        <i class="fas fa-save me-1"></i>Guardar Cambios
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="app.js"></script>
+    <script src="recordatorios.js"></script>
+</body>
+</html>

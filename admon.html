@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administración - POS Restaurante</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1a1a1a">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+</head>
+<body>
+    <div class="container-fluid mt-4 px-2 px-md-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-center">
+                    <h1 class="text-white mb-3 mb-md-0 fs-2 fs-md-1">Administración</h1>
+                    <a href="index.html" class="btn btn-outline-light">Volver al Inicio</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gestión de Clientes -->
+        <div class="card bg-dark text-white mb-4">
+            <div class="card-header">
+                <h2 class="mb-0 fs-3 fs-md-2">Gestión de Clientes</h2>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <input type="text" id="documentoCliente" class="form-control" placeholder="Documento o NIT">
+                            <input type="text" id="nombreCliente" class="form-control mt-2" placeholder="Nombres">
+                            <input type="text" id="apellidoCliente" class="form-control mt-2" placeholder="Apellidos">
+                            <input type="tel" id="telefonoCliente" class="form-control mt-2" placeholder="Teléfono">
+                            <input type="text" id="direccionCliente" class="form-control mt-2" placeholder="Dirección">
+                            <input type="email" id="correoCliente" class="form-control mt-2" placeholder="Correo electrónico (opcional)">
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="d-flex flex-column flex-md-row gap-2">
+                                <button class="btn btn-info" onclick="agregarCliente()">Agregar Cliente</button>
+                                <button class="btn btn-danger" onclick="eliminarCliente()">Eliminar Clientes Seleccionados</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <div class="row mb-3">
+                        <div class="col-12 col-md-6">
+                            <input type="text" id="buscarCliente" class="form-control" placeholder="Buscar cliente..." onkeyup="filtrarClientes()">
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-striped">
+                            <thead>
+                                <tr>
+                                    <th class="text-nowrap">Seleccionar</th>
+                                    <th class="text-nowrap">Documento</th>
+                                    <th class="text-nowrap">Nombre</th>
+                                    <th class="text-nowrap">Apellido</th>
+                                    <th class="text-nowrap">Teléfono</th>
+                                    <th class="text-nowrap">Dirección</th>
+                                    <th class="text-nowrap">Correo</th>
+                                    <th class="text-nowrap">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="listaClientes">
+                                <!-- Los clientes se cargarán aquí -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mt-3">
+                        <div class="mb-3 mb-md-0 w-100 w-md-auto">
+                            <select id="clientesPorPagina" class="form-select" onchange="cambiarPaginaClientes(1)">
+                                <option value="5">5 por página</option>
+                                <option value="10" selected>10 por página</option>
+                                <option value="20">20 por página</option>
+                            </select>
+                        </div>
+                        <nav class="w-100 w-md-auto">
+                            <ul class="pagination justify-content-center" id="paginacionClientes">
+                                <!-- La paginación se generará aquí -->
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gestión de Categorías -->
+        <div class="card bg-dark text-white mb-4">
+            <div class="card-header">
+                <h2 class="mb-0 fs-3 fs-md-2">Gestión de Categorías</h2>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <input type="text" id="nuevaCategoria" class="form-control" placeholder="Escribe el nombre de la nueva categoria">
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="d-flex flex-column flex-md-row gap-2">
+                                <button class="btn btn-info" onclick="agregarCategoria()">Agregar Categoría</button>
+                                <button class="btn btn-danger" onclick="eliminarCategoria()">Eliminar Categorías Seleccionadas</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="listaCategorias" class="mt-3">
+                    <!-- Las categorías se cargarán aquí -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Gestión de Productos -->
+        <div class="card bg-dark text-white mb-4">
+            <div class="card-header">
+                <h2 class="mb-0 fs-3 fs-md-2">Gestión de Productos</h2>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <input type="text" id="nombreProducto" class="form-control" placeholder="Escribir el nombre del nuevo producto">
+                            <input type="number" id="precioProducto" class="form-control mt-2" placeholder="Escribir el precio en numeros sin puntos Ejemplo: 12800">
+                            <select id="categoriaProducto" class="form-select mt-2">
+                                <option value="">Seleccionar categoría</option>
+                            </select>
+                            <div class="mt-2">
+                                <label for="imagenProducto" class="form-label">Imagen del producto</label>
+                                <input type="text" class="form-control" id="imagenProducto" placeholder="Pega la URL de la imagen">
+                                <div class="mt-2">
+                                    <img id="previewImagen" src="" alt="Vista previa" style="max-width: 120px; max-height: 120px; display: none; border-radius: 8px; border: 1px solid #ccc;" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="d-flex flex-column flex-md-row gap-2">
+                                <button class="btn btn-info" onclick="agregarProducto()">Agregar Producto</button>
+                                <button class="btn btn-danger" onclick="eliminarProducto()">Eliminar Productos Seleccionados</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <div class="row mb-3">
+                        <div class="col-12 col-md-6">
+                            <input type="text" id="buscarProducto" class="form-control" placeholder="Buscar producto..." onkeyup="filtrarProductos()">
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-striped">
+                            <thead>
+                                <tr>
+                                    <th class="text-nowrap">Seleccionar</th>
+                                    <th class="text-nowrap">Nombre</th>
+                                    <th class="text-nowrap">Precio</th>
+                                    <th class="text-nowrap">Categoría</th>
+                                    <th class="text-nowrap">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="listaProductos">
+                                <!-- Los productos se cargarán aquí -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mt-3">
+                        <div class="mb-3 mb-md-0 w-100 w-md-auto">
+                            <select id="productosPorPagina" class="form-select" onchange="cambiarPaginaProductos(1)">
+                                <option value="5">5 por página</option>
+                                <option value="10" selected>10 por página</option>
+                                <option value="20">20 por página</option>
+                            </select>
+                        </div>
+                        <nav class="w-100 w-md-auto">
+                            <ul class="pagination justify-content-center" id="paginacionProductos">
+                                <!-- La paginación se generará aquí -->
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección de Configuración de Horario -->
+        <div class="card bg-dark mb-4">
+            <div class="card-body">
+                <h5 class="card-title text-info fs-4 fs-md-3">Configuración de Horario</h5>
+                <div class="d-flex flex-column flex-md-row gap-2">
+                    <button class="btn btn-outline-info w-100 w-md-auto" onclick="mostrarModalConfiguracionCierre()">
+                        <i class="fas fa-clock"></i> Configurar hora de Cierre
+                    </button>
+                    <button class="btn btn-outline-warning w-100 w-md-auto" onclick="extenderHorario()">
+                        <i class="fas fa-clock"></i> Extender Horario
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección de Backup -->
+        <div class="card bg-dark mb-4">
+            <div class="card-body">
+                <h4 class="text-info mb-3">Backup y Restauración</h4>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-info" onclick="exportarDatos()">
+                        <i class="fas fa-download"></i> Exportar Datos
+                    </button>
+                    <input type="file" id="inputImportarDatos" style="display:none" accept="application/json" onchange="importarDatos(event)">
+                    <button class="btn btn-outline-info" onclick="document.getElementById('inputImportarDatos').click()">
+                        <i class="fas fa-upload"></i> Importar Datos
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección de Logo -->
+        <div class="card bg-dark mb-4">
+            <div class="card-body">
+                <h4 class="text-info mb-3">
+                    <i class="fas fa-image"></i> Logo del Negocio
+                </h4>
+                <div class="mb-3">
+                    <label class="form-label">
+                        <i class="fas fa-eye"></i> Vista Previa del Logo
+                    </label>
+                    <div id="logoPreview" class="mb-2 p-3 border border-secondary rounded">
+                        <img id="logoActual" src="" alt="Logo actual" style="max-width: 200px; max-height: 100px; display: none;" class="img-fluid">
+                        <p id="noLogo" class="text-muted mb-0">
+                            <i class="fas fa-image"></i> No hay logo cargado
+                        </p>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">
+                        <i class="fas fa-upload"></i> Cargar Nuevo Logo
+                    </label>
+                    <input type="file" class="form-control bg-dark text-white border-light" 
+                           id="logoInput" accept="image/*" onchange="previewLogo(event)">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i> Formatos permitidos: JPG, PNG, GIF. Tamaño máximo: 500KB
+                    </small>
+                </div>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-info" onclick="guardarLogo()">
+                        <i class="fas fa-save"></i> Guardar Logo
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="eliminarLogo()">
+                        <i class="fas fa-trash"></i> Eliminar Logo
+                    </button>
+                    <button class="btn btn-outline-warning btn-sm" onclick="verificarEstadoLogo()" style="font-size: 0.8rem;">
+                        <i class="fas fa-bug"></i> Debug Logo
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gestión del Negocio -->
+        <div class="container mt-5 mb-4">
+            <div class="card bg-dark text-white">
+                <div class="card-header">
+                    <h5 class="mb-0">Datos del Negocio</h5>
+                </div>
+                <div class="card-body">
+                    <form id="formNegocio">
+                        <div class="mb-3">
+                            <label for="nombreNegocio" class="form-label">Nombre del Negocio</label>
+                            <input type="text" class="form-control bg-dark text-white" id="nombreNegocio">
+                        </div>
+                        <div class="mb-3">
+                            <label for="nitNegocio" class="form-label">NIT o Cédula</label>
+                            <input type="text" class="form-control bg-dark text-white" id="nitNegocio">
+                        </div>
+                        <div class="mb-3">
+                            <label for="direccionNegocio" class="form-label">Dirección</label>
+                            <input type="text" class="form-control bg-dark text-white" id="direccionNegocio">
+                        </div>
+                        <div class="mb-3">
+                            <label for="correoNegocio" class="form-label">Correo Electrónico</label>
+                            <input type="text" class="form-control bg-dark text-white" id="correoNegocio">
+                        </div>
+                        <div class="mb-3">
+                            <label for="telefonoNegocio" class="form-label">Teléfono</label>
+                            <input type="text" class="form-control bg-dark text-white" id="telefonoNegocio">
+                        </div>
+                        <button type="button" class="btn btn-primary" onclick="guardarDatosNegocio()">Guardar Datos</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuración de EmailJS -->
+        <div class="container mt-5 mb-4">
+            <div class="card bg-dark text-white">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-envelope me-2"></i>Configuración de Envío de Cierres por Email
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Configuración EmailJS:</strong> Configura el email donde recibirás automáticamente los cierres operativos y administrativos.
+                    </div>
+                    
+                    <form id="formEmailJS">
+                        <div class="mb-3">
+                            <label for="emailDestino" class="form-label">
+                                <i class="fas fa-at me-1"></i>Email de Destino
+                            </label>
+                            <input type="email" class="form-control bg-dark text-white border-light" 
+                                   id="emailDestino" placeholder="ejemplo@correo.com" required>
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Email donde recibirás los cierres automáticamente
+                            </small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="nombreDestinatario" class="form-label">
+                                <i class="fas fa-user me-1"></i>Nombre del Destinatario
+                            </label>
+                            <input type="text" class="form-control bg-dark text-white border-light" 
+                                   id="nombreDestinatario" placeholder="Nombre completo">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Nombre que aparecerá en el saludo del email
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="enviarCierresOperativos" checked>
+                                <label class="form-check-label" for="enviarCierresOperativos">
+                                    <i class="fas fa-user-clock me-1"></i>Enviar Cierres Operativos
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="enviarCierresAdministrativos" checked>
+                                <label class="form-check-label" for="enviarCierresAdministrativos">
+                                    <i class="fas fa-calculator me-1"></i>Enviar Cierres Administrativos
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="asuntoPersonalizado" class="form-label">
+                                <i class="fas fa-tag me-1"></i>Asunto Personalizado (Opcional)
+                            </label>
+                            <input type="text" class="form-control bg-dark text-white border-light" 
+                                   id="asuntoPersonalizado" placeholder="Cierre de Caja - {fecha}">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Usa {fecha} para incluir la fecha automáticamente
+                            </small>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-success" onclick="guardarConfiguracionEmailJS()">
+                                <i class="fas fa-save me-1"></i>Guardar Configuración
+                            </button>
+                            <button type="button" class="btn btn-info" onclick="probarEnvioEmail()">
+                                <i class="fas fa-paper-plane me-1"></i>Probar Envío
+                            </button>
+                        </div>
+                    </form>
+
+                    <hr class="my-4">
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-history me-1"></i>Historial de Emails Enviados</h6>
+                            <div id="historialEmails" class="bg-secondary p-3 rounded" style="max-height: 200px; overflow-y: auto;">
+                                <small class="text-muted">No hay emails enviados aún</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-cog me-1"></i>Estado de EmailJS</h6>
+                            <div id="estadoEmailJS" class="bg-secondary p-3 rounded">
+                                <div class="d-flex align-items-center">
+                                    <span id="estadoIcono" class="me-2">⏳</span>
+                                    <span id="estadoTexto">Verificando configuración...</span>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <button class="btn btn-sm btn-outline-warning" onclick="limpiarHistorialEmails()">
+                                    <i class="fas fa-trash me-1"></i>Limpiar Historial
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Cierre Diario -->
+    <div class="modal fade" id="modalCierreDiario" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header">
+                    <h5 class="modal-title">Cierre Diario</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Nombre de quien cierra</label>
+                            <input type="text" class="form-control bg-dark text-white" id="nombreCierre" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Nombre de quien recibe</label>
+                            <input type="text" class="form-control bg-dark text-white" id="nombreRecibe" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Monto base de caja</label>
+                            <input type="number" class="form-control bg-dark text-white" id="montoBaseCaja" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label class="form-label">Detalles adicionales</label>
+                            <textarea class="form-control bg-dark text-white" id="detallesCierre" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success" onclick="exportarCierresDiariosExcel()">
+                        <i class="fas fa-file-excel"></i> Exportar a Excel
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="guardarCierreDiario()">Guardar Cierre</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Configuración de Cierre -->
+    <div class="modal fade" id="modalConfiguracionCierre" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header">
+                    <h5 class="modal-title">Configurar Hora de Cierre</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Hora de Cierre</label>
+                        <div class="row">
+                            <div class="col-4">
+                                <input type="number" class="form-control bg-dark text-white" id="horaCierre" min="1" max="12" value="11">
+                            </div>
+                            <div class="col-4">
+                                <input type="number" class="form-control bg-dark text-white" id="minutoCierre" min="0" max="59" value="30">
+                            </div>
+                            <div class="col-4">
+                                <select class="form-select bg-dark text-white" id="periodoCierre">
+                                    <option value="AM">AM</option>
+                                    <option value="PM" selected>PM</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="activarHoraCierre">
+                        <label class="form-check-label" for="activarHoraCierre">
+                            Activar hora de cierre automático
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="guardarConfiguracionCierre()">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Modificar Cliente -->
+    <div class="modal fade" id="modalModificarCliente" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header">
+                    <h5 class="modal-title">Modificar Cliente</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formModificarCliente">
+                        <input type="hidden" id="clienteIdModificar">
+                        <div class="mb-3">
+                            <label for="nombreClienteModificar" class="form-label">Nombre</label>
+                            <input type="text" class="form-control" id="nombreClienteModificar" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="telefonoClienteModificar" class="form-label">Teléfono</label>
+                            <input type="tel" class="form-control" id="telefonoClienteModificar" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="guardarModificacionCliente()">Guardar cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Modificar Categoría -->
+    <div class="modal fade" id="modalModificarCategoria" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header">
+                    <h5 class="modal-title">Modificar Categoría</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formModificarCategoria">
+                        <input type="hidden" id="categoriaActualModificar">
+                        <div class="mb-3">
+                            <label for="nombreCategoriaModificar" class="form-label">Nombre de la categoría</label>
+                            <input type="text" class="form-control" id="nombreCategoriaModificar" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="guardarModificacionCategoria()">Guardar cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Modificar Producto -->
+    <div class="modal fade" id="modalModificarProducto" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header">
+                    <h5 class="modal-title">Modificar Producto</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formModificarProducto">
+                        <input type="hidden" id="productoIdModificar">
+                        <div class="mb-3">
+    <label for="nombreProductoModificar" class="form-label">Nombre del producto</label>
+    <input type="text" class="form-control" id="nombreProductoModificar" required>
+</div>
+<div class="mb-3">
+    <label for="precioProductoModificar" class="form-label">Precio</label>
+    <input type="number" class="form-control" id="precioProductoModificar" required>
+</div>
+<div class="mb-3">
+    <label for="categoriaProductoModificar" class="form-label">Categoría</label>
+    <select class="form-select" id="categoriaProductoModificar" required>
+        <option value="">Seleccionar categoría</option>
+    </select>
+</div>
+<div class="mb-3">
+    <label for="imagenProductoModificar" class="form-label">Imagen del producto</label>
+    <div class="input-group">
+        <input type="text" class="form-control" id="imagenProductoModificar" placeholder="Pega la URL de la imagen o selecciona un archivo">
+        <input type="file" class="form-control" id="examinarImagenModificar" accept="image/*" style="max-width: 180px;">
+    </div>
+    <div class="mt-2">
+        <img id="previewImagenModificar" src="" alt="Vista previa" style="max-width: 120px; max-height: 120px; display: none; border-radius: 8px; border: 1px solid #ccc;" />
+    </div>
+</div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="guardarModificacionProducto()">Guardar cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Ayuda Contextual -->
+    <div class="modal fade" id="modalAyuda" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-question-circle text-info"></i>
+                        Ayuda: <span id="tituloAyuda">Administración</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="contenidoAyuda"></div>
+                    <div id="enlacesAyuda" class="mt-3">
+                        <h6>Enlaces Relacionados:</h6>
+                        <div class="list-group list-group-flush bg-dark">
+                            <!-- Enlaces dinámicos -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="seguridad.js"></script>
+    <script src="ayuda.js"></script>
+    <script src="admon.js"></script>
+</body>
+</html> 

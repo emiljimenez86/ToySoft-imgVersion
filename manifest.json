@@ -1,0 +1,36 @@
+{
+    "name": "ToySoft IMG Version - Sistema POS",
+  "short_name": "IMG Version",
+  "description": "Sistema de Punto de Venta IMG Version para Restaurantes",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0dcaf0",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "./image/logo-ToySoft.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./image/logo-ToySoft.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Punto de Venta",
+      "url": "./POS.html",
+      "icons": [{ "src": "./image/logo-ToySoft.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Administración",
+      "url": "./admon.html",
+      "icons": [{ "src": "./image/logo-ToySoft.png", "sizes": "192x192" }]
+    }
+  ]
+} 

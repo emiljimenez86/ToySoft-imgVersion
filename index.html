@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>ToySoft IMG Version - Sistema POS</title>
+  <meta name="description" content="Sistema de Punto de Venta para Restaurantes">
+  <meta name="theme-color" content="#0dcaf0">
+  
+  <!-- PWA Meta Tags -->
+  <meta name="application-name" content="ToySoft POS">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="ToySoft POS">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <!-- PWA Icons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="./image/logo-ToySoft.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="./image/logo-ToySoft.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="./image/logo-ToySoft.png">
+  <link rel="mask-icon" href="./image/logo-ToySoft.png" color="#0dcaf0">
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="./manifest.json">
+  
+  <!-- Styles -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body, #appSection, #loginSection {
+      display: none;
+    }
+  </style>
+</head>
+<body class="d-flex flex-column min-vh-100">
+  <div class="container-fluid flex-grow-1">
+    <!-- Sección de Login -->
+    <div id="loginSection" class="login-container">
+      <div class="logo-container">
+        <img src="image/logo-ToySoft.png" alt="Logo" class="img-fluid" style="max-width: 120px;">
+      </div>
+      <div class="welcome-message">
+        <h2 class="text-info">¡Bienvenido al Sistema POS!</h2>
+        <p class="welcome-subtitle small">Gestiona tu restaurante de manera eficiente y profesional</p>
+      </div>
+      <form onsubmit="event.preventDefault(); iniciarSesion();">
+        <div class="mb-2">
+          <input type="text" id="usuario" class="form-control form-control-sm" placeholder="Usuario" required>
+        </div>
+        <div class="mb-2">
+          <input type="password" id="clave" class="form-control form-control-sm" placeholder="PIN" required>
+        </div>
+        <div class="d-grid">
+          <button type="submit" class="btn btn-info btn-sm">Iniciar Sesión</button>
+        </div>
+      </form>
+      <!-- Botón de instalación -->
+      <div class="mt-2 text-center">
+        <button id="installButton" class="btn btn-outline-info btn-sm" onclick="installPWA()">
+          <i class="fas fa-download me-1"></i>Instalar App
+        </button>
+      </div>
+    </div>
+
+    <!-- Sección de la Aplicación -->
+    <div id="appSection" class="container-fluid" style="display: none;">
+      <div class="logo-container">
+        <img src="image/logo-ToySoft.png" alt="Logo" class="img-fluid" style="max-width: 100px;">
+        <h1 class="text-info">POS</h1>
+                    <h2 class="mb-2 text-center">ToySoft IMG Version</h2>
+      </div>
+      
+        <div class="nav-buttons d-flex flex-column gap-2 align-items-center text-center mx-auto" style="max-width: 350px;">
+          <a href="POS.html" class="btn btn-info btn-md w-100">
+            <i class="fas fa-cash-register me-1"></i> Punto de Venta
+          </a>
+          <a href="admon.html" class="btn btn-outline-info btn-md w-100">
+            <i class="fas fa-cog me-1"></i> Administración
+          </a>
+          <button class="btn btn-outline-success btn-md w-100" onclick="mostrarAcercaDe()">
+            <i class="fas fa-info-circle me-1"></i> Acerca de
+          </button>
+          <button class="btn btn-danger btn-md w-100" onclick="cerrarSesion()">
+            <i class="fas fa-sign-out-alt me-1"></i> Cerrar Sesión
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sección de Punto de Venta -->
+    <div id="posSection" class="pos-container" style="display: none;">
+      <div class="row">
+        <!-- Panel de Mesas -->
+        <div class="col-md-3">
+          <div class="mesas-panel">
+            <h3>Mesas</h3>
+            <div class="input-group mb-3">
+              <input type="text" id="nuevaMesa" class="form-control" placeholder="Número de mesa">
+              <button class="btn btn-info" id="btnNuevaMesa">Nueva Mesa</button>
+            </div>
+            <div id="mesasContainer" class="mesas-grid"></div>
+            <div class="pedidos-buttons mt-3">
+              <button class="btn btn-warning" onclick="crearPedidoDomicilio()">
+                <i class="fas fa-motorcycle"></i> Domicilio
+              </button>
+              <button class="btn btn-info" onclick="crearPedidoRecoger()">
+                <i class="fas fa-shopping-bag"></i> Recoger
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel de Productos y Orden -->
+        <div class="col-md-9">
+          <div class="row">
+            <!-- Panel de Productos -->
+            <div class="col-md-8">
+              <div class="productos-panel">
+                <h3>Productos</h3>
+                <div id="categorias" class="mb-3"></div>
+                <div class="table-responsive">
+                  <table class="table table-dark">
+                    <thead>
+                      <tr>
+                        <th>Producto</th>
+                        <th>Acción</th>
+                        <th>Precio</th>
+                      </tr>
+                    </thead>
+                    <tbody id="ordenCuerpo"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Panel de Orden -->
+            <div class="col-md-4">
+              <div class="orden-panel">
+                <h3>Orden - <span id="mesaActual">-</span></h3>
+                <div class="table-responsive">
+                  <table class="table table-dark">
+                    <thead>
+                      <tr>
+                        <th>Producto</th>
+                        <th>Cant</th>
+                        <th>Precio</th>
+                        <th>Total</th>
+                        <th>Detalles</th>
+                        <th>Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody id="ordenCuerpo"></tbody>
+                  </table>
+                </div>
+                <div class="orden-totales">
+                  <div class="mb-2">
+                    <label class="form-label">Propina (%)</label>
+                    <input type="number" id="propina" class="form-control" value="0">
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label">Descuento</label>
+                    <input type="number" id="descuento" class="form-control" value="0">
+                  </div>
+                  <div id="desgloseTotal" class="mb-2"></div>
+                  <h4>Total: <span id="totalOrden">$ 0</span></h4>
+                </div>
+                <div class="orden-acciones">
+                  <button class="btn btn-warning" onclick="enviarACocina()">
+                    <i class="fas fa-utensils"></i> Enviar a Cocina
+                  </button>
+                  <button class="btn btn-success" onclick="mostrarModalPago()">
+                    <i class="fas fa-cash-register"></i> Generar Recibo
+                  </button>
+                  <button class="btn btn-danger" onclick="eliminarPedido()">
+                    <i class="fas fa-trash"></i> Eliminar
+                  </button>
+                  <button class="btn btn-info" onclick="mostrarModalCierreDiario()">
+                    <i class="fas fa-calculator"></i> Cierre de Caja
+                  </button>
+                  <button class="btn btn-success" onclick="mostrarModalCierreOperativo()">
+                    <i class="fas fa-user-clock"></i> Cierre Operativo
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Pago -->
+  <div class="modal fade" id="modalPago" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title">Procesar Pago</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Sección de Clientes -->
+          <div class="mb-3">
+            <h6>Seleccionar Cliente</h6>
+            <div id="listaClientesPago" class="list-group">
+              <!-- Los clientes se cargarán aquí -->
+            </div>
+          </div>
+
+          <!-- Método de Pago -->
+          <div class="mb-3">
+            <label class="form-label">Método de Pago</label>
+            <select id="metodoPago" class="form-select bg-dark text-white border-light">
+              <option value="efectivo">Efectivo</option>
+              <option value="tarjeta">Tarjeta</option>
+              <option value="transferencia">Transferencia</option>
+            </select>
+          </div>
+
+          <!-- Sección de Efectivo -->
+          <div id="efectivoSection">
+            <div class="mb-3">
+              <label class="form-label">Monto Recibido</label>
+              <input type="number" id="montoRecibido" class="form-control bg-light text-success border-success" 
+                     style="font-weight: bold; font-size: 1.2em;">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Cambio</label>
+              <div id="cambio" class="form-control bg-dark text-white border-light">$ 0</div>
+            </div>
+          </div>
+
+          <!-- Sección de Transferencia -->
+          <div id="transferenciaSection" style="display: none;">
+            <div class="mb-3">
+              <label class="form-label">Número de Transferencia</label>
+              <input type="text" id="numeroTransferencia" class="form-control bg-dark text-white border-light">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" onclick="procesarPago()">Confirmar Pago</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Cierre de Caja -->
+  <div class="modal fade" id="modalCierreDiario" tabindex="-1" aria-labelledby="modalCierreDiarioLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalCierreDiarioLabel">Cierre de Caja</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <h6>Resumen de Ventas</h6>
+            <div>Total Ventas: <span id="totalVentasHoy">$ 0</span></div>
+            <div>Total Efectivo: <span id="totalEfectivoHoy">$ 0</span></div>
+            <div>Total Transferencias: <span id="totalTransferenciasHoy">$ 0</span></div>
+          </div>
+          <div class="mb-3">
+            <h6>Gastos del Día</h6>
+            <div>Total Gastos: <span id="totalGastosHoy">$ 0</span></div>
+          </div>
+          
+          <div class="mb-3">
+            <h6>Balance Final</h6>
+            <div>Balance: <span id="balanceFinal">$ 0</span></div>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Detalles Adicionales</label>
+            <textarea class="form-control bg-dark text-white border-light" id="detallesCierre" rows="3"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" onclick="guardarCierreDiario()">Guardar Cierre</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Cierre Operativo -->
+  <div class="modal fade" id="modalCierreOperativo" tabindex="-1" aria-labelledby="modalCierreOperativoLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalCierreOperativoLabel">
+            <i class="fas fa-user-clock"></i> Cierre Operativo - Empleados
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+
+          
+          <div class="mb-3">
+            <h6>
+              <i class="fas fa-clipboard-check"></i> Checklist de Cierre Operativo
+            </h6>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="checkLimpieza">
+              <label class="form-check-label" for="checkLimpieza">
+                Limpieza general completada
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="checkInventario">
+              <label class="form-check-label" for="checkInventario">
+                Inventario verificado
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="checkEquipos">
+              <label class="form-check-label" for="checkEquipos">
+                Equipos apagados correctamente
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="checkSeguridad">
+              <label class="form-check-label" for="checkSeguridad">
+                Verificación de seguridad realizada
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="checkMesas">
+              <label class="form-check-label" for="checkMesas">
+                Todas las mesas limpias y organizadas
+              </label>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <h6>
+              <i class="fas fa-user-check"></i> Información del Empleado
+            </h6>
+            <div class="mb-2">
+              <label class="form-label fw-bold fs-6">Nombre del empleado:</label>
+              <input type="text" class="form-control bg-dark text-white border-light" id="nombreEmpleado" required>
+            </div>
+            <div class="mb-2">
+              <label class="form-label fw-bold fs-6">Cargo:</label>
+              <select class="form-select bg-dark text-white border-light" id="cargoEmpleado" required>
+                <option value="">Seleccionar cargo</option>
+                <option value="mesero">Mesero</option>
+                <option value="cocinero">Cocinero</option>
+                <option value="cajero">Cajero</option>
+                <option value="ayudante">Ayudante</option>
+                <option value="supervisor">Supervisor</option>
+                <option value="gerente">Gerente</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label fw-bold fs-6">Horario de trabajo:</label>
+              <div class="row">
+                <div class="col-6">
+                  <input type="time" class="form-control bg-dark text-white border-light" id="horaInicio" required 
+                         style="color-scheme: dark;">
+                </div>
+                <div class="col-6">
+                  <input type="time" class="form-control bg-dark text-white border-light" id="horaFin" required 
+                         style="color-scheme: dark;">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <h6>
+              <i class="fas fa-handshake"></i> Entrega de Turno
+            </h6>
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle"></i>
+              <strong>Información:</strong> Registre quién recibe el turno y cuánto dinero deja como base de caja.
+            </div>
+            <div class="row">
+              <div class="col-md-6">
+                <label class="form-label">Nombre de quien recibe el turno</label>
+                <input type="text" class="form-control bg-dark text-white border-light" id="nombreRecibeTurno" 
+                       placeholder="Nombre completo de quien recibe">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Cargo de quien recibe</label>
+                <select class="form-select bg-dark text-white border-light" id="cargoRecibeTurno">
+                  <option value="">Seleccionar cargo</option>
+                  <option value="mesero">Mesero</option>
+                  <option value="cocinero">Cocinero</option>
+                  <option value="cajero">Cajero</option>
+                  <option value="ayudante">Ayudante</option>
+                  <option value="supervisor">Supervisor</option>
+                  <option value="gerente">Gerente</option>
+                  <option value="otro">Otro</option>
+                </select>
+              </div>
+            </div>
+            <div class="row mt-2">
+              <div class="col-md-6">
+                <label class="form-label">Base de caja que deja</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input type="number" class="form-control bg-dark text-white border-light" id="baseCajaDeja" 
+                         placeholder="0" min="0" step="1000">
+                </div>
+                <small class="text-muted">Monto que deja como base para el siguiente turno</small>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Observaciones de entrega</label>
+                <textarea class="form-control bg-dark text-white border-light" id="observacionesEntrega" rows="2" 
+                          placeholder="Notas sobre la entrega del turno..."></textarea>
+              </div>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <h6>
+              <i class="fas fa-calculator"></i> Totales de Ventas (Opcional)
+            </h6>
+            <div class="alert alert-warning">
+              <i class="fas fa-exclamation-triangle"></i>
+              <strong>Importante:</strong> Estos totales son ingresados manualmente por el empleado. No se toman del sistema.
+            </div>
+            <div class="row">
+              <div class="col-md-6">
+                <label class="form-label">Total en Efectivo</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input type="number" class="form-control bg-dark text-white border-light" id="totalEfectivoManual" 
+                         placeholder="0" min="0" step="100">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Total en Transferencia</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input type="number" class="form-control bg-dark text-white border-light" id="totalTransferenciaManual" 
+                         placeholder="0" min="0" step="100">
+                </div>
+              </div>
+            </div>
+            <div class="row mt-2">
+              <div class="col-md-6">
+                <label class="form-label">Total en Tarjeta</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input type="number" class="form-control bg-dark text-white border-light" id="totalTarjetaManual" 
+                         placeholder="0" min="0" step="100">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Total General</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input type="text" class="form-control bg-dark text-white border-light" id="totalGeneralManual" 
+                         readonly style="font-weight: bold; color: #28a745;">
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Observaciones del Turno</label>
+            <textarea class="form-control bg-dark text-white border-light" id="observacionesTurno" rows="3" 
+                      placeholder="Describa cualquier incidente, observación o nota importante del turno..."></textarea>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Tareas Pendientes para el Próximo Turno</label>
+            <textarea class="form-control bg-dark text-white border-light" id="tareasPendientes" rows="2" 
+                      placeholder="Liste las tareas que quedan pendientes..."></textarea>
+          </div>
+          
+          <!-- Ayuda del cierre operativo -->
+          <div class="text-center mb-3">
+            <button class="btn btn-sm btn-outline-info" onclick="mostrarAyudaEspecifica('cierre-operativo')" title="Ayuda sobre Cierre Operativo">
+              <i class="fas fa-question-circle me-1"></i>¿Necesitas ayuda?
+            </button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-success" onclick="exportarCierresOperativosExcel()"><i class="fas fa-file-excel"></i> Exportar a Excel</button>
+          <button type="button" class="btn btn-primary" onclick="guardarCierreOperativo()">Guardar e imprimir cierre</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Gastos -->
+  <div class="modal fade" id="modalGastos" tabindex="-1" aria-labelledby="modalGastosLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalGastosLabel">Gestión de Gastos</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Formulario de Gastos -->
+          <form id="formGasto" class="mb-4">
+            <div class="row">
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label for="descripcionGasto" class="form-label">Descripción</label>
+                  <input type="text" class="form-control bg-dark text-white border-light" id="descripcionGasto" required>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label for="montoGasto" class="form-label">Monto</label>
+                  <input type="number" class="form-control bg-dark text-white border-light" id="montoGasto" required>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label for="fechaGasto" class="form-label">Fecha</label>
+                  <input type="date" class="form-control bg-dark text-white border-light" id="fechaGasto" required>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-info" id="btnGuardarGasto" onclick="guardarGasto()">
+              <i class="fas fa-save"></i> Guardar Gasto
+            </button>
+          </form>
+
+          <!-- Tabla de Gastos -->
+          <div class="table-responsive">
+            <table class="table table-dark" id="tablaGastos">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Descripción</th>
+                  <th>Monto</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Los gastos se cargarán aquí -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Configuración de Cierre -->
+  <div class="modal fade" id="modalConfiguracionCierre" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title">Configurar Hora de Cierre</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="activarHoraCierre">
+              <label class="form-check-label" for="activarHoraCierre">
+                Activar hora de cierre automático
+              </label>
+            </div>
+            <small class="text-muted">Si desactiva esta opción, no habrá restricciones de horario</small>
+          </div>
+          <div id="configuracionHora" class="mb-3">
+            <label class="form-label">Hora de Cierre</label>
+            <div class="input-group">
+              <input type="number" id="horaCierre" class="form-control bg-dark text-white border-light" 
+                     min="1" max="12" value="11" placeholder="Hora (1-12)">
+              <span class="input-group-text bg-dark text-white border-light">:</span>
+              <input type="number" id="minutoCierre" class="form-control bg-dark text-white border-light" 
+                     min="0" max="59" value="30" placeholder="Minutos (0-59)">
+              <select id="periodoCierre" class="form-select bg-dark text-white border-light">
+                <option value="AM">AM</option>
+                <option value="PM" selected>PM</option>
+              </select>
+            </div>
+            <small class="text-muted">Ejemplo: 11:30 PM para cerrar a las 11:30 de la noche</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" onclick="guardarConfiguracionCierre()">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Ayuda Contextual -->
+  <div class="modal fade" id="modalAyuda" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="fas fa-question-circle text-info"></i>
+            Ayuda: <span id="tituloAyuda">Página Principal</span>
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="contenidoAyuda"></div>
+          <div id="enlacesAyuda" class="mt-3">
+            <h6>Enlaces Relacionados:</h6>
+            <div class="list-group list-group-flush bg-dark">
+              <!-- Enlaces dinámicos -->
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Acerca de -->
+  <div class="modal fade" id="modalAcercaDe" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="fas fa-info-circle text-info"></i>
+            Acerca de ToySoft IMG Version
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="text-center mb-3">
+            <img src="image/logo-ToySoft.png" alt="ToySoft Logo" class="img-fluid" style="max-width: 100px;">
+            <h4 class="text-info mt-2">ToySoft IMG Version</h4>
+            <p class="text-muted mb-0">Versión Gratuita - Sistema de Punto de Venta</p>
+          </div>
+          
+          <div class="row g-3">
+            <div class="col-md-6">
+              <h6><i class="fas fa-star text-warning"></i> Características</h6>
+              <ul class="list-unstyled small">
+                <li><i class="fas fa-check text-success me-1"></i>Sistema POS completo</li>
+                <li><i class="fas fa-check text-success me-1"></i>Gestión de inventario</li>
+                <li><i class="fas fa-check text-success me-1"></i>Control de gastos</li>
+                <li><i class="fas fa-check text-success me-1"></i>Historial de ventas</li>
+                <li><i class="fas fa-check text-success me-1"></i>Interfaz moderna y responsive</li>
+                <li><i class="fas fa-check text-success me-1"></i>Instalable como PWA</li>
+              </ul>
+            </div>
+            <div class="col-md-6">
+              <h6><i class="fas fa-heart text-danger"></i> Soporte</h6>
+              <p class="small mb-2">Esta es una versión gratuita desarrollada para ayudar a pequeños negocios.</p>
+              <div class="text-center">
+                <a href="https://wa.me/573192364724" target="_blank" class="btn btn-success btn-sm">
+                  <i class="fab fa-whatsapp me-1"></i>Contactar por WhatsApp
+                </a>
+                <p class="mt-1 small">Colombia: +57 319 236 4724</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Nueva sección sobre versión completa -->
+          <div class="mt-3 p-3 bg-primary rounded">
+            <div class="text-center">
+              <h6><i class="fas fa-crown text-warning"></i> ¿Necesitas Más Funcionalidades?</h6>
+              <p class="mb-2 small">Si tu negocio requiere funcionalidades avanzadas:</p>
+              <div class="row g-2 text-start">
+                <div class="col-md-6">
+                  <ul class="list-unstyled small">
+                    <li><i class="fas fa-plus text-success me-1"></i>Múltiples sucursales</li>
+                    <li><i class="fas fa-plus text-success me-1"></i>Reportes avanzados</li>
+                    <li><i class="fas fa-plus text-success me-1"></i>Integración con impresoras</li>
+                    <li><i class="fas fa-plus text-success me-1"></i>Backup en la nube</li>
+                  </ul>
+                </div>
+                <div class="col-md-6">
+                  <ul class="list-unstyled small">
+                    <li><i class="fas fa-plus text-success me-1"></i>Soporte técnico prioritario</li>
+                    <li><i class="fas fa-plus text-success me-1"></i>Personalización completa</li>
+                    <li><i class="fas fa-plus text-success me-1"></i>Capacitación incluida</li>
+                    <li><i class="fas fa-plus text-success me-1"></i>Actualizaciones continuas</li>
+                  </ul>
+                </div>
+              </div>
+              <div class="mt-2">
+                <a href="https://wa.me/573192364724?text=Hola,%20me%20interesa%20conocer%20más%20sobre%20la%20versión%20completa%20de%20ToySoft" target="_blank" class="btn btn-warning btn-sm">
+                  <i class="fas fa-crown me-1"></i>¡Solicitar Versión Completa!
+                </a>
+                <p class="mt-1 small text-light">Consulta precios y características especiales</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="mt-3 p-2 bg-secondary rounded">
+            <h6 class="small"><i class="fas fa-info-circle text-info"></i> Información Legal</h6>
+            <p class="mb-1 small">• Esta es la versión IMG Version del software ToySoft</p>
+            <p class="mb-1 small">• Puede ser utilizada libremente para fines comerciales</p>
+            <p class="mb-1 small">• No se requiere licencia ni pago por su uso</p>
+            <p class="mb-0 small">• Desarrollado por Emil Jiménez Ortiz</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="text-center py-1 mt-1">
+    <div class="container">
+      <div class="row g-1">
+        <div class="col-md-6">
+          <p class="mb-0 small">&copy; 2024 Emil Jiménez Ortiz - Desarrollador Web</p>
+          <p class="mb-0 small text-info"><strong>Versión IMG Version</strong></p>
+        </div>
+        <div class="col-md-6">
+          <p class="mb-0 small">¿Necesitas ayuda o soporte técnico?</p>
+          <a href="https://wa.me/573192364724" target="_blank" class="btn btn-success btn-sm">
+            <i class="fab fa-whatsapp me-1"></i>Contactar por WhatsApp
+          </a>
+          <p class="mt-0 small text-muted">Colombia: +57 319 236 4724</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <script src="seguridad.js"></script>
+  <script src="install.js"></script>
+  <script src="ayuda.js"></script>
+  <script src="app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Lógica de sesión existente...
+      // ...
+      // Al final de la verificación de sesión:
+      document.body.style.display = 'block';
+      if (localStorage.getItem('sesionActiva') === 'true') {
+        document.getElementById('appSection').style.display = 'block';
+        document.getElementById('loginSection').style.display = 'none';
+      } else {
+        document.getElementById('loginSection').style.display = 'block';
+        document.getElementById('appSection').style.display = 'none';
+      }
+    });
+
+    // ===== FUNCIONES DE CIERRE OPERATIVO =====
+
+    // Función para mostrar el modal de cierre operativo
+    function mostrarModalCierreOperativo() {
+      try {
+        console.log('Iniciando mostrarModalCierreOperativo...');
+        
+        // Limpiar formulario
+        document.getElementById('nombreEmpleado').value = '';
+        document.getElementById('cargoEmpleado').value = '';
+        document.getElementById('horaInicio').value = '';
+        document.getElementById('horaFin').value = '';
+        document.getElementById('observacionesTurno').value = '';
+        document.getElementById('tareasPendientes').value = '';
+        
+        // Limpiar totales manuales
+        document.getElementById('totalEfectivoManual').value = '';
+        document.getElementById('totalTransferenciaManual').value = '';
+        document.getElementById('totalTarjetaManual').value = '';
+        document.getElementById('totalGeneralManual').value = '';
+        
+        // Limpiar campos de entrega de turno
+        document.getElementById('nombreRecibeTurno').value = '';
+        document.getElementById('cargoRecibeTurno').value = '';
+        document.getElementById('baseCajaDeja').value = '';
+        document.getElementById('observacionesEntrega').value = '';
+        
+        // Desmarcar checkboxes
+        document.getElementById('checkLimpieza').checked = false;
+        document.getElementById('checkInventario').checked = false;
+        document.getElementById('checkEquipos').checked = false;
+        document.getElementById('checkSeguridad').checked = false;
+        document.getElementById('checkMesas').checked = false;
+        
+        // Configurar eventos para cálculo automático de totales
+        configurarCalculoAutomatico();
+        
+        // Mostrar el modal
+        const modal = new bootstrap.Modal(document.getElementById('modalCierreOperativo'));
+        modal.show();
+        
+        console.log('Modal de cierre operativo mostrado correctamente');
+      } catch (error) {
+        console.error('Error en mostrarModalCierreOperativo:', error);
+        alert('Error al mostrar el cierre operativo: ' + error.message);
+      }
+    }
+
+    // Función para configurar el cálculo automático de totales
+    function configurarCalculoAutomatico() {
+      const efectivoInput = document.getElementById('totalEfectivoManual');
+      const transferenciaInput = document.getElementById('totalTransferenciaManual');
+      const tarjetaInput = document.getElementById('totalTarjetaManual');
+      const totalGeneralInput = document.getElementById('totalGeneralManual');
+
+      // Función para calcular el total
+      function calcularTotal() {
+        const efectivo = parseFloat(efectivoInput.value) || 0;
+        const transferencia = parseFloat(transferenciaInput.value) || 0;
+        const tarjeta = parseFloat(tarjetaInput.value) || 0;
+        const total = efectivo + transferencia + tarjeta;
+        
+        totalGeneralInput.value = total.toLocaleString('es-CO');
+      }
+
+      // Agregar eventos para recalcular automáticamente
+      efectivoInput.addEventListener('input', calcularTotal);
+      transferenciaInput.addEventListener('input', calcularTotal);
+      tarjetaInput.addEventListener('input', calcularTotal);
+    }
+
+    // Función para guardar cierre operativo
+    function guardarCierreOperativo() {
+      try {
+        // Validar campos requeridos
+        const nombreEmpleado = document.getElementById('nombreEmpleado').value.trim();
+        const cargoEmpleado = document.getElementById('cargoEmpleado').value;
+        const horaInicio = document.getElementById('horaInicio').value;
+        const horaFin = document.getElementById('horaFin').value;
+
+        if (!nombreEmpleado || !cargoEmpleado || !horaInicio || !horaFin) {
+          alert('Por favor complete todos los campos requeridos');
+          return;
+        }
+
+        // Obtener valores de checkboxes
+        const checklist = {
+          limpieza: document.getElementById('checkLimpieza').checked,
+          inventario: document.getElementById('checkInventario').checked,
+          equipos: document.getElementById('checkEquipos').checked,
+          seguridad: document.getElementById('checkSeguridad').checked,
+          mesas: document.getElementById('checkMesas').checked
+        };
+
+        // Obtener información de entrega de turno
+        const nombreRecibeTurno = document.getElementById('nombreRecibeTurno').value.trim();
+        const cargoRecibeTurno = document.getElementById('cargoRecibeTurno').value;
+        const baseCajaDeja = parseFloat(document.getElementById('baseCajaDeja').value) || 0;
+        const observacionesEntrega = document.getElementById('observacionesEntrega').value.trim();
+
+        // Obtener observaciones y tareas pendientes
+        const observaciones = document.getElementById('observacionesTurno').value.trim();
+        const tareasPendientes = document.getElementById('tareasPendientes').value.trim();
+
+        // Obtener totales manuales
+        const totalEfectivo = parseFloat(document.getElementById('totalEfectivoManual').value) || 0;
+        const totalTransferencia = parseFloat(document.getElementById('totalTransferenciaManual').value) || 0;
+        const totalTarjeta = parseFloat(document.getElementById('totalTarjetaManual').value) || 0;
+        const totalGeneral = totalEfectivo + totalTransferencia + totalTarjeta;
+
+        // Crear objeto de cierre operativo
+        const cierreOperativo = {
+          id: Date.now().toString(),
+          fecha: new Date().toISOString(),
+          empleado: {
+            nombre: nombreEmpleado,
+            cargo: cargoEmpleado,
+            horaInicio: horaInicio,
+            horaFin: horaFin
+          },
+          entregaTurno: {
+            nombreRecibe: nombreRecibeTurno,
+            cargoRecibe: cargoRecibeTurno,
+            baseCajaDeja: baseCajaDeja,
+            observacionesEntrega: observacionesEntrega
+          },
+          checklist: checklist,
+          totales: {
+            efectivo: totalEfectivo,
+            transferencia: totalTransferencia,
+            tarjeta: totalTarjeta,
+            general: totalGeneral
+          },
+          observaciones: observaciones,
+          tareasPendientes: tareasPendientes,
+          completado: true
+        };
+
+        // Guardar en localStorage
+        const historialCierresOperativos = JSON.parse(localStorage.getItem('historialCierresOperativos')) || [];
+        historialCierresOperativos.push(cierreOperativo);
+        localStorage.setItem('historialCierresOperativos', JSON.stringify(historialCierresOperativos));
+
+        // Imprimir cierre operativo
+        imprimirCierreOperativo(cierreOperativo);
+
+        // Cerrar modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalCierreOperativo'));
+        modal.hide();
+
+        // Mostrar mensaje de éxito
+        alert('Cierre operativo guardado exitosamente');
+
+      } catch (error) {
+        console.error('Error al guardar cierre operativo:', error);
+        alert('Error al guardar el cierre operativo: ' + error.message);
+      }
+    }
+
+    // Función para imprimir cierre operativo
+    function imprimirCierreOperativo(cierre) {
+      try {
+        // Obtener información del negocio
+        const datosNegocio = JSON.parse(localStorage.getItem('datosNegocio'));
+
+        // Crear ventana de impresión
+        const ventana = window.open('', 'ImpresionCierreOperativo', 'width=400,height=600,scrollbars=yes');
+        if (!ventana) {
+          alert('Por favor, permite las ventanas emergentes para este sitio');
+          return;
+        }
+
+        const fecha = new Date(cierre.fecha);
+        const checklistCompletado = Object.values(cierre.checklist).filter(item => item).length;
+        const checklistTotal = Object.keys(cierre.checklist).length;
+
+        let infoNegocio = '';
+        if (datosNegocio && (
+          datosNegocio.nombre || datosNegocio.nit || datosNegocio.direccion || datosNegocio.correo || datosNegocio.telefono
+        )) {
+          infoNegocio += '<div class="border-top mt-1">';
+          if (datosNegocio.nombre) infoNegocio += `<div><strong>${datosNegocio.nombre}</strong></div>`;
+          if (datosNegocio.nit) infoNegocio += `<div>NIT/Cédula: ${datosNegocio.nit}</div>`;
+          if (datosNegocio.direccion) infoNegocio += `<div>Dirección: ${datosNegocio.direccion}</div>`;
+          if (datosNegocio.correo) infoNegocio += `<div>Correo: ${datosNegocio.correo}</div>`;
+          if (datosNegocio.telefono) infoNegocio += `<div>Teléfono: ${datosNegocio.telefono}</div>`;
+          infoNegocio += '</div>';
+        }
+
+        const contenido = `
+          <html>
+            <head>
+              <title>Cierre Operativo</title>
+              <style>
+                body { font-family: monospace; font-size: 14px; width: 57mm; margin: 0; padding: 1mm; }
+                .text-center { text-align: center; }
+                .text-right { text-align: right; }
+                .mb-1 { margin-bottom: 0.5mm; }
+                .mt-1 { margin-top: 0.5mm; }
+                .border-top { border-top: 1px dashed #000; margin-top: 1mm; padding-top: 1mm; }
+                .header { border-bottom: 1px dashed #000; padding-bottom: 1mm; margin-bottom: 1mm; }
+                .total-row { font-weight: bold; font-size: 16px; }
+                .botones-impresion { position: fixed; top: 10px; right: 10px; z-index: 1000; background: #fff; padding: 5px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+                .botones-impresion button { margin: 0 5px; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+                .botones-impresion button:hover { background: #0056b3; }
+                .logo-container { text-align: center; margin-bottom: 2mm; }
+                .logo-container img { max-width: 100%; max-height: 120px; }
+                .checklist-item { margin-bottom: 0.5mm; }
+                .checklist-item.completado::before { content: "✓ "; color: green; font-weight: bold; }
+                .checklist-item.pendiente::before { content: "✗ "; color: red; font-weight: bold; }
+                @media print { .botones-impresion { display: none; } @page { margin: 0; size: 57mm auto; } body { width: 57mm; } }
+              </style>
+            </head>
+            <body>
+              <div class="botones-impresion">
+                <button onclick="window.print()">Imprimir</button>
+                <button onclick="window.close()">Cerrar</button>
+              </div>
+
+              <div class="header text-center">
+                <h2 style="margin: 0; font-size: 14px;">CIERRE OPERATIVO</h2>
+                <div class="mb-1">${fecha.toLocaleDateString()}</div>
+                <div class="mb-1">${fecha.toLocaleTimeString()}</div>
+              </div>
+
+              <div class="border-top">
+                <div class="mb-1"><strong>Información del Empleado</strong></div>
+                <div class="mb-1">Nombre: ${cierre.empleado.nombre}</div>
+                <div class="mb-1">Cargo: ${cierre.empleado.cargo}</div>
+                <div class="mb-1">Horario: ${cierre.empleado.horaInicio} - ${cierre.empleado.horaFin}</div>
+              </div>
+
+              ${cierre.entregaTurno && cierre.entregaTurno.nombreRecibe ? `
+              <div class="border-top">
+                <div class="mb-1"><strong>Entrega de Turno</strong></div>
+                <div class="mb-1">Recibe: ${cierre.entregaTurno.nombreRecibe}</div>
+                <div class="mb-1">Cargo: ${cierre.entregaTurno.cargoRecibe || 'No especificado'}</div>
+                <div class="mb-1">Base de caja: $ ${cierre.entregaTurno.baseCajaDeja.toLocaleString()}</div>
+                ${cierre.entregaTurno.observacionesEntrega ? `<div class="mb-1">Observaciones: ${cierre.entregaTurno.observacionesEntrega}</div>` : ''}
+              </div>
+              ` : ''}
+              
+              <div class="border-top">
+                <div class="mb-1"><strong>Checklist de Cierre</strong></div>
+                <div class="mb-1">Progreso: ${checklistCompletado}/${checklistTotal} tareas completadas</div>
+                <div class="checklist-item ${cierre.checklist.limpieza ? 'completado' : 'pendiente'}">Limpieza general completada</div>
+                <div class="checklist-item ${cierre.checklist.inventario ? 'completado' : 'pendiente'}">Inventario verificado</div>
+                <div class="checklist-item ${cierre.checklist.equipos ? 'completado' : 'pendiente'}">Equipos apagados correctamente</div>
+                <div class="checklist-item ${cierre.checklist.seguridad ? 'completado' : 'pendiente'}">Verificación de seguridad realizada</div>
+                <div class="checklist-item ${cierre.checklist.mesas ? 'completado' : 'pendiente'}">Todas las mesas limpias y organizadas</div>
+              </div>
+              
+              ${cierre.totales && cierre.totales.general > 0 ? `
+              <div class="border-top">
+                <div class="mb-1"><strong>Totales de Ventas (Manual)</strong></div>
+                <div class="mb-1">Efectivo: $ ${cierre.totales.efectivo.toLocaleString()}</div>
+                <div class="mb-1">Transferencia: $ ${cierre.totales.transferencia.toLocaleString()}</div>
+                <div class="mb-1">Tarjeta: $ ${cierre.totales.tarjeta.toLocaleString()}</div>
+                <div class="mb-1 total-row">Total General: $ ${cierre.totales.general.toLocaleString()}</div>
+              </div>
+              ` : ''}
+              
+              ${cierre.observaciones ? `
+              <div class="border-top">
+                <div class="mb-1"><strong>Observaciones del Turno</strong></div>
+                <div class="mb-1">${cierre.observaciones}</div>
+              </div>
+              ` : ''}
+              
+              ${cierre.tareasPendientes ? `
+              <div class="border-top">
+                <div class="mb-1"><strong>Tareas Pendientes</strong></div>
+                <div class="mb-1">${cierre.tareasPendientes}</div>
+              </div>
+              ` : ''}
+              
+              ${infoNegocio}
+              
+              <div class="text-center mt-1">
+                <div class="border-top">¡Cierre Operativo Completado!</div>
+                <div class="border-top">ToySoft POS</div>
+              </div>
+              
+              <div class="border-top text-center mt-3">
+                <div class="mb-1">Firma del Empleado: _________________</div>
+                ${cierre.entregaTurno && cierre.entregaTurno.nombreRecibe ? 
+                  `<div class="mb-1">Firma de quien recibe: _________________</div>` : ''}
+                <div class="mb-1">Fecha: ${fecha.toLocaleDateString()}</div>
+              </div>
+            </body>
+          </html>
+        `;
+
+        ventana.document.write(contenido);
+        ventana.document.close();
+        
+      } catch (error) {
+        console.error('Error al imprimir cierre operativo:', error);
+        alert('Error al generar el cierre operativo: ' + error.message);
+      }
+    }
+
+    // Función para exportar cierres operativos a Excel
+    function exportarCierresOperativosExcel() {
+      try {
+        // Verificar si XLSX está disponible
+        if (typeof XLSX === 'undefined') {
+          alert('La funcionalidad de exportación a Excel no está disponible. Por favor, instale la librería XLSX.');
+          return;
+        }
+
+        // Obtener cierres operativos
+        const cierres = JSON.parse(localStorage.getItem('historialCierresOperativos')) || [];
+        
+        if (cierres.length === 0) {
+          alert('No hay cierres operativos para exportar');
+          return;
+        }
+
+        // Crear un nuevo libro de Excel
+        const wb = XLSX.utils.book_new();
+        
+        // Preparar los datos para la hoja de cálculo
+        const datos = cierres.map(cierre => ({
+          'Fecha': new Date(cierre.fecha).toLocaleString(),
+          'Empleado': cierre.empleado.nombre,
+          'Cargo': cierre.empleado.cargo,
+          'Hora Inicio': cierre.empleado.horaInicio,
+          'Hora Fin': cierre.empleado.horaFin,
+          'Limpieza': cierre.checklist.limpieza ? 'Sí' : 'No',
+          'Inventario': cierre.checklist.inventario ? 'Sí' : 'No',
+          'Equipos': cierre.checklist.equipos ? 'Sí' : 'No',
+          'Seguridad': cierre.checklist.seguridad ? 'Sí' : 'No',
+          'Mesas': cierre.checklist.mesas ? 'Sí' : 'No',
+          'Tareas Completadas': `${Object.values(cierre.checklist).filter(item => item).length}/${Object.keys(cierre.checklist).length}`,
+          'Total Efectivo': cierre.totales ? cierre.totales.efectivo : 0,
+          'Total Transferencia': cierre.totales ? cierre.totales.transferencia : 0,
+          'Total Tarjeta': cierre.totales ? cierre.totales.tarjeta : 0,
+          'Total General': cierre.totales ? cierre.totales.general : 0,
+          'Observaciones': cierre.observaciones || '',
+          'Tareas Pendientes': cierre.tareasPendientes || ''
+        }));
+
+        // Crear la hoja de cálculo
+        const ws = XLSX.utils.json_to_sheet(datos);
+
+        // Ajustar el ancho de las columnas
+        const anchos = [
+          { wch: 20 }, // Fecha
+          { wch: 20 }, // Empleado
+          { wch: 15 }, // Cargo
+          { wch: 12 }, // Hora Inicio
+          { wch: 12 }, // Hora Fin
+          { wch: 10 }, // Limpieza
+          { wch: 10 }, // Inventario
+          { wch: 10 }, // Equipos
+          { wch: 10 }, // Seguridad
+          { wch: 10 }, // Mesas
+          { wch: 15 }, // Tareas Completadas
+          { wch: 15 }, // Total Efectivo
+          { wch: 15 }, // Total Transferencia
+          { wch: 15 }, // Total Tarjeta
+          { wch: 15 }, // Total General
+          { wch: 40 }, // Observaciones
+          { wch: 40 }  // Tareas Pendientes
+        ];
+        ws['!cols'] = anchos;
+
+        // Agregar la hoja al libro
+        XLSX.utils.book_append_sheet(wb, ws, 'Cierres Operativos');
+
+        // Generar el archivo Excel
+        const fecha = new Date().toISOString().slice(0, 10);
+        XLSX.writeFile(wb, `Cierres_Operativos_${fecha}.xlsx`);
+        
+        alert('Archivo Excel de cierres operativos generado exitosamente');
+      } catch (error) {
+        console.error('Error al exportar cierres operativos a Excel:', error);
+        alert('Error al generar el archivo Excel: ' + error.message);
+      }
+    }
+  </script>
+</body>
+</html>

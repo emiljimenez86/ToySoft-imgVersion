@@ -1,0 +1,2777 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SoftToy POS</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <meta name="theme-color" content="#0dcaf0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ToySoft POS">
+  <meta name="application-name" content="ToySoft POS">
+  <meta name="msapplication-TileColor" content="#0dcaf0">
+  <meta name="msapplication-TileImage" content="./image/logo-ToySoft.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="./image/logo-ToySoft.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="./image/logo-ToySoft.png">
+  <link rel="apple-touch-icon" href="./image/logo-ToySoft.png">
+  <style>
+    .mesa-btn {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      margin: 10px;
+      font-size: 1.2rem;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mesa-btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(145deg, rgba(255,255,255,0.2), rgba(255,255,255,0));
+      border-radius: 50%;
+      transition: all 0.3s ease;
+    }
+
+    .mesa-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    .mesa-btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .mesa-activa {
+      background-color: #ff8c00;
+      border: 3px solid #ff8c00;
+      color: white;
+    }
+
+    .mesa-domicilio {
+      background-color: #4CAF50;
+      border: 3px solid #4CAF50;
+      color: white;
+    }
+
+    .mesa-recoger {
+      background-color: #2196F3;
+      border: 3px solid #2196F3;
+      color: white;
+    }
+
+    .mesa-seleccionada {
+      background-color: #ff4500;
+      border: 3px solid #ff4500;
+      color: white;
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5), 0 8px 16px rgba(0, 0, 0, 0.3);
+      transform: scale(1.05);
+    }
+
+    .mesa-seleccionada::after {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      right: -2px;
+      bottom: -2px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.8);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      50% {
+        transform: scale(1.1);
+        opacity: 0.5;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .mesa-numero {
+      font-size: 1.2em;
+      font-weight: bold;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    }
+    .mesa-btn i {
+      font-size: 1.5rem;
+    }
+    .mesa-btn .mesa-numero {
+      font-size: 0.8rem;
+      position: absolute;
+      bottom: 5px;
+    }
+    .mesas-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      padding: 20px;
+    }
+    .acciones-mesa {
+      display: none;
+      margin-top: 20px;
+    }
+    .acciones-mesa.visible {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    @media print {
+      .botones-impresion {
+        display: none;
+      }
+      @page {
+        margin: 0;
+        size: 57mm auto;
+      }
+      body {
+        width: 57mm;
+        padding: 1mm;
+        font-size: 12px;
+      }
+      table {
+        font-size: 12px;
+      }
+      th, td {
+        padding: 0.5mm;
+      }
+      .header h2 {
+        font-size: 13px !important;
+      }
+      .total-row {
+        font-size: 13px;
+      }
+      .border-top {
+        margin-top: 1mm;
+        padding-top: 1mm;
+      }
+      .mb-1 {
+        margin-bottom: 0.5mm;
+      }
+      .mt-1 {
+        margin-top: 0.5mm;
+      }
+      .logo-container img {
+        max-height: 80px;
+      }
+    }
+
+    #propina, #descuento {
+      margin-bottom: 4px !important;
+      margin-top: 0 !important;
+    }
+    .orden-panel .row.g-3.mt-3 {
+      margin-top: 8px !important;
+    }
+    .d-flex.flex-column.flex-md-row.justify-content-between.align-items-center.mt-4 {
+      margin-top: 8px !important;
+    }
+    /* Compactar tabla de orden */
+    .orden-panel table th, .orden-panel table td {
+      padding-top: 4px !important;
+      padding-bottom: 4px !important;
+      padding-left: 6px !important;
+      padding-right: 6px !important;
+      font-size: 0.98em;
+    }
+    .orden-panel .table-secondary {
+      padding-top: 2px !important;
+      padding-bottom: 2px !important;
+      font-size: 0.95em;
+      margin-bottom: 0 !important;
+    }
+    .orden-panel .table-responsive {
+      margin-bottom: 6px !important;
+    }
+    .orden-panel .row.g-3.mt-3 {
+      margin-top: 4px !important;
+      margin-bottom: 4px !important;
+    }
+    .orden-panel input.form-control {
+      margin-bottom: 2px !important;
+      margin-top: 0 !important;
+      padding-top: 4px !important;
+      padding-bottom: 4px !important;
+      font-size: 0.98em;
+    }
+  </style>
+</head>
+<body class="d-flex flex-column min-vh-100">
+  <div class="container-fluid py-3">
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center">
+          <!-- Header con logo y título -->
+          <div class="d-flex align-items-center mb-4" style="gap: 20px;">
+            <img src="image/logo-ToySoft.png" alt="Logo" style="height: 80px; width: 80px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.35), 0 1.5px 0 #fff inset; background: linear-gradient(145deg, #222 0%, #444 100%); border: 2px solid #0dcaf0; object-fit: cover;">
+            <h1 class="nombreRestaurante mb-0">ToySoft POS</h1>
+          </div>
+          <div class="d-flex gap-2">
+            <a href="historial.html" class="btn btn-info"><i class="fas fa-history"></i> Historial</a>
+            <button class="btn btn-outline-warning position-relative" onclick="mostrarModalRecordatorios()">
+              <i class="fas fa-bell"></i> Recordatorios
+              <span id="badgeRecordatoriosPOS" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display: none;">
+                0
+              </span>
+            </button>
+            <a href="gastos.html" class="btn btn-warning"><i class="fas fa-coins"></i> Gastos Diarios</a>
+            <button class="btn btn-success" onclick="mostrarModalPin('inventario')"><i class="fas fa-boxes"></i> Inventario</button>
+            <button class="btn btn-primary" onclick="mostrarModalCotizaciones()"><i class="fas fa-file-invoice"></i> Cotizaciones</button>
+            <button class="btn btn-outline-info" onclick="mostrarModalPin('cierre-administrativo')"><i class="fas fa-calculator"></i> Cierre Administrativo</button>
+            <button class="btn btn-outline-success" onclick="mostrarModalCierreOperativo()"><i class="fas fa-user-clock"></i> Cierre Operativo</button>
+            <button class="btn btn-outline-warning" onclick="mostrarModalPin('balance')"><i class="fas fa-chart-line"></i> Balance</button>
+            <a href="index.html" class="btn btn-outline-light"><i class="fas fa-home"></i> Volver al Inicio</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card bg-dark">
+          <div class="card-body">
+            <h4 class="text-info mb-3">Mesas Activas</h4>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div class="input-group" style="max-width: 300px;">
+                <input type="number" id="nuevaMesa" class="form-control bg-dark text-white border-light" 
+                       placeholder="N° de mesa" min="1">
+                <button class="btn btn-warning" onclick="crearNuevaMesa()"><i class="fas fa-plus"></i> Nueva Mesa</button>
+              </div>
+              <div class="d-flex gap-2">
+                <button class="btn btn-success" onclick="crearPedidoDomicilio()"><i class="fas fa-motorcycle"></i> Domicilio</button>
+                <button class="btn btn-primary" onclick="crearPedidoRecoger()"><i class="fas fa-shopping-bag"></i> Recoger</button>
+              </div>
+            </div>
+            <div class="mesas-container" id="mesasContainer">
+              <!-- Los botones de mesas se generarán dinámicamente -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <!-- Categorías a la izquierda -->
+      <div class="col-12 col-lg-3">
+        <div class="card bg-dark h-100">
+          <div class="card-body">
+            <h4 class="text-info mb-3">Categorías</h4>
+            <div id="categorias" class="d-grid gap-2"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Orden actual en el centro -->
+      <div class="col-12 col-lg-9">
+        <div class="card bg-dark h-100">
+          <div class="card-body d-flex flex-column">
+            <h4 class="text-info mb-3">Orden Actual - Mesa <span id="mesaActual">-</span></h4>
+            
+            <!-- Botones de acción fijos en la parte superior -->
+            <div class="d-flex gap-2 mb-3">
+              <button class="btn btn-danger" onclick="eliminarPedido()"><i class="fas fa-trash"></i> Eliminar Pedido</button>
+              <button class="btn btn-primary" onclick="enviarACocina()"><i class="fas fa-utensils"></i> Enviar a Cocina</button>
+              <button class="btn btn-warning" onclick="ventaRapida()"><i class="fas fa-bolt"></i> Venta Rápida</button>
+              <button class="btn btn-success" onclick="mostrarModalPago()"><i class="fas fa-receipt"></i> Generar Recibo</button>
+            </div>
+
+            <!-- Inputs de propina, descuento y domicilio -->
+            <div class="row g-3 mb-3">
+              <div class="col-12 col-md-4">
+                <label class="form-label fw-bold">Propina</label>
+                <input type="number" id="propina" class="form-control bg-dark text-white border-light" 
+                       min="0" max="100" placeholder="Ej: 10 para 10% de propina" />
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label fw-bold">Descuento</label>
+                <input type="number" id="descuento" class="form-control bg-dark text-white border-light" 
+                       min="0" placeholder="Ej: 5000 para $5000 de descuento" />
+              </div>
+              <div class="col-12 col-md-4" id="domicilioContainer" style="display: none;">
+                <label class="form-label fw-bold">Valor Domicilio</label>
+                <input type="number" id="valorDomicilio" class="form-control bg-dark text-white border-light" 
+                       min="0" placeholder="Ej: 3000 para $3000 de domicilio" />
+              </div>
+            </div>
+
+            <!-- Tabla de orden con scroll -->
+            <div class="table-responsive flex-grow-1" style="max-height: 400px; overflow-y: auto;">
+              <table class="table table-bordered table-dark table-striped" id="ordenTabla">
+                <thead class="table-secondary text-dark sticky-top">
+                  <tr>
+                    <th>Producto</th>
+                    <th>Cant</th>
+                    <th>Precio</th>
+                    <th>Total</th>
+                    <th>Detalles</th>
+                    <th>Eliminar</th>
+                  </tr>
+                </thead>
+                <tbody id="ordenCuerpo"></tbody>
+              </table>
+            </div>
+
+            <!-- Contenedor de cuadrícula visual de productos -->
+            <div id="productosGrid" class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3" style="margin-top:10px;"></div>
+
+            <!-- Total fijo en la parte inferior -->
+            <div class="mt-3">
+              <h2 class="mb-2 fw-bold" style="font-size: 2.5rem;">Total: <span id="totalOrden" class="text-success">$0</span></h2>
+              <div id="desgloseTotal" class="small text-muted"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Cliente -->
+  <div class="modal fade" id="modalCliente" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title">Seleccionar Cliente</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6>Buscar Cliente</h6>
+              <button class="btn btn-sm btn-outline-light" onclick="mostrarFormularioNuevoCliente()">
+                <i class="fas fa-plus"></i> Nuevo Cliente
+              </button>
+            </div>
+            <form onsubmit="event.preventDefault(); buscarClientes();" class="mb-3">
+              <div class="input-group input-group-sm">
+                <input type="text" class="form-control bg-dark text-white border-light" 
+                       id="buscarCliente" placeholder="Buscar por nombre o teléfono...">
+                <button class="btn btn-outline-light btn-sm" type="submit">
+                  <i class="fas fa-search fa-sm"></i>
+                </button>
+              </div>
+            </form>
+            <div class="list-group bg-dark" id="listaClientes">
+              <!-- Los clientes se cargarán dinámicamente -->
+            </div>
+          </div>
+          
+          <div id="formularioNuevoCliente" style="display: none;">
+            <h6 class="mb-3">Nuevo Cliente</h6>
+            <div class="mb-3">
+              <label class="form-label">Nombre</label>
+              <input type="text" class="form-control bg-dark text-white border-light" id="nuevoClienteNombre">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Teléfono</label>
+              <input type="tel" class="form-control bg-dark text-white border-light" id="nuevoClienteTelefono">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Dirección</label>
+              <input type="text" class="form-control bg-dark text-white border-light" id="nuevoClienteDireccion">
+            </div>
+            <div class="d-flex justify-content-end gap-2">
+              <button class="btn btn-secondary" onclick="ocultarFormularioNuevoCliente()">Cancelar</button>
+              <button class="btn btn-primary" onclick="guardarNuevoClienteDesdePOS()">Guardar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Pago -->
+  <div class="modal fade" id="modalPago" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title">Procesar Pago</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Sección de Clientes -->
+          <div class="mb-3">
+            <h6>Buscar Cliente (Opcional)</h6>
+            <form onsubmit="event.preventDefault(); buscarClientesPago();" class="mb-3">
+              <div class="input-group input-group-sm">
+                <input type="text" class="form-control bg-dark text-white border-light" 
+                       id="buscarClientePago" placeholder="Buscar por nombre o teléfono...">
+                <button class="btn btn-outline-light btn-sm" type="submit">
+                  <i class="fas fa-search fa-sm"></i>
+                </button>
+              </div>
+            </form>
+            <div id="listaClientesPago" class="list-group">
+              <!-- Los clientes se cargarán aquí -->
+            </div>
+          </div>
+
+          <!-- Sección de Totales -->
+          <div id="totalesSection" class="mb-3">
+            <div class="border-top border-light pt-2">
+              <div class="d-flex justify-content-between mb-1">
+                <span>Subtotal:</span>
+                <span id="subtotalModal">$ 0</span>
+              </div>
+              <div class="d-flex justify-content-between mb-1">
+                <span>Propina (0%):</span>
+                <span id="propinaModal">$ 0</span>
+              </div>
+              <div class="d-flex justify-content-between mb-1">
+                <span>Descuento:</span>
+                <span id="descuentoModal">$ 0</span>
+              </div>
+              <div class="d-flex justify-content-between mb-1 fw-bold">
+                <span>Total:</span>
+                <span id="totalModal">$ 0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Método de Pago -->
+          <div class="mb-3">
+            <label class="form-label">Método de Pago</label>
+            <select id="metodoPago" class="form-select bg-dark text-white border-light">
+              <option value="efectivo">Efectivo</option>
+              <option value="tarjeta">Tarjeta</option>
+              <option value="transferencia">Transferencia</option>
+              <option value="mixto">Mixto (Efectivo + Transferencia)</option>
+            </select>
+          </div>
+
+          <!-- Sección de Efectivo -->
+          <div id="efectivoSection" class="mb-3">
+            <div class="mb-3">
+              <label class="form-label">Monto en Efectivo</label>
+              <input type="number" id="montoRecibido" class="form-control bg-dark text-white border-light">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Devolver en efectivo</label>
+              <div id="cambio" class="form-control bg-dark text-white border-light">$ 0</div>
+            </div>
+          </div>
+
+          <!-- Sección de Transferencia -->
+          <div id="transferenciaSection" class="mb-3" style="display: none;">
+            <div class="mb-3">
+              <label class="form-label">Número de Transferencia</label>
+              <input type="text" id="numeroTransferencia" class="form-control bg-dark text-white border-light">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Monto por Transferencia</label>
+              <input type="number" id="montoTransferencia" class="form-control bg-dark text-white border-light">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" onclick="procesarPago()"><i class="fas fa-check"></i> Confirmar Pago</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Cierre de Caja -->
+  <div class="modal fade" id="modalCierreDiario" tabindex="-1" aria-labelledby="modalCierreDiarioLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalCierreDiarioLabel">
+            <i class="fas fa-calculator"></i> Cierre de Caja
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <h6>
+              <i class="fas fa-chart-bar"></i> Resumen de Ventas
+            </h6>
+            <div>Total Ventas: <span id="totalVentasHoy">$ 0</span></div>
+            <div>Efectivo: <span id="totalEfectivoHoy">$ 0</span></div>
+            <div>Transferencia: <span id="totalTransferenciaHoy">$ 0</span></div>
+            <div>Tarjeta: <span id="totalTarjetaHoy">$ 0</span></div>
+            <div>Crédito: <span id="totalCreditoHoy">$ 0</span></div>
+          </div>
+          
+          <div class="mb-3">
+            <h6>
+              <i class="fas fa-receipt"></i> Gastos del Día
+            </h6>
+            <div>Total Gastos: <span id="totalGastosHoy">$ 0</span></div>
+          </div>
+          
+          <div class="mb-3">
+            <h6>
+              <i class="fas fa-balance-scale"></i> Balance Final
+            </h6>
+            <div>Balance: <span id="balanceFinal">$ 0</span></div>
+          </div>
+
+          <div class="mb-3">
+            <h6>Créditos Pendientes</h6>
+            <div id="detallesCreditos" class="mt-2">
+              <!-- Los créditos pendientes se mostrarán aquí -->
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <h6>
+              <i class="fas fa-user-check"></i> Información del Cierre
+            </h6>
+            <div class="mb-2">
+              <label class="form-label fw-bold fs-6">Nombre de quien realiza el cierre:</label>
+              <input type="text" class="form-control bg-dark text-white border-light" id="nombreCierre" required>
+            </div>
+            <div class="mb-2">
+              <label class="form-label fw-bold fs-6">Nombre de quien recibe la caja:</label>
+              <input type="text" class="form-control bg-dark text-white border-light" id="nombreRecibe" required>
+            </div>
+            <div class="mb-2">
+              <label class="form-label fw-bold fs-6">Monto base para la caja:</label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="number" class="form-control bg-dark text-white border-light" id="montoBaseCaja" required>
+              </div>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Detalles Adicionales</label>
+            <textarea class="form-control bg-dark text-white border-light" id="detallesCierre" rows="3"></textarea>
+          </div>
+          
+          <!-- Ayuda general del cierre de caja -->
+          <div class="text-center mb-3">
+            <button class="btn btn-sm btn-outline-info" onclick="mostrarAyudaEspecifica('cierre-caja-general')" title="Ayuda sobre Cierre de Caja">
+              <i class="fas fa-question-circle me-1"></i>¿Necesitas ayuda?
+            </button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-success" onclick="exportarCierresDiariosExcel()"><i class="fas fa-file-excel"></i> Exportar a Excel</button>
+          <button type="button" class="btn btn-primary" onclick="guardarCierreDiario()">Guardar e imprimir cierre</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Cierre Operativo -->
+  <div class="modal fade" id="modalCierreOperativo" tabindex="-1" aria-labelledby="modalCierreOperativoLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalCierreOperativoLabel">
+            <i class="fas fa-user-clock"></i> Cierre Operativo - Empleados
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+
+          
+          <div class="mb-3">
+            <h6>
+              <i class="fas fa-clipboard-check"></i> Checklist de Cierre Operativo
+            </h6>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="checkLimpieza">
+              <label class="form-check-label" for="checkLimpieza">
+                Limpieza general completada
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="checkInventario">
+              <label class="form-check-label" for="checkInventario">
+                Inventario verificado
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="checkEquipos">
+              <label class="form-check-label" for="checkEquipos">
+                Equipos apagados correctamente
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="checkSeguridad">
+              <label class="form-check-label" for="checkSeguridad">
+                Verificación de seguridad realizada
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="checkMesas">
+              <label class="form-check-label" for="checkMesas">
+                Todas las mesas limpias y organizadas
+              </label>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <h6>
+              <i class="fas fa-user-check"></i> Información del Empleado
+            </h6>
+            <div class="mb-2">
+              <label class="form-label fw-bold fs-6">Nombre del empleado:</label>
+              <input type="text" class="form-control bg-dark text-white border-light" id="nombreEmpleado" required>
+            </div>
+            <div class="mb-2">
+              <label class="form-label fw-bold fs-6">Cargo:</label>
+              <select class="form-select bg-dark text-white border-light" id="cargoEmpleado" required>
+                <option value="">Seleccionar cargo</option>
+                <option value="mesero">Mesero</option>
+                <option value="cocinero">Cocinero</option>
+                <option value="cajero">Cajero</option>
+                <option value="ayudante">Ayudante</option>
+                <option value="supervisor">Supervisor</option>
+                <option value="gerente">Gerente</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label fw-bold fs-6">Horario de trabajo:</label>
+              <div class="row">
+                <div class="col-6">
+                  <input type="time" class="form-control bg-dark text-white border-light" id="horaInicio" required 
+                         style="color-scheme: dark;">
+                </div>
+                <div class="col-6">
+                  <input type="time" class="form-control bg-dark text-white border-light" id="horaFin" required 
+                         style="color-scheme: dark;">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <h6>
+              <i class="fas fa-handshake"></i> Entrega de Turno
+            </h6>
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle"></i>
+              <strong>Información:</strong> Registre quién recibe el turno y cuánto dinero deja como base de caja.
+            </div>
+            <div class="row">
+              <div class="col-md-6">
+                <label class="form-label">Nombre de quien recibe el turno</label>
+                <input type="text" class="form-control bg-dark text-white border-light" id="nombreRecibeTurno" 
+                       placeholder="Nombre completo de quien recibe">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Cargo de quien recibe</label>
+                <select class="form-select bg-dark text-white border-light" id="cargoRecibeTurno">
+                  <option value="">Seleccionar cargo</option>
+                  <option value="mesero">Mesero</option>
+                  <option value="cocinero">Cocinero</option>
+                  <option value="cajero">Cajero</option>
+                  <option value="ayudante">Ayudante</option>
+                  <option value="supervisor">Supervisor</option>
+                  <option value="gerente">Gerente</option>
+                  <option value="otro">Otro</option>
+                </select>
+              </div>
+            </div>
+            <div class="row mt-2">
+              <div class="col-md-6">
+                <label class="form-label">Base de caja que deja</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input type="number" class="form-control bg-dark text-white border-light" id="baseCajaDeja" 
+                         placeholder="0" min="0" step="1000">
+                </div>
+                <small class="text-muted">Monto que deja como base para el siguiente turno</small>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Observaciones de entrega</label>
+                <textarea class="form-control bg-dark text-white border-light" id="observacionesEntrega" rows="2" 
+                          placeholder="Notas sobre la entrega del turno..."></textarea>
+              </div>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <h6>
+              <i class="fas fa-calculator"></i> Totales de Ventas (Opcional)
+            </h6>
+            <div class="alert alert-warning">
+              <i class="fas fa-exclamation-triangle"></i>
+              <strong>Importante:</strong> Estos totales son ingresados manualmente por el empleado. No se toman del sistema.
+            </div>
+            <div class="row">
+              <div class="col-md-6">
+                <label class="form-label">Total en Efectivo</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input type="number" class="form-control bg-dark text-white border-light" id="totalEfectivoManual" 
+                         placeholder="0" min="0" step="100">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Total en Transferencia</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input type="number" class="form-control bg-dark text-white border-light" id="totalTransferenciaManual" 
+                         placeholder="0" min="0" step="100">
+                </div>
+              </div>
+            </div>
+            <div class="row mt-2">
+              <div class="col-md-6">
+                <label class="form-label">Total en Tarjeta</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input type="number" class="form-control bg-dark text-white border-light" id="totalTarjetaManual" 
+                         placeholder="0" min="0" step="100">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Total General</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input type="text" class="form-control bg-dark text-white border-light" id="totalGeneralManual" 
+                         readonly style="font-weight: bold; color: #28a745;">
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Observaciones del Turno</label>
+            <textarea class="form-control bg-dark text-white border-light" id="observacionesTurno" rows="3" 
+                      placeholder="Describa cualquier incidente, observación o nota importante del turno..."></textarea>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Tareas Pendientes para el Próximo Turno</label>
+            <textarea class="form-control bg-dark text-white border-light" id="tareasPendientes" rows="2" 
+                      placeholder="Liste las tareas que quedan pendientes..."></textarea>
+          </div>
+          
+          <!-- Ayuda del cierre operativo -->
+          <div class="text-center mb-3">
+            <button class="btn btn-sm btn-outline-info" onclick="mostrarAyudaEspecifica('cierre-operativo')" title="Ayuda sobre Cierre Operativo">
+              <i class="fas fa-question-circle me-1"></i>¿Necesitas ayuda?
+            </button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-success" onclick="exportarCierresOperativosExcel()"><i class="fas fa-file-excel"></i> Exportar a Excel</button>
+          <button type="button" class="btn btn-primary" onclick="guardarCierreOperativo()">Guardar e imprimir cierre</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Gastos -->
+  <div class="modal fade" id="modalGastos" tabindex="-1" aria-labelledby="modalGastosLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalGastosLabel">Gestión de Gastos</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Formulario de Gastos -->
+          <form id="formGasto" class="mb-4">
+            <div class="row">
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label for="descripcionGasto" class="form-label">Descripción</label>
+                  <input type="text" class="form-control bg-dark text-white border-light" id="descripcionGasto" required>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label for="montoGasto" class="form-label">Monto</label>
+                  <input type="number" class="form-control bg-dark text-white border-light" id="montoGasto" required>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label for="fechaGasto" class="form-label">Fecha</label>
+                  <input type="date" class="form-control bg-dark text-white border-light" id="fechaGasto" required>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-info" id="btnGuardarGasto" onclick="guardarGasto()">
+              <i class="fas fa-save"></i> Guardar Gasto
+            </button>
+          </form>
+
+          <!-- Tabla de Gastos -->
+          <div class="table-responsive">
+            <table class="table table-dark" id="tablaGastos">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Descripción</th>
+                  <th>Monto</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Los gastos se cargarán aquí -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Cotizaciones -->
+  <div class="modal fade" id="modalCotizaciones" tabindex="-1" aria-labelledby="modalCotizacionesLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalCotizacionesLabel">
+            <i class="fas fa-file-invoice"></i> Cotizaciones
+            <button class="btn btn-sm btn-outline-info ms-2" onclick="mostrarAyudaEspecifica('cotizaciones')" title="Ayuda">
+              <i class="fas fa-question-circle"></i>
+            </button>
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <div class="input-group">
+              <input type="text" id="buscarCotizacion" class="form-control bg-dark text-white" placeholder="Buscar por cliente o fecha...">
+              <button class="btn btn-outline-light" type="button" onclick="buscarCotizaciones()">
+                <i class="fas fa-search"></i>
+              </button>
+              <button class="btn btn-outline-info" type="button" onclick="mostrarAyudaEspecifica('buscar-cotizacion')" title="Ayuda de búsqueda">
+                <i class="fas fa-question-circle"></i>
+              </button>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-dark table-striped">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Fecha</th>
+                  <th>Cliente</th>
+                  <th>Total</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tablaCotizaciones">
+                <!-- Las cotizaciones se cargarán aquí -->
+              </tbody>
+            </table>
+          </div>
+          <div class="d-flex justify-content-end mt-2">
+            <button class="btn btn-info" onclick="imprimirCotizacionSeleccionada()">
+              <i class="fas fa-print"></i> Imprimir seleccionada
+            </button>
+            <button class="btn btn-outline-info ms-2" onclick="mostrarAyudaEspecifica('imprimir-cotizacion')" title="Ayuda de impresión">
+              <i class="fas fa-question-circle"></i>
+            </button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" onclick="mostrarModalNuevaCotizacion()">
+            <i class="fas fa-plus"></i> Nueva Cotización
+          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Nueva Cotización -->
+  <div class="modal fade" id="modalNuevaCotizacion" tabindex="-1" aria-labelledby="modalNuevaCotizacionLabel" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalNuevaCotizacionLabel">
+            <i class="fas fa-plus-circle"></i> Nueva Cotización
+            <button class="btn btn-sm btn-outline-info ms-2" onclick="mostrarAyudaEspecifica('nueva-cotizacion')" title="Ayuda">
+              <i class="fas fa-question-circle"></i>
+            </button>
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="clienteCotizacion" class="form-label">Cliente</label>
+              <div class="input-group">
+                <select class="form-select bg-dark text-white border-light" id="clienteCotizacion">
+                  <option value="">Seleccionar cliente</option>
+                </select>
+                <button class="btn btn-outline-light" type="button" onclick="mostrarModalNuevoCliente()">
+                  <i class="fas fa-plus"></i>
+                </button>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label for="fechaCotizacion" class="form-label">Fecha</label>
+              <input type="date" class="form-control bg-dark text-white border-light" id="fechaCotizacion">
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-12">
+              <div class="card bg-dark border-light">
+                <div class="card-header">
+                  <h6 class="mb-0">
+                    <i class="fas fa-plus"></i> Agregar Producto
+                  </h6>
+                </div>
+                <div class="card-body">
+                  <div class="row">
+                    <div class="col-md-4">
+                      <label for="categoriaProducto" class="form-label">Categoría</label>
+                      <select class="form-select bg-dark text-white border-light" id="categoriaProducto" onchange="filtrarProductosCotizacion()">
+                        <option value="">Todas las categorías</option>
+                      </select>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="buscarProducto" class="form-label">Buscar Producto</label>
+                      <div class="input-group">
+                        <input type="text" class="form-control bg-dark text-white border-light" id="buscarProducto" placeholder="Escriba para buscar..." onkeyup="buscarProductosCotizacion()">
+                        <button class="btn btn-outline-light" type="button" onclick="toggleProductoManual()">
+                          <i class="fas fa-pen"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="col-md-2">
+                      <label for="cantidadItem" class="form-label">Cantidad</label>
+                      <input type="number" class="form-control bg-dark text-white border-light" id="cantidadItem" min="1" value="1">
+                    </div>
+                    <div class="col-md-2">
+                      <label for="precioItem" class="form-label">Precio</label>
+                      <input type="number" class="form-control bg-dark text-white border-light" id="precioItem" min="0" placeholder="0">
+                    </div>
+                  </div>
+                  <div id="resultadosBusqueda" class="list-group mt-2" style="max-height: 200px; overflow-y: auto; display: none;">
+                  </div>
+                  <input type="text" class="form-control mt-2 bg-dark text-white border-light" id="productoManual" style="display: none;" placeholder="Escribir nombre del producto">
+                  <div class="row mt-3">
+                    <div class="col-12">
+                      <button class="btn btn-primary" onclick="agregarItemCotizacion()">
+                        <i class="fas fa-plus"></i> Agregar Producto
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="table-responsive mt-3">
+            <table class="table table-dark table-striped">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>Cantidad</th>
+                  <th>Precio</th>
+                  <th>Subtotal</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="itemsCotizacion">
+                <!-- Los items se agregarán aquí -->
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3" class="text-end"><strong>Total:</strong></td>
+                  <td colspan="2"><strong id="totalCotizacion">$0</strong></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" onclick="guardarCotizacion()">
+            <i class="fas fa-save"></i> Guardar Cotización
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Nuevo Cliente -->
+  <div class="modal fade" id="modalNuevoCliente" tabindex="-1" aria-labelledby="modalNuevoClienteLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalNuevoClienteLabel">Nuevo Cliente</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="formNuevoCliente">
+            <div class="mb-3">
+              <label for="nombreCliente" class="form-label">Nombre</label>
+              <input type="text" class="form-control bg-dark text-white border-light" id="nombreCliente" required>
+            </div>
+            <div class="mb-3">
+              <label for="telefonoCliente" class="form-label">Teléfono</label>
+              <input type="tel" class="form-control bg-dark text-white border-light" id="telefonoCliente">
+            </div>
+            <div class="mb-3">
+              <label for="direccionCliente" class="form-label">Dirección</label>
+              <input type="text" class="form-control bg-dark text-white border-light" id="direccionCliente">
+            </div>
+            <div class="mb-3">
+              <label for="emailCliente" class="form-label">Email</label>
+              <input type="email" class="form-control bg-dark text-white border-light" id="emailCliente">
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" onclick="guardarNuevoCliente()">
+            <i class="fas fa-save"></i> Guardar Cliente
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de PIN de Acceso -->
+  <div class="modal fade" id="modalPinAcceso" tabindex="-1" aria-labelledby="modalPinAccesoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalPinAccesoLabel">Acceso Restringido</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="pinAcceso" class="form-label">Ingrese el PIN de 4 dígitos</label>
+            <input type="password" class="form-control bg-dark text-white border-light" id="pinAcceso" 
+                   maxlength="4" pattern="[0-9]*" inputmode="numeric" 
+                   onkeypress="return event.charCode >= 48 && event.charCode <= 57">
+          </div>
+          <div id="mensajeErrorPin" class="text-danger" style="display: none;">
+            PIN incorrecto. Intente nuevamente.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" onclick="verificarPinAcceso()">
+            <i class="fas fa-unlock"></i> Acceder
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Agregar Item -->
+  <div class="modal fade" id="modalAgregarItem" tabindex="-1" aria-labelledby="modalAgregarItemLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalAgregarItemLabel">Agregar Item</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="productoItem" class="form-label">Producto</label>
+            <input type="text" class="form-control" id="productoItem" placeholder="Nombre del producto">
+          </div>
+          <div class="mb-3">
+            <label for="cantidadItem" class="form-label">Cantidad</label>
+            <input type="number" class="form-control" id="cantidadItem" min="1" value="1">
+          </div>
+          <div class="mb-3">
+            <label for="precioItem" class="form-label">Precio</label>
+            <input type="number" class="form-control" id="precioItem" min="0" step="0.01" placeholder="0.00">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" onclick="guardarItemCotizacion(
+            document.getElementById('productoItem').value,
+            document.getElementById('cantidadItem').value,
+            document.getElementById('precioItem').value
+          )">Agregar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Balance -->
+  <div class="modal fade" id="modalBalance" tabindex="-1" aria-labelledby="modalBalanceLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalBalanceLabel">Balance</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="tipoBalance" class="form-label">Tipo de Balance</label>
+              <select class="form-select" id="tipoBalance" onchange="generarBalance()">
+                <option value="semanal">Balance Semanal</option>
+                <option value="mensual">Balance Mensual</option>
+                <option value="anual">Balance Anual</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="fechaBalance" class="form-label">Fecha</label>
+              <input type="date" class="form-control" id="fechaBalance" onchange="generarBalance()">
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="card mb-3">
+                <div class="card-header">
+                  <h6 class="mb-0">Resumen de Ventas</h6>
+                </div>
+                <div class="card-body">
+                  <div class="table-responsive">
+                    <table class="table table-sm">
+                      <thead>
+                        <tr>
+                          <th>Método</th>
+                          <th class="text-end">Monto</th>
+                        </tr>
+                      </thead>
+                      <tbody id="resumenVentas">
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <th>Total Ventas</th>
+                          <th class="text-end" id="totalVentas">$ 0</th>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="card mb-3">
+                <div class="card-header">
+                  <h6 class="mb-0">Resumen de Gastos</h6>
+                </div>
+                <div class="card-body">
+                  <div class="table-responsive">
+                    <table class="table table-sm">
+                      <thead>
+                        <tr>
+                          <th>Total Gastos</th>
+                          <th class="text-end" id="totalGastos">$ 0</th>
+                        </tr>
+                      </thead>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h6 class="mb-0">Créditos Pendientes</h6>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>Cliente</th>
+                      <th>Fecha</th>
+                      <th class="text-end">Monto</th>
+                    </tr>
+                  </thead>
+                  <tbody id="creditosPendientes">
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <th colspan="2">Total Créditos</th>
+                      <th class="text-end" id="totalCreditos">$ 0</th>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+          <button type="button" class="btn btn-primary" onclick="imprimirBalance()">
+            <i class="fas fa-print"></i> Imprimir
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Cantidad para Productos -->
+  <div class="modal fade" id="modalCantidad" tabindex="-1" style="z-index: 1080;">
+    <div class="modal-dialog modal-sm">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="fas fa-plus-circle text-info"></i>
+            Seleccionar Cantidad
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body text-center">
+          <div class="mb-3">
+            <img id="productoImagen" src="" alt="Producto" class="img-fluid rounded" style="max-height: 100px; object-fit: cover;">
+          </div>
+          <h6 id="productoNombre" class="mb-3"></h6>
+          <p class="text-info fw-bold mb-3" id="productoPrecio"></p>
+          
+          <div class="d-flex justify-content-center align-items-center mb-3">
+            <button class="btn btn-outline-light btn-lg" onclick="cambiarCantidadModal(-1)">
+              <i class="fas fa-minus"></i>
+            </button>
+            <input type="number" id="cantidadProducto" class="form-control mx-3 text-center" 
+                   value="1" min="1" max="99" style="width: 80px; font-size: 1.2rem; font-weight: bold;">
+            <button class="btn btn-outline-light btn-lg" onclick="cambiarCantidadModal(1)">
+              <i class="fas fa-plus"></i>
+            </button>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Detalles (opcional)</label>
+            <textarea id="detallesProducto" class="form-control bg-dark text-white border-light" 
+                      rows="2" placeholder="Ej: Sin cebolla, bien cocido..."></textarea>
+          </div>
+          
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="fw-bold">Total:</span>
+            <span class="text-info fw-bold fs-5" id="totalProducto"></span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" onclick="confirmarAgregarProducto()">
+            <i class="fas fa-plus"></i> Agregar a la Orden
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Agregar Productos Venta Rápida -->
+  <div class="modal fade" id="modalAgregarProductosVentaRapida" tabindex="-1" style="z-index: 1090;">
+    <style>
+      #modalAgregarProductosVentaRapida .modal-dialog {
+        max-width: 100vw !important;
+        width: 100vw !important;
+        margin: 0 !important;
+        height: 100vh !important;
+      }
+      #modalAgregarProductosVentaRapida .modal-content {
+        height: 100vh !important;
+        border-radius: 0 !important;
+      }
+      #modalAgregarProductosVentaRapida .modal-body {
+        flex: 1;
+        overflow-y: auto;
+      }
+    </style>
+    <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <img src="image/logo-ToySoft.png" alt="ToySoft" style="width: 24px; height: 24px; margin-right: 8px; vertical-align: middle; border: 2px solid #0dcaf0; border-radius: 6px; box-shadow: 0 4px 8px rgba(13, 202, 240, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2); transform: translateY(-1px); transition: all 0.3s ease;">
+            <span style="color: #0dcaf0; font-weight: 600;">ToySoft</span> - <i class="fas fa-bolt text-warning"></i> Venta Rápida
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" onclick="limpiarPedidoVentaRapida()"></button>
+        </div>
+        <div class="modal-body d-flex flex-column">
+          <!-- Banner de información eliminado - La ayuda está disponible con F1 -->
+          
+          <!-- Categorías para venta rápida -->
+          <div class="mb-3">
+            <h6>Categorías:</h6>
+            <div id="categoriasVentaRapida" class="d-flex flex-wrap gap-2">
+              <!-- Se llenará dinámicamente -->
+            </div>
+          </div>
+          
+          <!-- Productos de la categoría seleccionada -->
+          <div class="mb-3 flex-grow-1">
+            <h6>Productos Disponibles:</h6>
+            <div id="productosVentaRapida" class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 row-cols-xxl-6 g-2">
+              <!-- Se llenará dinámicamente -->
+            </div>
+          </div>
+          
+          <!-- Lista de productos agregados -->
+          <div class="mb-3">
+            <h6>Productos en la Orden:</h6>
+            <div id="listaProductosVentaRapida" class="border border-secondary rounded p-2" style="max-height: 150px; overflow-y: auto;">
+              <p class="text-white text-center">No hay productos agregados</p>
+            </div>
+          </div>
+          
+          <!-- Total -->
+          <div class="d-flex justify-content-between align-items-center p-2 bg-secondary rounded">
+            <span class="fw-bold">TOTAL:</span>
+            <span class="text-warning fw-bold fs-5" id="totalVentaRapidaModal">$0</span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="limpiarPedidoVentaRapida()">Cancelar</button>
+          <button type="button" class="btn btn-info" onclick="mostrarVistaPreviaVentaRapida()" id="btnVistaPreviaVentaRapida" disabled>
+            <i class="fas fa-eye"></i> Vista Previa
+          </button>
+          <button type="button" class="btn btn-warning" onclick="procesarVentaRapidaDirecta()" id="btnProcesarVentaRapida" disabled>
+            <i class="fas fa-bolt"></i> Procesar Venta Rápida
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Confirmación de Venta Rápida -->
+  <div class="modal fade" id="modalVentaRapida" tabindex="-1" style="z-index: 1100;">
+    <div class="modal-dialog modal-md">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="fas fa-bolt text-warning"></i>
+            Confirmar Venta Rápida
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Productos Listos</strong><br>
+            Los productos se marcarán como "LISTO" y se procesará el pago inmediatamente.
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6">
+              <h6>Resumen de la Orden</h6>
+              <div id="resumenVentaRapida"></div>
+            </div>
+            <div class="col-md-6">
+              <h6>Método de Pago</h6>
+              <select id="metodoPagoVentaRapida" class="form-select bg-dark text-white border-light mb-3">
+                <option value="efectivo">Efectivo</option>
+                <option value="tarjeta">Tarjeta</option>
+                <option value="transferencia">Transferencia</option>
+              </select>
+              
+              <div id="seccionEfectivoVentaRapida">
+                <label class="form-label">Monto Recibido</label>
+                <input type="number" id="montoRecibidoVentaRapida" class="form-control bg-dark text-white border-light mb-2" 
+                       placeholder="0" oninput="calcularCambioVentaRapida()">
+                <div class="form-control bg-dark text-white border-light" id="cambioVentaRapida">Cambio: $0</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="mt-3 p-3 bg-secondary rounded">
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="fw-bold fs-5">TOTAL A PAGAR:</span>
+              <span class="text-light fw-bold fs-4" id="totalVentaRapida"></span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-warning" onclick="confirmarVentaRapida()">
+            <i class="fas fa-bolt"></i> Confirmar Venta Rápida
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Recordatorios -->
+  <div class="modal fade" id="modalRecordatorios" tabindex="-1" style="z-index: 1080;">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="fas fa-bell text-warning"></i>
+            Recordatorios de Tareas
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Panel de Crear Recordatorio -->
+          <div class="card bg-secondary text-white mb-4">
+            <div class="card-header">
+              <h6 class="mb-0">
+                <i class="fas fa-plus-circle me-2"></i>Crear Nuevo Recordatorio
+              </h6>
+            </div>
+            <div class="card-body">
+              <form id="formRecordatorioPOS" onsubmit="event.preventDefault(); crearRecordatorioDesdePOS();">
+                <div class="row g-3">
+                  <div class="col-12 col-md-4">
+                    <label for="tituloRecordatorioPOS" class="form-label">Título *</label>
+                    <input type="text" id="tituloRecordatorioPOS" class="form-control" placeholder="Ej: Limpiar mesa 5" required>
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <label for="tipoRecordatorioPOS" class="form-label">Tipo *</label>
+                    <select id="tipoRecordatorioPOS" class="form-select" required>
+                      <option value="">Seleccionar tipo</option>
+                      <option value="pedido">Pedido</option>
+                      <option value="limpieza">Limpieza</option>
+                      <option value="inventario">Inventario</option>
+                      <option value="cocina">Cocina</option>
+                      <option value="general">General</option>
+                      <option value="cierre">Cierre</option>
+                    </select>
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <label for="prioridadRecordatorioPOS" class="form-label">Prioridad</label>
+                    <select id="prioridadRecordatorioPOS" class="form-select">
+                      <option value="baja">Baja</option>
+                      <option value="media" selected>Media</option>
+                      <option value="alta">Alta</option>
+                      <option value="urgente">Urgente</option>
+                    </select>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label for="fechaLimiteRecordatorioPOS" class="form-label">Fecha Límite</label>
+                    <input type="datetime-local" id="fechaLimiteRecordatorioPOS" class="form-control">
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="form-check mt-4">
+                      <input class="form-check-input" type="checkbox" id="repetirRecordatorioPOS">
+                      <label class="form-check-label" for="repetirRecordatorioPOS">
+                        Repetir diariamente
+                      </label>
+                    </div>
+                  </div>
+                  <div class="col-12">
+                    <label for="descripcionRecordatorioPOS" class="form-label">Descripción</label>
+                    <textarea id="descripcionRecordatorioPOS" class="form-control" rows="2" placeholder="Descripción detallada de la tarea..."></textarea>
+                  </div>
+                  <div class="col-12">
+                    <button type="submit" class="btn btn-warning">
+                      <i class="fas fa-save me-1"></i>Crear Recordatorio
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Filtros -->
+          <div class="card bg-secondary text-white mb-4">
+            <div class="card-header">
+              <h6 class="mb-0">
+                <i class="fas fa-filter me-2"></i>Filtros
+              </h6>
+            </div>
+            <div class="card-body">
+              <div class="row g-3">
+                <div class="col-12 col-md-3">
+                  <select id="filtroTipoPOS" class="form-select" onchange="filtrarRecordatoriosPOS()">
+                    <option value="">Todos los tipos</option>
+                    <option value="pedido">Pedidos</option>
+                    <option value="limpieza">Limpieza</option>
+                    <option value="inventario">Inventario</option>
+                    <option value="cocina">Cocina</option>
+                    <option value="general">General</option>
+                    <option value="cierre">Cierre</option>
+                  </select>
+                </div>
+                <div class="col-12 col-md-3">
+                  <select id="filtroPrioridadPOS" class="form-select" onchange="filtrarRecordatoriosPOS()">
+                    <option value="">Todas las prioridades</option>
+                    <option value="baja">Baja</option>
+                    <option value="media">Media</option>
+                    <option value="alta">Alta</option>
+                    <option value="urgente">Urgente</option>
+                  </select>
+                </div>
+                <div class="col-12 col-md-3">
+                  <select id="filtroEstadoPOS" class="form-select" onchange="filtrarRecordatoriosPOS()">
+                    <option value="activos" selected>Activos</option>
+                    <option value="completados">Completados</option>
+                    <option value="todos">Todos</option>
+                  </select>
+                </div>
+                <div class="col-12 col-md-3">
+                  <input type="text" id="buscarRecordatorioPOS" class="form-control" placeholder="Buscar..." onkeyup="filtrarRecordatoriosPOS()">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lista de Recordatorios -->
+          <div class="card bg-secondary text-white mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h6 class="mb-0">
+                <i class="fas fa-tasks me-2"></i>Lista de Recordatorios
+              </h6>
+              <div class="d-flex gap-2">
+                <button class="btn btn-outline-warning btn-sm" onclick="limpiarRecordatoriosCompletadosPOS()">
+                  <i class="fas fa-broom me-1"></i>Limpiar Completados
+                </button>
+                <button class="btn btn-outline-danger btn-sm" onclick="eliminarTodosRecordatoriosPOS()">
+                  <i class="fas fa-trash me-1"></i>Eliminar Todos
+                </button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div id="listaRecordatoriosPOS">
+                <!-- Los recordatorios se cargarán aquí -->
+              </div>
+              <div id="sinRecordatoriosPOS" class="text-center text-muted py-3" style="display: none;">
+                <i class="fas fa-bell-slash fa-2x mb-2"></i>
+                <h6>No hay recordatorios</h6>
+                <p class="small">Crea tu primer recordatorio para comenzar a organizar tus tareas</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Estadísticas -->
+          <div class="row">
+            <div class="col-12 col-md-3 mb-3">
+              <div class="card bg-primary text-white text-center">
+                <div class="card-body p-3">
+                  <i class="fas fa-clock fa-lg mb-2"></i>
+                  <h6 id="contadorPendientesPOS">0</h6>
+                  <small>Pendientes</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-md-3 mb-3">
+              <div class="card bg-warning text-dark text-center">
+                <div class="card-body p-3">
+                  <i class="fas fa-exclamation-triangle fa-lg mb-2"></i>
+                  <h6 id="contadorUrgentesPOS">0</h6>
+                  <small>Urgentes</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-md-3 mb-3">
+              <div class="card bg-success text-white text-center">
+                <div class="card-body p-3">
+                  <i class="fas fa-check-circle fa-lg mb-2"></i>
+                  <h6 id="contadorCompletadosPOS">0</h6>
+                  <small>Completados</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-md-3 mb-3">
+              <div class="card bg-info text-white text-center">
+                <div class="card-body p-3">
+                  <i class="fas fa-calendar-day fa-lg mb-2"></i>
+                  <h6 id="contadorHoyPOS">0</h6>
+                  <small>Para Hoy</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-info" onclick="activarNotificacionesNavegador()" id="btnNotificacionesPOS">
+            <i class="fas fa-bell me-1"></i>
+            <span id="estadoNotificacionesPOS">⏳ Pendientes</span>
+          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+          <a href="recordatorios.html" class="btn btn-outline-info">
+            <i class="fas fa-external-link-alt me-1"></i>Ver Completo
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Ayuda Contextual -->
+  <div class="modal fade" id="modalAyuda" tabindex="-1" style="z-index: 1070;">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="fas fa-question-circle text-info"></i>
+            Ayuda: <span id="tituloAyuda">Punto de Venta</span>
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="contenidoAyuda"></div>
+          <div id="enlacesAyuda" class="mt-3">
+            <h6>Enlaces Relacionados:</h6>
+            <div class="list-group list-group-flush bg-dark">
+              <!-- Enlaces dinámicos -->
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <script src="ayuda.js"></script>
+  <script src="app.js"></script>
+  <script src="cotizaciones.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      verificarAcceso();
+      
+      // Verificar que las funciones de PIN estén disponibles
+      if (typeof mostrarModalPin === 'undefined') {
+        console.error('❌ Función mostrarModalPin no está disponible');
+      } else {
+        console.log('✅ Función mostrarModalPin disponible');
+      }
+      
+      // Configurar fecha mínima para datetime-local
+      const fechaLimiteInput = document.getElementById('fechaLimiteRecordatorioPOS');
+      if (fechaLimiteInput) {
+        const ahora = new Date();
+        const fechaMinima = new Date(ahora.getTime() - (ahora.getTimezoneOffset() * 60000));
+        fechaLimiteInput.min = fechaMinima.toISOString().slice(0, 16);
+      }
+      
+      // Inicializar sistema de recordatorios en POS
+      inicializarRecordatoriosPOS();
+      
+      // Configurar eventos para limpiar pedido de venta rápida
+      const modalVentaRapida = document.getElementById('modalAgregarProductosVentaRapida');
+      if (modalVentaRapida) {
+        modalVentaRapida.addEventListener('hidden.bs.modal', () => {
+          limpiarPedidoVentaRapida();
+        });
+      }
+      
+      // Actualizar estado de notificaciones en el POS
+      setTimeout(() => {
+        actualizarEstadoNotificacionesPOS();
+      }, 1000);
+    });
+
+    // ===== SISTEMA DE RECORDATORIOS EN POS =====
+
+    // Función para mostrar el modal de recordatorios
+    function mostrarModalRecordatorios() {
+      const modal = new bootstrap.Modal(document.getElementById('modalRecordatorios'));
+      modal.show();
+      
+      // Cargar recordatorios cuando se abre el modal
+      setTimeout(() => {
+        cargarRecordatoriosPOS();
+      }, 100);
+    }
+
+    // Función para inicializar el sistema de recordatorios en POS
+    function inicializarRecordatoriosPOS() {
+      try {
+        // Verificar si las funciones están disponibles
+        if (typeof cargarRecordatorios === 'function') {
+          cargarRecordatorios();
+          
+          // Actualizar badge de recordatorios
+          actualizarBadgeRecordatoriosPOS();
+          
+          // Configurar actualización periódica
+          setInterval(actualizarBadgeRecordatoriosPOS, 30000); // Cada 30 segundos
+          
+          console.log('✅ Sistema de recordatorios inicializado en POS');
+        }
+      } catch (error) {
+        console.error('❌ Error al inicializar recordatorios en POS:', error);
+      }
+    }
+
+    // Función para actualizar el badge de recordatorios en POS
+    function actualizarBadgeRecordatoriosPOS() {
+      try {
+        if (typeof obtenerRecordatoriosUrgentes === 'function') {
+          const recordatoriosUrgentes = obtenerRecordatoriosUrgentes();
+          const badge = document.getElementById('badgeRecordatoriosPOS');
+          
+          if (badge && recordatoriosUrgentes.length > 0) {
+            badge.textContent = recordatoriosUrgentes.length;
+            badge.style.display = 'block';
+            
+            // Cambiar color según cantidad
+            if (recordatoriosUrgentes.length >= 5) {
+              badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger';
+            } else if (recordatoriosUrgentes.length >= 3) {
+              badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark';
+            } else {
+              badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-info';
+            }
+          } else if (badge) {
+            badge.style.display = 'none';
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error al actualizar badge de recordatorios en POS:', error);
+      }
+    }
+
+    // Función para crear recordatorio desde el POS
+    function crearRecordatorioDesdePOS() {
+      try {
+        const form = document.getElementById('formRecordatorioPOS');
+        if (!form.checkValidity()) {
+          form.reportValidity();
+          return;
+        }
+
+        const titulo = document.getElementById('tituloRecordatorioPOS').value.trim();
+        const descripcion = document.getElementById('descripcionRecordatorioPOS').value.trim();
+        const tipo = document.getElementById('tipoRecordatorioPOS').value;
+        const prioridad = document.getElementById('prioridadRecordatorioPOS').value;
+        const fechaLimite = document.getElementById('fechaLimiteRecordatorioPOS').value;
+        const repetir = document.getElementById('repetirRecordatorioPOS').checked;
+
+        // Validaciones
+        if (!titulo || !tipo) {
+          alert('Por favor completa todos los campos obligatorios');
+          return;
+        }
+
+        // Crear recordatorio usando la función de app.js
+        if (typeof crearRecordatorio === 'function') {
+          const recordatorio = crearRecordatorio(
+            titulo,
+            descripcion,
+            tipo,
+            prioridad,
+            fechaLimite || null,
+            repetir
+          );
+
+          if (recordatorio) {
+            // Limpiar formulario
+            form.reset();
+            
+            // Actualizar interfaz
+            cargarRecordatoriosPOS();
+            actualizarEstadisticasPOS();
+            actualizarBadgeRecordatoriosPOS();
+            
+            // Mostrar mensaje de éxito
+            mostrarMensajePOS('✅ Recordatorio creado exitosamente', 'success');
+            
+            // Solicitar permisos de notificación si no se han dado
+            if (Notification.permission === 'default') {
+              Notification.requestPermission();
+            }
+          }
+        } else {
+          console.error('Función crearRecordatorio no está disponible');
+          alert('Error: Función de creación no disponible');
+        }
+      } catch (error) {
+        console.error('Error al crear recordatorio:', error);
+        alert('Error al crear el recordatorio: ' + error.message);
+      }
+    }
+
+    // Función para cargar recordatorios en el POS
+    function cargarRecordatoriosPOS() {
+      try {
+        if (typeof recordatoriosActivos === 'undefined') {
+          console.error('recordatoriosActivos no está disponible');
+          return;
+        }
+
+        // Aplicar filtros actuales
+        filtrarRecordatoriosPOS();
+        
+        // Actualizar estadísticas
+        actualizarEstadisticasPOS();
+        
+        console.log('✅ Recordatorios cargados en POS');
+      } catch (error) {
+        console.error('Error al cargar recordatorios en POS:', error);
+      }
+    }
+
+    // Función para filtrar recordatorios en el POS
+    function filtrarRecordatoriosPOS() {
+      try {
+        const filtroTipo = document.getElementById('filtroTipoPOS').value;
+        const filtroPrioridad = document.getElementById('filtroPrioridadPOS').value;
+        const filtroEstado = document.getElementById('filtroEstadoPOS').value;
+        const busqueda = document.getElementById('buscarRecordatorioPOS').value.toLowerCase();
+
+        let recordatoriosAMostrar = [];
+
+        // Determinar qué recordatorios mostrar según el estado
+        if (filtroEstado === 'activos') {
+          recordatoriosAMostrar = recordatoriosActivos.filter(r => !r.completado);
+        } else if (filtroEstado === 'completados') {
+          recordatoriosAMostrar = recordatorios.filter(r => r.completado);
+        } else {
+          recordatoriosAMostrar = recordatorios;
+        }
+
+        // Aplicar filtros
+        const recordatoriosFiltrados = recordatoriosAMostrar.filter(recordatorio => {
+          let cumpleFiltros = true;
+
+          // Filtro por tipo
+          if (filtroTipo && recordatorio.tipo !== filtroTipo) {
+            cumpleFiltros = false;
+          }
+
+          // Filtro por prioridad
+          if (filtroPrioridad && recordatorio.prioridad !== filtroPrioridad) {
+            cumpleFiltros = false;
+          }
+
+          // Filtro de búsqueda
+          if (busqueda) {
+            const texto = `${recordatorio.titulo} ${recordatorio.descripcion} ${recordatorio.tipo}`.toLowerCase();
+            if (!texto.includes(busqueda)) {
+              cumpleFiltros = false;
+            }
+          }
+
+          return cumpleFiltros;
+        });
+
+        // Ordenar por prioridad y fecha
+        recordatoriosFiltrados.sort((a, b) => {
+          const prioridades = { 'urgente': 4, 'alta': 3, 'media': 2, 'baja': 1 };
+          const prioridadA = prioridades[a.prioridad] || 0;
+          const prioridadB = prioridades[b.prioridad] || 0;
+          
+          if (prioridadA !== prioridadB) {
+            return prioridadB - prioridadA;
+          }
+          
+          // Si tienen la misma prioridad, ordenar por fecha límite
+          if (a.fechaLimite && b.fechaLimite) {
+            return new Date(a.fechaLimite) - new Date(b.fechaLimite);
+          }
+          
+          return 0;
+        });
+
+        // Renderizar lista
+        renderizarListaRecordatoriosPOS(recordatoriosFiltrados);
+        
+      } catch (error) {
+        console.error('Error al filtrar recordatorios en POS:', error);
+      }
+    }
+
+    // Función para renderizar la lista de recordatorios en el POS
+    function renderizarListaRecordatoriosPOS(recordatoriosFiltrados) {
+      const contenedor = document.getElementById('listaRecordatoriosPOS');
+      const sinRecordatorios = document.getElementById('sinRecordatoriosPOS');
+      
+      if (!contenedor) return;
+
+      if (recordatoriosFiltrados.length === 0) {
+        contenedor.innerHTML = '';
+        if (sinRecordatorios) {
+          sinRecordatorios.style.display = 'block';
+        }
+        return;
+      }
+
+      if (sinRecordatorios) {
+        sinRecordatorios.style.display = 'none';
+      }
+
+      contenedor.innerHTML = recordatoriosFiltrados.map(recordatorio => {
+        const fechaCreacion = new Date(recordatorio.fechaCreacion).toLocaleString('es-ES');
+        const fechaLimite = recordatorio.fechaLimite ? new Date(recordatorio.fechaLimite).toLocaleString('es-ES') : 'Sin fecha límite';
+        const esVencido = recordatorio.fechaLimite && new Date(recordatorio.fechaLimite) < new Date();
+        
+        const clasesPrioridad = {
+          'baja': 'text-success',
+          'media': 'text-warning',
+          'alta': 'text-danger',
+          'urgente': 'text-danger fw-bold'
+        };
+
+        const iconosTipo = {
+          'pedido': 'fas fa-utensils',
+          'limpieza': 'fas fa-broom',
+          'inventario': 'fas fa-boxes',
+          'cocina': 'fas fa-fire',
+          'general': 'fas fa-tasks',
+          'cierre': 'fas fa-cash-register'
+        };
+
+        return `
+          <div class="card bg-dark text-white mb-2 ${esVencido ? 'border-danger border-2' : ''}">
+            <div class="card-header d-flex justify-content-between align-items-center p-2">
+              <div class="d-flex align-items-center">
+                <i class="${iconosTipo[recordatorio.tipo] || 'fas fa-bell'} me-2"></i>
+                <h6 class="mb-0 ${clasesPrioridad[recordatorio.prioridad]}">${recordatorio.titulo}</h6>
+                ${esVencido ? '<span class="badge bg-danger ms-2">VENCIDO</span>' : ''}
+                ${recordatorio.repetir ? '<span class="badge bg-info ms-2">REPETIR</span>' : ''}
+              </div>
+              <div class="d-flex gap-1">
+                ${!recordatorio.completado ? 
+                  `<button class="btn btn-sm btn-outline-success" onclick="completarRecordatorioDesdePOS(${recordatorio.id})" title="Marcar como completado">
+                    <i class="fas fa-check"></i>
+                  </button>` : ''
+                }
+                <button class="btn btn-sm btn-outline-danger" onclick="eliminarRecordatorioDesdePOS(${recordatorio.id})" title="Eliminar">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </div>
+            <div class="card-body p-2">
+              <p class="mb-2 small">${recordatorio.descripcion || 'Sin descripción'}</p>
+              <div class="row text-muted small">
+                <div class="col-md-3">
+                  <i class="fas fa-tag me-1"></i>${recordatorio.tipo}
+                </div>
+                <div class="col-md-3">
+                  <i class="fas fa-exclamation-triangle me-1"></i>${recordatorio.prioridad}
+                </div>
+                <div class="col-md-3">
+                  <i class="fas fa-calendar-plus me-1"></i>${fechaCreacion}
+                </div>
+                <div class="col-md-3">
+                  <i class="fas fa-clock me-1"></i>${fechaLimite}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Función para completar recordatorio desde el POS
+    function completarRecordatorioDesdePOS(id) {
+      try {
+        if (typeof completarRecordatorio === 'function') {
+          if (completarRecordatorio(id)) {
+            mostrarMensajePOS('✅ Tarea marcada como completada', 'success');
+            cargarRecordatoriosPOS();
+            actualizarBadgeRecordatoriosPOS();
+          } else {
+            mostrarMensajePOS('❌ Error al completar la tarea', 'error');
+          }
+        } else {
+          console.error('Función completarRecordatorio no está disponible');
+          alert('Error: Función de completado no disponible');
+        }
+      } catch (error) {
+        console.error('Error al completar recordatorio:', error);
+        alert('Error al completar el recordatorio: ' + error.message);
+      }
+    }
+
+    // Función para eliminar recordatorio desde el POS
+    function eliminarRecordatorioDesdePOS(id) {
+      if (confirm('¿Estás seguro de que quieres eliminar este recordatorio?')) {
+        try {
+          if (typeof eliminarRecordatorio === 'function') {
+            eliminarRecordatorio(id);
+            mostrarMensajePOS('🗑️ Recordatorio eliminado', 'info');
+            cargarRecordatoriosPOS();
+            actualizarBadgeRecordatoriosPOS();
+          } else {
+            console.error('Función eliminarRecordatorio no está disponible');
+            alert('Error: Función de eliminación no disponible');
+          }
+        } catch (error) {
+          console.error('Error al eliminar recordatorio:', error);
+          alert('Error al eliminar el recordatorio: ' + error.message);
+        }
+      }
+    }
+
+    // Función para limpiar recordatorios completados desde el POS
+    function limpiarRecordatoriosCompletadosPOS() {
+      if (confirm('¿Estás seguro de que quieres eliminar todos los recordatorios completados?')) {
+        try {
+          const completados = recordatorios.filter(r => r.completado);
+          completados.forEach(r => eliminarRecordatorio(r.id));
+          
+          mostrarMensajePOS(`🗑️ ${completados.length} recordatorios completados eliminados`, 'info');
+          cargarRecordatoriosPOS();
+          actualizarBadgeRecordatoriosPOS();
+        } catch (error) {
+          console.error('Error al limpiar recordatorios:', error);
+          alert('Error al limpiar recordatorios: ' + error.message);
+        }
+      }
+    }
+
+    // Función para eliminar todos los recordatorios desde el POS
+    function eliminarTodosRecordatoriosPOS() {
+      if (confirm('⚠️ ¿Estás SEGURO de que quieres eliminar TODOS los recordatorios? Esta acción no se puede deshacer.')) {
+        try {
+          recordatorios.forEach(r => eliminarRecordatorio(r.id));
+          
+          mostrarMensajePOS('🗑️ Todos los recordatorios han sido eliminados', 'warning');
+          cargarRecordatoriosPOS();
+          actualizarBadgeRecordatoriosPOS();
+        } catch (error) {
+          console.error('Error al eliminar todos los recordatorios:', error);
+          alert('Error al eliminar recordatorios: ' + error.message);
+        }
+      }
+    }
+
+    // Función para actualizar estadísticas en el POS
+    function actualizarEstadisticasPOS() {
+      try {
+        if (typeof recordatoriosActivos === 'undefined') return;
+
+        const pendientes = recordatoriosActivos.filter(r => !r.completado).length;
+        const urgentes = recordatoriosActivos.filter(r => !r.completado && r.prioridad === 'urgente').length;
+        const completados = recordatorios.filter(r => r.completado).length;
+        
+        // Contar recordatorios para hoy
+        const hoy = new Date();
+        const recordatoriosHoy = recordatoriosActivos.filter(r => {
+          if (!r.fechaLimite || r.completado) return false;
+          const fechaLimite = new Date(r.fechaLimite);
+          return fechaLimite.toDateString() === hoy.toDateString();
+        }).length;
+
+        // Actualizar contadores en la UI
+        const contadorPendientes = document.getElementById('contadorPendientesPOS');
+        const contadorUrgentes = document.getElementById('contadorUrgentesPOS');
+        const contadorCompletados = document.getElementById('contadorCompletadosPOS');
+        const contadorHoy = document.getElementById('contadorHoyPOS');
+
+        if (contadorPendientes) contadorPendientes.textContent = pendientes;
+        if (contadorUrgentes) contadorUrgentes.textContent = urgentes;
+        if (contadorCompletados) contadorCompletados.textContent = completados;
+        if (contadorHoy) contadorHoy.textContent = recordatoriosHoy;
+
+      } catch (error) {
+        console.error('Error al actualizar estadísticas en POS:', error);
+      }
+    }
+
+    // Función para mostrar mensajes en el POS
+    function mostrarMensajePOS(mensaje, tipo = 'info') {
+      // Crear toast de Bootstrap si está disponible
+      if (typeof bootstrap !== 'undefined') {
+        const toastContainer = document.getElementById('toastContainerPOS') || crearToastContainerPOS();
+        
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-white bg-${tipo === 'error' ? 'danger' : tipo} border-0`;
+        toast.setAttribute('role', 'alert');
+        toast.innerHTML = `
+          <div class="d-flex">
+            <div class="toast-body">${mensaje}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+          </div>
+        `;
+        
+        toastContainer.appendChild(toast);
+        
+        const bsToast = new bootstrap.Toast(toast);
+        bsToast.show();
+        
+        // Auto-eliminar después de mostrar
+        toast.addEventListener('hidden.bs.toast', () => {
+          toast.remove();
+        });
+      } else {
+        // Fallback a alert si Bootstrap no está disponible
+        alert(mensaje);
+      }
+    }
+
+    // Función para crear contenedor de toasts en el POS
+    function crearToastContainerPOS() {
+      const container = document.createElement('div');
+      container.id = 'toastContainerPOS';
+      container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+      container.style.zIndex = '9999';
+      document.body.appendChild(container);
+      return container;
+    }
+
+    // Función para actualizar estado de notificaciones en el POS
+    function actualizarEstadoNotificacionesPOS() {
+      try {
+        if (typeof mostrarEstadoNotificaciones === 'function') {
+          const estadoElement = document.getElementById('estadoNotificacionesPOS');
+          if (estadoElement) {
+            estadoElement.textContent = mostrarEstadoNotificaciones();
+            
+            // Cambiar color del botón según el estado
+            const btnNotificaciones = document.getElementById('btnNotificacionesPOS');
+            if (btnNotificaciones) {
+              const estado = verificarEstadoNotificaciones();
+              btnNotificaciones.className = 'btn btn-outline-info';
+              
+              switch (estado) {
+                case 'granted':
+                  btnNotificaciones.className = 'btn btn-success';
+                  break;
+                case 'denied':
+                  btnNotificaciones.className = 'btn btn-danger';
+                  break;
+                case 'default':
+                  btnNotificaciones.className = 'btn btn-warning';
+                  break;
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error al actualizar estado de notificaciones en POS:', error);
+      }
+    }
+
+    // ===== FUNCIONES DE VENTA RÁPIDA =====
+
+    // Función para mostrar vista previa de impresión de venta rápida
+    function mostrarVistaPreviaVentaRapida() {
+      try {
+        const productos = obtenerProductosVentaRapida();
+        if (!productos || productos.length === 0) {
+          alert('No hay productos para mostrar en la vista previa');
+          return;
+        }
+
+        const ventana = obtenerVentanaImpresion();
+        if (!ventana) {
+          alert('No se pudo abrir la ventana de impresión. Por favor, verifique que los bloqueadores de ventanas emergentes estén desactivados.');
+          return;
+        }
+
+        const total = calcularTotalVentaRapida();
+        const contenidoRecibo = generarContenidoReciboVentaRapida(productos, total);
+
+        const contenido = `
+          <html>
+            <head>
+              <title>Venta Rápida - Vista Previa</title>
+              <style>
+                body { 
+                  font-family: monospace;
+                  font-size: 14px;
+                  width: 57mm;
+                  margin: 0;
+                  padding: 1mm;
+                }
+                .text-center { text-align: center; }
+                .text-right { text-align: right; }
+                .mb-1 { margin-bottom: 0.5mm; }
+                .mt-1 { margin-top: 0.5mm; }
+                table { 
+                  width: 100%;
+                  border-collapse: collapse;
+                  margin: 1mm 0;
+                  font-size: 14px;
+                }
+                th, td { 
+                  padding: 0.5mm;
+                  text-align: left;
+                  font-size: 14px;
+                }
+                .border-top { 
+                  border-top: 1px dashed #000;
+                  margin-top: 1mm;
+                  padding-top: 1mm;
+                }
+                .header {
+                  border-bottom: 1px dashed #000;
+                  padding-bottom: 1mm;
+                  margin-bottom: 1mm;
+                }
+                .total-row {
+                  font-weight: bold;
+                  font-size: 16px;
+                }
+                .botones-impresion {
+                  position: fixed;
+                  top: 10px;
+                  right: 10px;
+                  z-index: 1000;
+                  background: #fff;
+                  padding: 5px;
+                  border-radius: 5px;
+                  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                }
+                .botones-impresion button {
+                  margin: 0 5px;
+                  padding: 5px 10px;
+                  background: #007bff;
+                  color: white;
+                  border: none;
+                  border-radius: 3px;
+                  cursor: pointer;
+                }
+                .botones-impresion button:hover {
+                  background: #0056b3;
+                }
+                .logo-container {
+                  text-align: center;
+                  margin-bottom: 2mm;
+                }
+                .logo-container img {
+                  max-width: 100%;
+                  max-height: 120px;
+                }
+                @media print {
+                  .botones-impresion {
+                    display: none;
+                  }
+                  @page {
+                    margin: 0;
+                    size: 57mm auto;
+                  }
+                  body {
+                    width: 57mm;
+                  }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="botones-impresion">
+                <button onclick="window.print()">Imprimir</button>
+                <button onclick="window.close()">Cerrar</button>
+              </div>
+              <div id="contenido"></div>
+            </body>
+          </html>
+        `;
+
+        ventana.document.write(contenido);
+        ventana.document.close();
+
+        // Esperar a que el documento esté listo
+        setTimeout(() => {
+          const contenidoDiv = ventana.document.getElementById('contenido');
+          if (contenidoDiv) {
+            contenidoDiv.innerHTML = contenidoRecibo;
+            ventana.focus();
+          }
+        }, 100);
+
+      } catch (error) {
+        console.error('Error al mostrar vista previa:', error);
+        alert('Error al mostrar la vista previa: ' + error.message);
+      }
+    }
+
+    // Función para generar el contenido del recibo de venta rápida
+    function generarContenidoReciboVentaRapida(productos, total) {
+      const subtotal = productos.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+      
+      return `
+        <div class="logo-container">
+          ${localStorage.getItem('logoNegocio') ? 
+            `<img src="${localStorage.getItem('logoNegocio')}" alt="Logo">` : 
+            ''}
+        </div>
+
+        <div class="header text-center">
+          <h2 style="margin: 0; font-size: 14px;">RESTAURANTE</h2>
+          <div class="mb-1">VENTA RÁPIDA</div>
+          <div class="mb-1">${new Date().toLocaleString()}</div>
+        </div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 40%">Producto</th>
+              <th style="width: 15%">Cant</th>
+              <th style="width: 20%">Precio</th>
+              <th style="width: 25%">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${productos.map(item => `
+              <tr>
+                <td>${item.nombre}</td>
+                <td>${item.cantidad}</td>
+                <td style="text-align:right;">$${item.precio.toFixed(0)}</td>
+                <td style="text-align:right;">$${(item.precio * item.cantidad).toFixed(0)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        
+        <div class="border-top">
+          <div class="mb-1 total-row"><strong>Total: $${total.toFixed(0)}</strong></div>
+        </div>
+        
+        ${(() => {
+          const datosNegocio = JSON.parse(localStorage.getItem('datosNegocio'));
+          if (datosNegocio && Object.values(datosNegocio).some(valor => valor)) {
+            return `
+              <div class="border-top mt-1">
+                ${datosNegocio.nombre ? `<div><strong>${datosNegocio.nombre}</strong></div>` : ''}
+                ${datosNegocio.nit ? `<div>NIT/Cédula: ${datosNegocio.nit}</div>` : ''}
+                ${datosNegocio.direccion ? `<div>Dirección: ${datosNegocio.direccion}</div>` : ''}
+                ${datosNegocio.correo ? `<div>Correo: ${datosNegocio.correo}</div>` : ''}
+                ${datosNegocio.telefono ? `<div>Teléfono: ${datosNegocio.telefono}</div>` : ''}
+              </div>
+            `;
+          }
+          return '';
+        })()}
+        
+        <div class="text-center mt-1">
+          <div class="border-top">¡Gracias por su compra!</div>
+          <div class="border-top">ToySoft POS</div>
+        </div>
+      `;
+    }
+
+    // Función para obtener productos de la venta rápida
+    function obtenerProductosVentaRapida() {
+      const productos = [];
+      const contenedor = document.getElementById('listaProductosVentaRapida');
+      
+      if (contenedor) {
+        const filas = contenedor.querySelectorAll('.producto-venta-rapida');
+        filas.forEach(fila => {
+          const nombre = fila.querySelector('.nombre-producto')?.textContent || '';
+          const cantidad = parseInt(fila.querySelector('.cantidad-producto')?.textContent || '0');
+          const precio = parseFloat(fila.querySelector('.precio-producto')?.textContent.replace('$', '') || '0');
+          
+          if (nombre && cantidad > 0 && precio > 0) {
+            productos.push({ nombre, cantidad, precio });
+          }
+        });
+      }
+      
+      return productos;
+    }
+
+    // Función para calcular el total de la venta rápida
+    function calcularTotalVentaRapida() {
+      const productos = obtenerProductosVentaRapida();
+      return productos.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+    }
+
+    // Función para obtener ventana de impresión
+    function obtenerVentanaImpresion() {
+      try {
+        const ventana = window.open('', 'Imprimir Venta Rápida', 'width=400,height=600,scrollbars=yes,resizable=yes');
+        if (ventana) {
+          ventana.document.write('<html><head><title>Cargando...</title></head><body>Cargando vista previa...</body></html>');
+          return ventana;
+        }
+      } catch (error) {
+        console.error('Error al abrir ventana de impresión:', error);
+      }
+      return null;
+    }
+
+    // ===== FUNCIONES DE CIERRE OPERATIVO =====
+
+    // Función para mostrar el modal de cierre operativo
+    function mostrarModalCierreOperativo() {
+      try {
+        console.log('Iniciando mostrarModalCierreOperativo...');
+        
+        // Limpiar formulario
+        document.getElementById('nombreEmpleado').value = '';
+        document.getElementById('cargoEmpleado').value = '';
+        document.getElementById('horaInicio').value = '';
+        document.getElementById('horaFin').value = '';
+        document.getElementById('observacionesTurno').value = '';
+        document.getElementById('tareasPendientes').value = '';
+        
+        // Limpiar totales manuales
+        document.getElementById('totalEfectivoManual').value = '';
+        document.getElementById('totalTransferenciaManual').value = '';
+        document.getElementById('totalTarjetaManual').value = '';
+        document.getElementById('totalGeneralManual').value = '';
+        
+        // Desmarcar checkboxes
+        document.getElementById('checkLimpieza').checked = false;
+        document.getElementById('checkInventario').checked = false;
+        document.getElementById('checkEquipos').checked = false;
+        document.getElementById('checkSeguridad').checked = false;
+        document.getElementById('checkMesas').checked = false;
+        
+        // Configurar eventos para cálculo automático de totales
+        configurarCalculoAutomatico();
+        
+        // Mostrar el modal
+        const modal = new bootstrap.Modal(document.getElementById('modalCierreOperativo'));
+        modal.show();
+        
+        console.log('Modal de cierre operativo mostrado correctamente');
+      } catch (error) {
+        console.error('Error en mostrarModalCierreOperativo:', error);
+        alert('Error al mostrar el cierre operativo: ' + error.message);
+      }
+    }
+
+    // Función para configurar el cálculo automático de totales
+    function configurarCalculoAutomatico() {
+      const efectivoInput = document.getElementById('totalEfectivoManual');
+      const transferenciaInput = document.getElementById('totalTransferenciaManual');
+      const tarjetaInput = document.getElementById('totalTarjetaManual');
+      const totalGeneralInput = document.getElementById('totalGeneralManual');
+
+      // Función para calcular el total
+      function calcularTotal() {
+        const efectivo = parseFloat(efectivoInput.value) || 0;
+        const transferencia = parseFloat(transferenciaInput.value) || 0;
+        const tarjeta = parseFloat(tarjetaInput.value) || 0;
+        const total = efectivo + transferencia + tarjeta;
+        
+        totalGeneralInput.value = total.toLocaleString('es-CO');
+      }
+
+      // Agregar eventos para recalcular automáticamente
+      efectivoInput.addEventListener('input', calcularTotal);
+      transferenciaInput.addEventListener('input', calcularTotal);
+      tarjetaInput.addEventListener('input', calcularTotal);
+    }
+
+    // Función para guardar cierre operativo
+    function guardarCierreOperativo() {
+      try {
+        // Validar campos requeridos
+        const nombreEmpleado = document.getElementById('nombreEmpleado').value.trim();
+        const cargoEmpleado = document.getElementById('cargoEmpleado').value;
+        const horaInicio = document.getElementById('horaInicio').value;
+        const horaFin = document.getElementById('horaFin').value;
+
+        if (!nombreEmpleado || !cargoEmpleado || !horaInicio || !horaFin) {
+          alert('Por favor complete todos los campos requeridos');
+          return;
+        }
+
+        // Obtener valores de checkboxes
+        const checklist = {
+          limpieza: document.getElementById('checkLimpieza').checked,
+          inventario: document.getElementById('checkInventario').checked,
+          equipos: document.getElementById('checkEquipos').checked,
+          seguridad: document.getElementById('checkSeguridad').checked,
+          mesas: document.getElementById('checkMesas').checked
+        };
+
+        // Obtener información de entrega de turno
+        const nombreRecibeTurno = document.getElementById('nombreRecibeTurno').value.trim();
+        const cargoRecibeTurno = document.getElementById('cargoRecibeTurno').value;
+        const baseCajaDeja = parseFloat(document.getElementById('baseCajaDeja').value) || 0;
+        const observacionesEntrega = document.getElementById('observacionesEntrega').value.trim();
+
+        // Obtener observaciones y tareas pendientes
+        const observaciones = document.getElementById('observacionesTurno').value.trim();
+        const tareasPendientes = document.getElementById('tareasPendientes').value.trim();
+
+        // Obtener totales manuales
+        const totalEfectivo = parseFloat(document.getElementById('totalEfectivoManual').value) || 0;
+        const totalTransferencia = parseFloat(document.getElementById('totalTransferenciaManual').value) || 0;
+        const totalTarjeta = parseFloat(document.getElementById('totalTarjetaManual').value) || 0;
+        const totalGeneral = totalEfectivo + totalTransferencia + totalTarjeta;
+
+        // Crear objeto de cierre operativo
+        const cierreOperativo = {
+          id: Date.now().toString(),
+          fecha: new Date().toISOString(),
+          empleado: {
+            nombre: nombreEmpleado,
+            cargo: cargoEmpleado,
+            horaInicio: horaInicio,
+            horaFin: horaFin
+          },
+          entregaTurno: {
+            nombreRecibe: nombreRecibeTurno,
+            cargoRecibe: cargoRecibeTurno,
+            baseCajaDeja: baseCajaDeja,
+            observacionesEntrega: observacionesEntrega
+          },
+          checklist: checklist,
+          totales: {
+            efectivo: totalEfectivo,
+            transferencia: totalTransferencia,
+            tarjeta: totalTarjeta,
+            general: totalGeneral
+          },
+          observaciones: observaciones,
+          tareasPendientes: tareasPendientes,
+          completado: true
+        };
+
+        // Guardar en localStorage
+        const historialCierresOperativos = JSON.parse(localStorage.getItem('historialCierresOperativos')) || [];
+        historialCierresOperativos.push(cierreOperativo);
+        localStorage.setItem('historialCierresOperativos', JSON.stringify(historialCierresOperativos));
+
+        // Imprimir cierre operativo
+        imprimirCierreOperativo(cierreOperativo);
+
+        // Enviar email automáticamente
+        if (typeof enviarCierreOperativoEmail === 'function') {
+          try {
+            enviarCierreOperativoEmail(cierreOperativo);
+            console.log('📧 Email de cierre operativo enviado automáticamente');
+          } catch (error) {
+            console.error('Error al enviar email de cierre operativo:', error);
+          }
+        }
+
+        // Cerrar modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalCierreOperativo'));
+        modal.hide();
+
+        // Mostrar mensaje de éxito
+        alert('Cierre operativo guardado exitosamente');
+
+      } catch (error) {
+        console.error('Error al guardar cierre operativo:', error);
+        alert('Error al guardar el cierre operativo: ' + error.message);
+      }
+    }
+
+    // Función para imprimir cierre operativo
+    function imprimirCierreOperativo(cierre) {
+      try {
+        // Obtener información del negocio
+        const datosNegocio = JSON.parse(localStorage.getItem('datosNegocio'));
+
+        // Crear ventana de impresión
+        const ventana = window.open('', 'ImpresionCierreOperativo', 'width=400,height=600,scrollbars=yes');
+        if (!ventana) {
+          alert('Por favor, permite las ventanas emergentes para este sitio');
+          return;
+        }
+
+        const fecha = new Date(cierre.fecha);
+        const checklistCompletado = Object.values(cierre.checklist).filter(item => item).length;
+        const checklistTotal = Object.keys(cierre.checklist).length;
+
+        let infoNegocio = '';
+        if (datosNegocio && (
+          datosNegocio.nombre || datosNegocio.nit || datosNegocio.direccion || datosNegocio.correo || datosNegocio.telefono
+        )) {
+          infoNegocio += '<div class="border-top mt-1">';
+          if (datosNegocio.nombre) infoNegocio += `<div><strong>${datosNegocio.nombre}</strong></div>`;
+          if (datosNegocio.nit) infoNegocio += `<div>NIT/Cédula: ${datosNegocio.nit}</div>`;
+          if (datosNegocio.direccion) infoNegocio += `<div>Dirección: ${datosNegocio.direccion}</div>`;
+          if (datosNegocio.correo) infoNegocio += `<div>Correo: ${datosNegocio.correo}</div>`;
+          if (datosNegocio.telefono) infoNegocio += `<div>Teléfono: ${datosNegocio.telefono}</div>`;
+          infoNegocio += '</div>';
+        }
+
+        const contenido = `
+          <html>
+            <head>
+              <title>Cierre Operativo</title>
+              <style>
+                body { font-family: monospace; font-size: 14px; width: 57mm; margin: 0; padding: 1mm; }
+                .text-center { text-align: center; }
+                .text-right { text-align: right; }
+                .mb-1 { margin-bottom: 0.5mm; }
+                .mt-1 { margin-top: 0.5mm; }
+                .border-top { border-top: 1px dashed #000; margin-top: 1mm; padding-top: 1mm; }
+                .header { border-bottom: 1px dashed #000; padding-bottom: 1mm; margin-bottom: 1mm; }
+                .total-row { font-weight: bold; font-size: 16px; }
+                .botones-impresion { position: fixed; top: 10px; right: 10px; z-index: 1000; background: #fff; padding: 5px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+                .botones-impresion button { margin: 0 5px; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+                .botones-impresion button:hover { background: #0056b3; }
+                .logo-container { text-align: center; margin-bottom: 2mm; }
+                .logo-container img { max-width: 100%; max-height: 120px; }
+                .checklist-item { margin-bottom: 0.5mm; }
+                .checklist-item.completado::before { content: "✓ "; color: green; font-weight: bold; }
+                .checklist-item.pendiente::before { content: "✗ "; color: red; font-weight: bold; }
+                @media print { .botones-impresion { display: none; } @page { margin: 0; size: 57mm auto; } body { width: 57mm; } }
+              </style>
+            </head>
+            <body>
+              <div class="botones-impresion">
+                <button onclick="window.print()">Imprimir</button>
+                <button onclick="window.close()">Cerrar</button>
+              </div>
+
+              <div class="header text-center">
+                <h2 style="margin: 0; font-size: 14px;">CIERRE OPERATIVO</h2>
+                <div class="mb-1">${fecha.toLocaleDateString()}</div>
+                <div class="mb-1">${fecha.toLocaleTimeString()}</div>
+              </div>
+
+              <div class="border-top">
+                <div class="mb-1"><strong>Información del Empleado</strong></div>
+                <div class="mb-1">Nombre: ${cierre.empleado.nombre}</div>
+                <div class="mb-1">Cargo: ${cierre.empleado.cargo}</div>
+                <div class="mb-1">Horario: ${cierre.empleado.horaInicio} - ${cierre.empleado.horaFin}</div>
+              </div>
+
+              ${cierre.entregaTurno && cierre.entregaTurno.nombreRecibe ? `
+              <div class="border-top">
+                <div class="mb-1"><strong>Entrega de Turno</strong></div>
+                <div class="mb-1">Recibe: ${cierre.entregaTurno.nombreRecibe}</div>
+                <div class="mb-1">Cargo: ${cierre.entregaTurno.cargoRecibe || 'No especificado'}</div>
+                <div class="mb-1">Base de caja: $ ${cierre.entregaTurno.baseCajaDeja.toLocaleString()}</div>
+                ${cierre.entregaTurno.observacionesEntrega ? `<div class="mb-1">Observaciones: ${cierre.entregaTurno.observacionesEntrega}</div>` : ''}
+              </div>
+              ` : ''}
+              
+              <div class="border-top">
+                <div class="mb-1"><strong>Checklist de Cierre</strong></div>
+                <div class="mb-1">Progreso: ${checklistCompletado}/${checklistTotal} tareas completadas</div>
+                <div class="checklist-item ${cierre.checklist.limpieza ? 'completado' : 'pendiente'}">Limpieza general completada</div>
+                <div class="checklist-item ${cierre.checklist.inventario ? 'completado' : 'pendiente'}">Inventario verificado</div>
+                <div class="checklist-item ${cierre.checklist.equipos ? 'completado' : 'pendiente'}">Equipos apagados correctamente</div>
+                <div class="checklist-item ${cierre.checklist.seguridad ? 'completado' : 'pendiente'}">Verificación de seguridad realizada</div>
+                <div class="checklist-item ${cierre.checklist.mesas ? 'completado' : 'pendiente'}">Todas las mesas limpias y organizadas</div>
+              </div>
+              
+              ${cierre.totales && cierre.totales.general > 0 ? `
+              <div class="border-top">
+                <div class="mb-1"><strong>Totales de Ventas (Manual)</strong></div>
+                <div class="mb-1">Efectivo: $ ${cierre.totales.efectivo.toLocaleString()}</div>
+                <div class="mb-1">Transferencia: $ ${cierre.totales.transferencia.toLocaleString()}</div>
+                <div class="mb-1">Tarjeta: $ ${cierre.totales.tarjeta.toLocaleString()}</div>
+                <div class="mb-1 total-row">Total General: $ ${cierre.totales.general.toLocaleString()}</div>
+              </div>
+              ` : ''}
+              
+              ${cierre.observaciones ? `
+              <div class="border-top">
+                <div class="mb-1"><strong>Observaciones del Turno</strong></div>
+                <div class="mb-1">${cierre.observaciones}</div>
+              </div>
+              ` : ''}
+              
+              ${cierre.tareasPendientes ? `
+              <div class="border-top">
+                <div class="mb-1"><strong>Tareas Pendientes</strong></div>
+                <div class="mb-1">${cierre.tareasPendientes}</div>
+              </div>
+              ` : ''}
+              
+              ${infoNegocio}
+              
+              <div class="text-center mt-1">
+                <div class="border-top">¡Cierre Operativo Completado!</div>
+                <div class="border-top">ToySoft POS</div>
+              </div>
+              
+              <div class="border-top text-center mt-3">
+                <div class="mb-1">Firma del Empleado: _________________</div>
+                ${cierre.entregaTurno && cierre.entregaTurno.nombreRecibe ? 
+                  `<div class="mb-1">Firma de quien recibe: _________________</div>` : ''}
+                <div class="mb-1">Fecha: ${fecha.toLocaleDateString()}</div>
+              </div>
+            </body>
+          </html>
+        `;
+
+        ventana.document.write(contenido);
+        ventana.document.close();
+        
+      } catch (error) {
+        console.error('Error al imprimir cierre operativo:', error);
+        alert('Error al generar el cierre operativo: ' + error.message);
+      }
+    }
+
+    // Función para exportar cierres operativos a Excel
+    function exportarCierresOperativosExcel() {
+      try {
+        // Verificar si XLSX está disponible
+        if (typeof XLSX === 'undefined') {
+          alert('La funcionalidad de exportación a Excel no está disponible. Por favor, instale la librería XLSX.');
+          return;
+        }
+
+        // Obtener cierres operativos
+        const cierres = JSON.parse(localStorage.getItem('historialCierresOperativos')) || [];
+        
+        if (cierres.length === 0) {
+          alert('No hay cierres operativos para exportar');
+          return;
+        }
+
+        // Crear un nuevo libro de Excel
+        const wb = XLSX.utils.book_new();
+        
+        // Preparar los datos para la hoja de cálculo
+        const datos = cierres.map(cierre => ({
+          'Fecha': new Date(cierre.fecha).toLocaleString(),
+          'Empleado': cierre.empleado.nombre,
+          'Cargo': cierre.empleado.cargo,
+          'Hora Inicio': cierre.empleado.horaInicio,
+          'Hora Fin': cierre.empleado.horaFin,
+          'Limpieza': cierre.checklist.limpieza ? 'Sí' : 'No',
+          'Inventario': cierre.checklist.inventario ? 'Sí' : 'No',
+          'Equipos': cierre.checklist.equipos ? 'Sí' : 'No',
+          'Seguridad': cierre.checklist.seguridad ? 'Sí' : 'No',
+          'Mesas': cierre.checklist.mesas ? 'Sí' : 'No',
+          'Tareas Completadas': `${Object.values(cierre.checklist).filter(item => item).length}/${Object.keys(cierre.checklist).length}`,
+          'Total Efectivo': cierre.totales ? cierre.totales.efectivo : 0,
+          'Total Transferencia': cierre.totales ? cierre.totales.transferencia : 0,
+          'Total Tarjeta': cierre.totales ? cierre.totales.tarjeta : 0,
+          'Total General': cierre.totales ? cierre.totales.general : 0,
+          'Observaciones': cierre.observaciones || '',
+          'Tareas Pendientes': cierre.tareasPendientes || ''
+        }));
+
+        // Crear la hoja de cálculo
+        const ws = XLSX.utils.json_to_sheet(datos);
+
+        // Ajustar el ancho de las columnas
+        const anchos = [
+          { wch: 20 }, // Fecha
+          { wch: 20 }, // Empleado
+          { wch: 15 }, // Cargo
+          { wch: 12 }, // Hora Inicio
+          { wch: 12 }, // Hora Fin
+          { wch: 10 }, // Limpieza
+          { wch: 10 }, // Inventario
+          { wch: 10 }, // Equipos
+          { wch: 10 }, // Seguridad
+          { wch: 10 }, // Mesas
+          { wch: 15 }, // Tareas Completadas
+          { wch: 15 }, // Total Efectivo
+          { wch: 15 }, // Total Transferencia
+          { wch: 15 }, // Total Tarjeta
+          { wch: 15 }, // Total General
+          { wch: 40 }, // Observaciones
+          { wch: 40 }  // Tareas Pendientes
+        ];
+        ws['!cols'] = anchos;
+
+        // Agregar la hoja al libro
+        XLSX.utils.book_append_sheet(wb, ws, 'Cierres Operativos');
+
+        // Generar el archivo Excel
+        const fecha = new Date().toISOString().slice(0, 10);
+        XLSX.writeFile(wb, `Cierres_Operativos_${fecha}.xlsx`);
+        
+        alert('Archivo Excel de cierres operativos generado exitosamente');
+      } catch (error) {
+        console.error('Error al exportar cierres operativos a Excel:', error);
+        alert('Error al generar el archivo Excel: ' + error.message);
+      }
+    }
+  </script>
+</body>
+</html> 
