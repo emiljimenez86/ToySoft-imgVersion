@@ -559,62 +559,15 @@ function sincronizarConAdministracion() {
     console.log('✅ Productos sincronizados desde administración');
   }
   
-  // Si no hay datos de administración, usar datos de prueba
+  // Si no hay datos de administración, NO crear datos de prueba automáticamente
   if (categorias.length === 0) {
-    console.log('⚠️ No hay categorías en administración, usando datos de prueba...');
-    categorias = ['Empanadas', 'Bebidas', 'Postres', 'Snacks'];
-    localStorage.setItem('categorias', JSON.stringify(categorias));
-    console.log('📋 Categorías de prueba creadas:', categorias);
+    console.log('ℹ️ No hay categorías en administración. El usuario debe crear categorías desde la sección de administración.');
+    categorias = [];
   }
   
   if (productos.length === 0) {
-    console.log('⚠️ No hay productos en administración, usando datos de prueba...');
-    productos = [
-      {
-        id: 1,
-        nombre: 'Empanada de Carne',
-        precio: 2500,
-        categoria: 'Empanadas',
-        imagen: 'image/placeholder-product.png'
-      },
-      {
-        id: 2,
-        nombre: 'Empanada de Pollo',
-        precio: 2300,
-        categoria: 'Empanadas',
-        imagen: 'image/placeholder-product.png'
-      },
-      {
-        id: 3,
-        nombre: 'Coca Cola',
-        precio: 3000,
-        categoria: 'Bebidas',
-        imagen: 'image/placeholder-product.png'
-      },
-      {
-        id: 4,
-        nombre: 'Agua',
-        precio: 1500,
-        categoria: 'Bebidas',
-        imagen: 'image/placeholder-product.png'
-      },
-      {
-        id: 5,
-        nombre: 'Tres Leches',
-        precio: 4500,
-        categoria: 'Postres',
-        imagen: 'image/placeholder-product.png'
-      },
-      {
-        id: 6,
-        nombre: 'Papas Fritas',
-        precio: 3500,
-        categoria: 'Snacks',
-        imagen: 'image/placeholder-product.png'
-      }
-    ];
-    localStorage.setItem('productos', JSON.stringify(productos));
-    console.log('🛍️ Productos de prueba creados:', productos);
+    console.log('ℹ️ No hay productos en administración. El usuario debe crear productos desde la sección de administración.');
+    productos = [];
   }
   
   console.log('✅ Sincronización completada:', { categorias, productos });
@@ -7705,4 +7658,99 @@ window.mostrarVistaPreviaRecibo = mostrarVistaPreviaRecibo;
 
 // Funciones del sistema
 window.reiniciarSistema = reiniciarSistema;
+
+// Función para limpiar completamente el localStorage (útil para desarrollo y pruebas)
+function limpiarLocalStorageCompleto() {
+  try {
+    // Lista de todas las claves que se usan en la aplicación
+    const clavesALimpiar = [
+      'productos',
+      'categorias',
+      'mesasActivas',
+      'ordenesCocina',
+      'clientes',
+      'historialVentas',
+      'historialCocina',
+      'cotizaciones',
+      'recordatorios',
+      'recordatoriosActivos',
+      'notificacionesActivas',
+      'contadorDomicilios',
+      'contadorRecoger',
+      'ultimaFechaContadores',
+      'historialGastos',
+      'gastos',
+      'historialCierres',
+      'cierres',
+      'historialCierresOperativos',
+      'datosNegocio',
+      'logoNegocio',
+      'configuracionCierre',
+      'ultimaHoraCierre'
+    ];
+    
+    // Limpiar cada clave
+    clavesALimpiar.forEach(clave => {
+      localStorage.removeItem(clave);
+      console.log(`🗑️ Clave "${clave}" eliminada del localStorage`);
+    });
+    
+    // Limpiar variables globales
+    productos = [];
+    categorias = [];
+    mesasActivas = new Map();
+    mesaSeleccionada = null;
+    ordenesCocina = new Map();
+    clientes = [];
+    historialVentas = [];
+    historialCocina = [];
+    cotizaciones = [];
+    recordatorios = [];
+    recordatoriosActivos = [];
+    notificacionesActivas = [];
+    contadorDomicilios = 0;
+    contadorRecoger = 0;
+    
+    console.log('✅ localStorage completamente limpiado');
+    alert('LocalStorage limpiado completamente. La página se recargará.');
+    
+    // Recargar la página para aplicar los cambios
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+    
+  } catch (error) {
+    console.error('❌ Error al limpiar localStorage:', error);
+    alert('Error al limpiar el localStorage: ' + error.message);
+  }
+}
+
+// Función para limpiar solo productos y categorías
+function limpiarProductosYCategorias() {
+  try {
+    // Limpiar solo productos y categorías
+    localStorage.removeItem('productos');
+    localStorage.removeItem('categorias');
+    
+    // Limpiar variables globales
+    productos = [];
+    categorias = [];
+    
+    console.log('✅ Productos y categorías limpiados');
+    alert('Productos y categorías eliminados. La página se recargará.');
+    
+    // Recargar la página para aplicar los cambios
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+    
+  } catch (error) {
+    console.error('❌ Error al limpiar productos y categorías:', error);
+    alert('Error al limpiar productos y categorías: ' + error.message);
+  }
+}
+
+// Exportar funciones de limpieza
+window.limpiarLocalStorageCompleto = limpiarLocalStorageCompleto;
+window.limpiarProductosYCategorias = limpiarProductosYCategorias;
   
