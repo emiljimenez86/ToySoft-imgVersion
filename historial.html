@@ -36,7 +36,7 @@
           <i class="fas fa-utensils"></i> Historial de Cocina
         </button>
       </li>
-      <li class="nav-item" role="presentation">
+      <li class="nav-item" role="presentation" id="tab-cierres-admin" style="display: none;">
         <button class="nav-link" id="cierres-admin-tab" data-bs-toggle="tab" data-bs-target="#cierres-admin" type="button" role="tab">
           <i class="fas fa-calculator"></i> Cierres Administrativos
         </button>
@@ -56,11 +56,11 @@
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-3">
               <h5 class="card-title">Historial de Ventas</h5>
-              <div class="input-group" style="max-width: 300px;">
-                <input type="text" class="form-control bg-dark text-white border-light" 
-                       id="buscarVenta" placeholder="Buscar venta...">
-                <button class="btn btn-outline-light" onclick="buscarVentas()">
-                  <i class="fas fa-search"></i>
+                <div class="input-group" style="max-width: 300px;">
+                  <input type="text" class="form-control bg-dark text-white border-light" 
+                         id="buscarVenta" placeholder="Buscar venta...">
+                  <button class="btn btn-outline-light" onclick="buscarVentas()">
+                    <i class="fas fa-search"></i>
                 </button>
               </div>
             </div>
@@ -72,6 +72,7 @@
                     <th>Mesa/Cliente</th>
                     <th>Total</th>
                     <th>Método</th>
+                    <th>Tipo</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
@@ -103,8 +104,9 @@
                 <thead>
                   <tr>
                     <th>Fecha</th>
-                    <th>Mesa/Cliente</th>
+                    <th>Mesa</th>
                     <th>Productos</th>
+                    <th>Estado</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
@@ -124,22 +126,21 @@
             <div class="d-flex justify-content-between align-items-center mb-3">
               <h5 class="card-title">
                 <i class="fas fa-calculator"></i> Historial de Cierres Administrativos
-                <button class="btn btn-sm btn-outline-warning ms-2" onclick="mostrarModalPin('historial-admin')">
-                  <i class="fas fa-lock"></i> Acceso Restringido
-                </button>
               </h5>
               <div class="input-group" style="max-width: 300px;">
-                <input type="date" class="form-control bg-dark text-white border-light" 
-                       id="fechaCierresAdmin" onchange="filtrarCierresAdmin()">
+                <input type="text" class="form-control bg-dark text-white border-light" 
+                       id="buscarCierreAdmin" placeholder="Buscar cierre...">
+                <button class="btn btn-outline-light" onclick="buscarCierresAdmin()">
+                  <i class="fas fa-search"></i>
+                </button>
               </div>
             </div>
             <div class="table-responsive">
               <table class="table table-dark table-hover">
                 <thead>
                   <tr>
-                    <th>Fecha</th>
-                    <th>Entrega</th>
-                    <th>Recibe</th>
+                    <th>Fecha Cierre</th>
+                    <th>Usuario</th>
                     <th>Total Ventas</th>
                     <th>Total Gastos</th>
                     <th>Balance</th>
@@ -164,21 +165,22 @@
                 <i class="fas fa-user-clock"></i> Historial de Cierres Operativos
               </h5>
               <div class="input-group" style="max-width: 300px;">
-                <input type="date" class="form-control bg-dark text-white border-light" 
-                       id="fechaCierresOperativo" onchange="filtrarCierresOperativo()">
+                <input type="text" class="form-control bg-dark text-white border-light" 
+                       id="buscarCierreOperativo" placeholder="Buscar cierre...">
+                <button class="btn btn-outline-light" onclick="buscarCierresOperativo()">
+                  <i class="fas fa-search"></i>
+                </button>
               </div>
             </div>
             <div class="table-responsive">
               <table class="table table-dark table-hover">
                 <thead>
                   <tr>
-                    <th>Fecha</th>
+                    <th>Fecha Cierre</th>
                     <th>Empleado</th>
-                    <th>Cargo</th>
-                    <th>Horario</th>
-                    <th>Tareas Completadas</th>
-                    <th>Totales (Manual)</th>
-                    <th>Entrega Turno</th>
+                    <th>Ventas Efectivo</th>
+                    <th>Ventas Tarjeta</th>
+                    <th>Total Ventas</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
@@ -194,985 +196,959 @@
   </div>
 
       <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
-    <script src="app.js"></script>
   <script>
-    // Variables globales para el sistema de PIN
-    const PIN_ACCESO = '4321';
-    let accionPendiente = null;
-
-    // Cargar datos al iniciar
-    document.addEventListener('DOMContentLoaded', () => {
-      cargarDatos();
-      cargarHistorialVentas();
-      cargarHistorialCocina();
-      cargarHistorialCierresAdmin();
-      cargarHistorialCierresOperativo();
-    });
-
-    // Función para cargar datos
-    function cargarDatos() {
-      try {
-        // Cargar historial de ventas
-        const historialVentasGuardado = localStorage.getItem('historialVentas');
-        if (historialVentasGuardado) {
-          historialVentas = JSON.parse(historialVentasGuardado);
-          if (!Array.isArray(historialVentas)) {
-            console.error('Error: historialVentas no es un array');
-            historialVentas = [];
-          }
-        } else {
-          historialVentas = [];
-        }
-
-        // Cargar historial de cocina
-        const historialCocinaGuardado = localStorage.getItem('historialCocina');
-        if (historialCocinaGuardado) {
-          historialCocina = JSON.parse(historialCocinaGuardado);
-          if (!Array.isArray(historialCocina)) {
-            console.error('Error: historialCocina no es un array');
-            historialCocina = [];
-          }
-        } else {
-          historialCocina = [];
-        }
-
-        console.log('Datos cargados:', { historialVentas, historialCocina });
-      } catch (error) {
-        console.error('Error al cargar datos:', error);
-        historialVentas = [];
-        historialCocina = [];
-      }
-    }
-
-    // Función para formatear precio
-    function formatearPrecio(precio) {
-      return '$ ' + parseFloat(precio).toLocaleString();
-    }
-
-    // Función para cargar el historial de ventas
-    function cargarHistorialVentas() {
-      try {
-      const tablaVentas = document.getElementById('tablaVentas');
-        if (!tablaVentas) {
-          console.error('No se encontró el elemento tablaVentas');
-          return;
-        }
+    // VERSIÓN SÚPER SIMPLE - Solo lo esencial
+    
+    // Función simple para obtener ventas
+    function obtenerVentas() {
+        const ventas = JSON.parse(localStorage.getItem('ventas')) || [];
+        const historialVentas = JSON.parse(localStorage.getItem('historialVentas')) || [];
+        const todasLasVentas = [...ventas, ...historialVentas];
         
-      tablaVentas.innerHTML = '';
-        console.log('Cargando historial de ventas:', historialVentas);
-
-        if (!Array.isArray(historialVentas) || historialVentas.length === 0) {
-          const fila = document.createElement('tr');
-          fila.innerHTML = '<td colspan="5" class="text-center">No hay ventas registradas</td>';
-          tablaVentas.appendChild(fila);
-          return;
-        }
-
-        // Ordenar ventas por fecha de más reciente a más antiguo
-        const ventasOrdenadas = [...historialVentas].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-      ventasOrdenadas.forEach(venta => {
-        const fila = document.createElement('tr');
-        fila.innerHTML = `
-            <td>${venta.fecha || 'N/A'}</td>
-            <td>${venta.mesa || 'N/A'}</td>
-            <td>${formatearPrecio(venta.total || 0)}</td>
-            <td>${venta.metodoPago || 'N/A'}</td>
-          <td>
-            <button class="btn btn-sm btn-outline-light" onclick="reimprimirFactura(${venta.id})">
-              <i class="fas fa-print"></i> Reimprimir
-            </button>
-          </td>
-        `;
-        tablaVentas.appendChild(fila);
-      });
-      } catch (error) {
-        console.error('Error al cargar historial de ventas:', error);
-        const tablaVentas = document.getElementById('tablaVentas');
-        if (tablaVentas) {
-          tablaVentas.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error al cargar el historial</td></tr>';
-        }
-      }
+        // Ordenar por fecha - más reciente primero
+        return todasLasVentas.sort((a, b) => {
+            const fechaA = new Date(a.fecha);
+            const fechaB = new Date(b.fecha);
+            return fechaB - fechaA; // Más reciente primero
+        });
     }
 
-    // Función para cargar el historial de cocina
-    function cargarHistorialCocina() {
-      try {
-      const tablaCocina = document.getElementById('tablaCocina');
-        if (!tablaCocina) {
-          console.error('No se encontró el elemento tablaCocina');
-          return;
-        }
-
-      tablaCocina.innerHTML = '';
-        console.log('Cargando historial de cocina:', historialCocina);
-
-        if (!Array.isArray(historialCocina) || historialCocina.length === 0) {
-          const fila = document.createElement('tr');
-          fila.innerHTML = '<td colspan="4" class="text-center">No hay órdenes de cocina registradas</td>';
-          tablaCocina.appendChild(fila);
-          return;
-        }
-
-        // Ordenar órdenes de cocina por fecha de más reciente a más antiguo
-        const ordenesOrdenadas = [...historialCocina].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-      ordenesOrdenadas.forEach(orden => {
-        const fila = document.createElement('tr');
-        fila.innerHTML = `
-            <td>${orden.fecha || 'N/A'}</td>
-            <td>${orden.mesa || 'N/A'}</td>
-            <td>${orden.items ? orden.items.length : 0} productos</td>
-          <td>
-            <button class="btn btn-sm btn-outline-light" onclick="reimprimirTicketCocina(${orden.id})">
-              <i class="fas fa-print"></i> Reimprimir
-            </button>
-          </td>
-        `;
-        tablaCocina.appendChild(fila);
-      });
-      } catch (error) {
-        console.error('Error al cargar historial de cocina:', error);
-        const tablaCocina = document.getElementById('tablaCocina');
-        if (tablaCocina) {
-          tablaCocina.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Error al cargar el historial</td></tr>';
-        }
-      }
+    // Función simple para obtener cocina
+    function obtenerCocina() {
+        const ordenes = JSON.parse(localStorage.getItem('historialCocina')) || [];
+        
+        // Ordenar por fecha - más reciente primero
+        return ordenes.sort((a, b) => {
+            const fechaA = new Date(a.fecha);
+            const fechaB = new Date(b.fecha);
+            return fechaB - fechaA; // Más reciente primero
+        });
     }
 
-    // Función para buscar ventas
+    // Función para obtener cierres administrativos
+    function obtenerCierresAdmin() {
+        const cierres = JSON.parse(localStorage.getItem('historialCierres')) || [];
+        
+        // Ordenar por fecha - más reciente primero
+        return cierres.sort((a, b) => {
+            const fechaA = new Date(a.fecha);
+            const fechaB = new Date(b.fecha);
+            return fechaB - fechaA; // Más reciente primero
+        });
+    }
+
+    // Función para obtener cierres operativos
+    function obtenerCierresOperativo() {
+        const cierres = JSON.parse(localStorage.getItem('historialCierresOperativos')) || [];
+        
+        // Ordenar por fecha - más reciente primero
+        return cierres.sort((a, b) => {
+            const fechaA = new Date(a.fecha);
+            const fechaB = new Date(b.fecha);
+            return fechaB - fechaA; // Más reciente primero
+        });
+    }
+
+    // Función simple para buscar ventas
     function buscarVentas() {
       const busqueda = document.getElementById('buscarVenta').value.toLowerCase();
       const tablaVentas = document.getElementById('tablaVentas');
-      tablaVentas.innerHTML = '';
-
-      const ventasFiltradas = historialVentas.filter(venta => 
-        venta.mesa.toLowerCase().includes(busqueda) ||
-        venta.fecha.toLowerCase().includes(busqueda) ||
-        (venta.cliente && venta.cliente.toLowerCase().includes(busqueda))
-      );
-
-      // Ordenar ventas filtradas por fecha de más reciente a más antiguo
-      const ventasOrdenadas = ventasFiltradas.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-      ventasOrdenadas.forEach(venta => {
-        const fila = document.createElement('tr');
-        fila.innerHTML = `
-          <td>${venta.fecha}</td>
-          <td>${venta.mesa}</td>
-          <td>${formatearPrecio(venta.total)}</td>
-          <td>${venta.metodoPago}</td>
-          <td>
-            <button class="btn btn-sm btn-outline-light" onclick="reimprimirFactura(${venta.id})">
-              <i class="fas fa-print"></i> Reimprimir
-            </button>
-          </td>
-        `;
-        tablaVentas.appendChild(fila);
-      });
+        if (!tablaVentas) return;
+        
+        const ventas = obtenerVentas();
+        const filtradas = ventas.filter(v => 
+            (v.mesa && v.mesa.toLowerCase().includes(busqueda)) ||
+            (v.fecha && v.fecha.toLowerCase().includes(busqueda))
+        );
+        
+        mostrarVentas(filtradas);
     }
 
-    // Función para buscar órdenes de cocina
+    // Función simple para buscar cocina
     function buscarCocina() {
-      const busqueda = document.getElementById('buscarCocina').value.toLowerCase();
-      const tablaCocina = document.getElementById('tablaCocina');
-      tablaCocina.innerHTML = '';
+        const busqueda = document.getElementById('buscarCocina').value.toLowerCase();
+        const tablaCocina = document.getElementById('tablaCocina');
+        if (!tablaCocina) return;
+        
+        const ordenes = obtenerCocina();
+        const filtradas = ordenes.filter(o => 
+            (o.mesa && o.mesa.toLowerCase().includes(busqueda)) ||
+            (o.fecha && o.fecha.toLowerCase().includes(busqueda))
+        );
+        
+        mostrarCocina(filtradas);
+    }
 
-      const ordenesFiltradas = historialCocina.filter(orden => 
-        orden.mesa.toLowerCase().includes(busqueda) ||
-        orden.fecha.toLowerCase().includes(busqueda)
-      );
+    // Función para buscar cierres administrativos
+    function buscarCierresAdmin() {
+        const busqueda = document.getElementById('buscarCierreAdmin').value.toLowerCase();
+        const tablaCierresAdmin = document.getElementById('tablaCierresAdmin');
+        if (!tablaCierresAdmin) return;
+        
+        const cierres = obtenerCierresAdmin();
+        const filtradas = cierres.filter(c => 
+            (c.nombreCierre && c.nombreCierre.toLowerCase().includes(busqueda)) ||
+            (c.fecha && c.fecha.toLowerCase().includes(busqueda)) ||
+            (c.nombreRecibe && c.nombreRecibe.toLowerCase().includes(busqueda))
+        );
+        
+        mostrarCierresAdmin(filtradas);
+    }
 
-      // Ordenar órdenes filtradas por fecha de más reciente a más antiguo
-      const ordenesOrdenadas = ordenesFiltradas.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-      ordenesOrdenadas.forEach(orden => {
-        const fila = document.createElement('tr');
-        fila.innerHTML = `
-          <td>${orden.fecha}</td>
-          <td>${orden.mesa}</td>
-          <td>${orden.items ? orden.items.length : 0} productos</td>
-          <td>
-            <button class="btn btn-sm btn-outline-light" onclick="reimprimirTicketCocina(${orden.id})">
-              <i class="fas fa-print"></i> Reimprimir
-            </button>
-          </td>
-        `;
-        tablaCocina.appendChild(fila);
-      });
+    // Función para buscar cierres operativos
+    function buscarCierresOperativo() {
+        const busqueda = document.getElementById('buscarCierreOperativo').value.toLowerCase();
+        const tablaCierresOperativo = document.getElementById('tablaCierresOperativo');
+        if (!tablaCierresOperativo) return;
+        
+        const cierres = obtenerCierresOperativo();
+        const filtradas = cierres.filter(c => 
+            (c.empleado && c.empleado.nombre && c.empleado.nombre.toLowerCase().includes(busqueda)) ||
+            (c.fecha && c.fecha.toLowerCase().includes(busqueda)) ||
+            (c.entregaTurno && c.entregaTurno.nombreRecibe && c.entregaTurno.nombreRecibe.toLowerCase().includes(busqueda))
+        );
+        
+        mostrarCierresOperativo(filtradas);
     }
 
     // Función para reimprimir factura
     function reimprimirFactura(ventaId) {
-      try {
-        console.log('Intentando reimprimir factura:', ventaId);
-        console.log('Historial de ventas actual:', historialVentas);
+        console.log('Intentando reimprimir factura:', ventaId, 'Tipo:', typeof ventaId);
         
-        const venta = historialVentas.find(v => v.id === ventaId);
-        if (!venta) {
-          console.error('No se encontró la venta con ID:', ventaId);
-          alert('No se encontró la venta');
-          return;
-        }
-
+        const ventas = obtenerVentas();
+        console.log('Ventas disponibles:', ventas);
+        console.log('IDs de ventas:', ventas.map(v => ({ id: v.id, tipo: typeof v.id })));
+        
+        const venta = ventas.find(v => {
+            const match1 = v.id == ventaId;
+            const match2 = v.id === parseInt(ventaId);
+            const match3 = v.id === ventaId;
+            console.log(`Comparando ${v.id} (${typeof v.id}) con ${ventaId} (${typeof ventaId}):`, { match1, match2, match3 });
+            return match1 || match2 || match3;
+        });
         console.log('Venta encontrada:', venta);
+        
+        if (!venta) {
+            alert('No se encontró la venta con ID: ' + ventaId + '\nIDs disponibles: ' + ventas.map(v => v.id).join(', '));
+            return;
+        }
 
-        // Crear una nueva ventana con dimensiones específicas
-        const ventana = window.open('', 'ImpresionFactura', 'width=400,height=600,scrollbars=yes');
-        if (!ventana) {
-          alert('Por favor, permite las ventanas emergentes para este sitio');
+        // Crear ventana de impresión
+        const ventanaImpresion = window.open('', 'ImpresionFactura', 'width=500,height=700,scrollbars=yes,resizable=yes');
+        
+        if (!ventanaImpresion) {
+            alert('No se pudo abrir la ventana de impresión. Verifica que no esté bloqueada por el navegador.');
           return;
         }
 
-        // Escribir el contenido en la ventana
-        ventana.document.write(`
-          <!DOCTYPE html>
-          <html>
+        // Obtener información del negocio
+        const nombreNegocio = localStorage.getItem('nombreNegocio') || 'RESTAURANTE';
+        const logoNegocio = localStorage.getItem('logoNegocio');
+        
+        // Función para formatear números
+        const formatearNumero = (numero) => {
+            return new Intl.NumberFormat('es-CO').format(numero);
+        };
+        
+        // Calcular totales
+        const subtotal = venta.subtotal || venta.total || 0;
+        const propina = venta.propina || 0;
+        const propinaMonto = (subtotal * propina) / 100;
+        const descuento = venta.descuento || 0;
+        const valorDomicilio = venta.valorDomicilio || 0;
+        const total = venta.total || 0;
+        
+        // Información adicional según el tipo
+        let infoAdicional = '';
+        if (venta.tipo === 'domicilio') {
+            infoAdicional = `
+                <div class="border-top">
+                    <div class="mb-1"><strong>DOMICILIO</strong></div>
+                    <div class="mb-1">Cliente: ${venta.cliente || 'N/A'}</div>
+                    <div class="mb-1">Teléfono: ${venta.telefono || 'N/A'}</div>
+                    <div class="mb-1">Dirección: ${venta.direccion || 'N/A'}</div>
+                    ${venta.horaRecoger ? `<div class="mb-1">Hora de recoger: ${venta.horaRecoger}</div>` : ''}
+                </div>
+            `;
+        } else if (venta.tipo === 'recoger') {
+            infoAdicional = `
+                <div class="border-top">
+                    <div class="mb-1"><strong>PARA RECOGER</strong></div>
+                    <div class="mb-1">Cliente: ${venta.cliente || 'N/A'}</div>
+                    <div class="mb-1">Teléfono: ${venta.telefono || 'N/A'}</div>
+                    ${venta.horaRecoger ? `<div class="mb-1">Hora de recoger: ${venta.horaRecoger}</div>` : ''}
+                </div>
+            `;
+        }
+        
+        // Determinar tipo de pedido
+        let tipoPedido = '';
+        if (venta.tipo === 'domicilio') tipoPedido = 'DOMICILIO';
+        else if (venta.tipo === 'recoger') tipoPedido = 'PARA RECOGER';
+        else if (venta.tipo === 'venta_rapida') tipoPedido = 'VENTA DIRECTA';
+        
+        ventanaImpresion.document.write(`
+            <!DOCTYPE html>
+            <html>
             <head>
-              <title>Factura</title>
-              <meta charset="UTF-8">
-              <style>
-                body { 
-                  font-family: monospace; 
-                  font-size: 14px; 
-                  width: 57mm; 
-                  margin: 0; 
-                  padding: 1mm;
-                  background: white;
-                  color: black;
-                }
-                .text-center { text-align: center; }
-                .text-right { text-align: right; }
-                .mb-1 { margin-bottom: 0.5mm; }
-                .mt-1 { margin-top: 0.5mm; }
-                .border-top { border-top: 1px dashed #000; margin-top: 1mm; padding-top: 1mm; }
-                .header { border-bottom: 1px dashed #000; padding-bottom: 1mm; margin-bottom: 1mm; }
-                .total-row { font-weight: bold; font-size: 16px; }
-                .botones-impresion { 
-                  position: fixed; 
-                  top: 10px; 
-                  right: 10px; 
-                  z-index: 1000; 
-                  background: #fff; 
-                  padding: 5px; 
-                  border-radius: 5px; 
-                  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-                  display: flex;
-                  gap: 5px;
-                }
-                .botones-impresion button { 
-                  margin: 0; 
-                  padding: 5px 10px; 
-                  background: #007bff; 
-                  color: white; 
-                  border: none; 
-                  border-radius: 3px; 
-                  cursor: pointer;
-                  font-size: 12px;
-                }
-                .botones-impresion button:hover { background: #0056b3; }
-                .logo-container { text-align: center; margin-bottom: 2mm; }
-                .logo-container img { max-width: 100%; max-height: 120px; }
-                @media print { 
-                  .botones-impresion { display: none; } 
-                  @page { margin: 0; size: 57mm auto; } 
-                  body { width: 57mm; } 
-                }
-                .contenido-factura {
-                  margin-top: 40px;
-                }
-              </style>
+                <title>Factura - ${venta.id}</title>
+                <style>
+                    body { 
+                        font-family: monospace;
+                        font-size: 14px;
+                        width: 57mm;
+                        margin: 0;
+                        padding: 1mm;
+                    }
+                    .text-center { text-align: center; }
+                    .text-right { text-align: right; }
+                    .mb-1 { margin-bottom: 0.5mm; }
+                    .mt-1 { margin-top: 0.5mm; }
+                    table { 
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin: 1mm 0;
+                        font-size: 14px;
+                    }
+                    th, td { 
+                        padding: 0.5mm;
+                        text-align: left;
+                        font-size: 14px;
+                    }
+                    .border-top { 
+                        border-top: 1px dashed #000;
+                        margin-top: 1mm;
+                        padding-top: 1mm;
+                    }
+                    .header {
+                        border-bottom: 1px dashed #000;
+                        padding-bottom: 1mm;
+                        margin-bottom: 1mm;
+                    }
+                    .total-row {
+                        font-weight: bold;
+                        font-size: 16px;
+                    }
+                    .botones-impresion {
+                        position: fixed;
+                        top: 10px;
+                        right: 10px;
+                        z-index: 1000;
+                        background: #fff;
+                        padding: 5px;
+                        border-radius: 5px;
+                        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                    }
+                    .botones-impresion button {
+                        margin: 0 5px;
+                        padding: 5px 10px;
+                        background: #007bff;
+                        color: white;
+                        border: none;
+                        border-radius: 3px;
+                        cursor: pointer;
+                    }
+                    .botones-impresion button:hover {
+                        background: #0056b3;
+                    }
+                    .logo-container {
+                        text-align: center;
+                        margin-bottom: 2mm;
+                    }
+                    .logo-container img {
+                        max-width: 100%;
+                        max-height: 120px;
+                    }
+                    @media print {
+                        .botones-impresion {
+                            display: none;
+                        }
+                        @page {
+                            margin: 0;
+                            size: 57mm auto;
+                        }
+                        body {
+                            width: 57mm;
+                        }
+                    }
+                </style>
             </head>
             <body>
-              <div class="botones-impresion">
-                <button onclick="window.print()">Imprimir</button>
-                <button onclick="window.close()">Cerrar</button>
-              </div>
+                <div class="botones-impresion">
+                    <button onclick="window.print()">Imprimir</button>
+                    <button onclick="window.close()">Cerrar</button>
+                </div>
+                
+                <div class="logo-container">
+                    ${logoNegocio ? `<img src="${logoNegocio}" alt="Logo">` : ''}
+                </div>
 
-              <div class="contenido-factura">
                 <div class="header text-center">
-                  <h2 style="margin: 0; font-size: 14px;">FACTURA</h2>
-                  <div class="mb-1">${venta.fecha || 'N/A'}</div>
-                  <div class="mb-1">Mesa/Cliente: ${venta.mesa || 'N/A'}</div>
+                    <h2 style="margin: 0; font-size: 14px;">${nombreNegocio}</h2>
+                    <div class="mb-1">FACTURA</div>
+                    ${tipoPedido ? `<div class="mb-1">${tipoPedido}</div>` : ''}
+                    <div class="mb-1">${new Date(venta.fecha).toLocaleString()}</div>
+                    ${venta.mesa && !venta.mesa.startsWith('DOM-') && !venta.mesa.startsWith('REC-') ? 
+                        `<div class="mb-1">Mesa: ${venta.mesa}</div>` : ''}
                 </div>
-
+                
+                ${infoAdicional}
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 40%">Producto</th>
+                            <th style="width: 15%">Cant</th>
+                            <th style="width: 20%">Precio</th>
+                            <th style="width: 25%">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${(venta.items || venta.productos) && (venta.items || venta.productos).length > 0 ? 
+                            (venta.items || venta.productos).map(item => `
+                                <tr>
+                                    <td>${item.nombre}</td>
+                                    <td>${item.cantidad}</td>
+                                    <td style="text-align:right;">${formatearNumero(item.precio)}</td>
+                                    <td style="text-align:right;">${formatearNumero(item.precio * item.cantidad)}</td>
+                                </tr>
+                            `).join('') : 
+                            '<tr><td colspan="4">No hay productos registrados</td></tr>'
+                        }
+                    </tbody>
+                </table>
+                
                 <div class="border-top">
-                  <div class="mb-1"><strong>Productos:</strong></div>
-                  ${(venta.items || []).map(item => `
-                    <div class="mb-1">
-                      ${item.cantidad}x ${item.nombre}
-                      <div class="text-right">$ ${((item.precio || 0) * (item.cantidad || 0)).toLocaleString()}</div>
-                    </div>
-                  `).join('')}
+                    <div class="mb-1">Subtotal: <span class="text-right">$ ${formatearNumero(subtotal)}</span></div>
+                    ${propina > 0 ? `<div class="mb-1">Propina (${propina}%): <span class="text-right">$ ${formatearNumero(propinaMonto)}</span></div>` : ''}
+                    ${descuento > 0 ? `<div class="mb-1">Descuento: <span class="text-right">$ ${formatearNumero(descuento)}</span></div>` : ''}
+                    ${valorDomicilio > 0 ? `<div class="mb-1">Domicilio: <span class="text-right">$ ${formatearNumero(valorDomicilio)}</span></div>` : ''}
+                    <div class="mb-1 total-row"><strong>Total: $ ${formatearNumero(total)}</strong></div>
                 </div>
-
+                
                 <div class="border-top">
-                  <div class="mb-1">Subtotal: $ ${(venta.subtotal || 0).toLocaleString()}</div>
-                  <div class="mb-1">IVA (19%): $ ${(venta.iva || 0).toLocaleString()}</div>
-                  <div class="mb-1 total-row">Total: $ ${(venta.total || 0).toLocaleString()}</div>
+                    <div class="mb-1">Método de Pago: ${venta.metodoPago || 'N/A'}</div>
+                    ${venta.montoRecibido ? `<div class="mb-1">Recibido: $ ${formatearNumero(venta.montoRecibido)}</div>` : ''}
+                    ${venta.cambio ? `<div class="mb-1">Cambio: $ ${formatearNumero(venta.cambio)}</div>` : ''}
+                    ${venta.numeroTransferencia ? `<div class="mb-1">N° Transferencia: ${venta.numeroTransferencia}</div>` : ''}
                 </div>
-
-                <div class="border-top">
-                  <div class="mb-1">Método de Pago: ${venta.metodoPago || 'N/A'}</div>
-                  ${(venta.metodoPago || '').toLowerCase() === 'mixto' ? `
-                    <div class="mb-1">- Efectivo: $ ${(venta.montoRecibido || 0).toLocaleString()}</div>
-                    <div class="mb-1">- Transferencia: $ ${(venta.montoTransferencia || 0).toLocaleString()}</div>
-                  ` : ''}
-                </div>
-
+                
                 <div class="text-center mt-1">
-                  <div class="border-top">¡Gracias por su compra!</div>
-                  <div class="border-top">ToySoft POS</div>
+                    <div class="border-top">Gracias por su compra</div>
+                    <div class="border-top">ToySoft POS</div>
                 </div>
-              </div>
             </body>
-          </html>
+            </html>
         `);
-        ventana.document.close();
-      } catch (error) {
-        console.error('Error al reimprimir factura:', error);
-        alert('Error al reimprimir la factura: ' + error.message);
-      }
+        
+        ventanaImpresion.document.close();
+        
+        // Esperar un momento y luego enfocar la ventana
+        setTimeout(() => {
+            ventanaImpresion.focus();
+        }, 100);
     }
 
-    // Función para cargar el historial de cierres administrativos
-    function cargarHistorialCierresAdmin() {
-      try {
-        const tablaCierres = document.getElementById('tablaCierresAdmin');
-        if (!tablaCierres) {
-          console.error('No se encontró el elemento tablaCierresAdmin');
-          return;
-        }
-
-        tablaCierres.innerHTML = '';
-        const historialCierres = JSON.parse(localStorage.getItem('historialCierres')) || [];
-        console.log('Cargando historial de cierres administrativos:', historialCierres);
-
-        if (!Array.isArray(historialCierres) || historialCierres.length === 0) {
-          const fila = document.createElement('tr');
-          fila.innerHTML = '<td colspan="7" class="text-center">No hay cierres administrativos registrados</td>';
-          tablaCierres.appendChild(fila);
-          return;
-        }
-
-        // Ordenar cierres por fecha de más reciente a más antiguo
-        historialCierres.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-        historialCierres.forEach(cierre => {
+    // Función para mostrar ventas
+    function mostrarVentas(ventas) {
+        const tablaVentas = document.getElementById('tablaVentas');
+        if (!tablaVentas) return;
+        
+        tablaVentas.innerHTML = '';
+        ventas.forEach(venta => {
           const fila = document.createElement('tr');
           fila.innerHTML = `
-            <td>${new Date(cierre.fecha).toLocaleString()}</td>
-            <td>${cierre.nombreCierre || 'N/A'}</td>
-            <td>${cierre.nombreRecibe || 'N/A'}</td>
-            <td>${formatearPrecio(cierre.ventas?.total || 0)}</td>
-            <td>${formatearPrecio(cierre.gastos || 0)}</td>
-            <td>${formatearPrecio(cierre.balance || 0)}</td>
-            <td>
-              <button class="btn btn-sm btn-outline-light" onclick="reimprimirCierreAdmin('${cierre.fecha}')">
+                <td>${new Date(venta.fecha).toLocaleString()}</td>
+                <td>${venta.mesa || 'N/A'}</td>
+                <td>$${venta.total || 0}</td>
+                <td>${venta.metodoPago || 'N/A'}</td>
+                <td>${venta.tipo || 'Normal'}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-light" onclick="reimprimirFactura('${venta.id}')">
                 <i class="fas fa-print"></i> Reimprimir
               </button>
             </td>
           `;
-          tablaCierres.appendChild(fila);
+            tablaVentas.appendChild(fila);
         });
-      } catch (error) {
-        console.error('Error al cargar historial de cierres administrativos:', error);
-        const tablaCierres = document.getElementById('tablaCierresAdmin');
-        if (tablaCierres) {
-          tablaCierres.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error al cargar el historial</td></tr>';
-        }
-      }
     }
 
-    // Función para cargar el historial de cierres operativos
-    function cargarHistorialCierresOperativo() {
-      try {
-        const tablaCierres = document.getElementById('tablaCierresOperativo');
-        if (!tablaCierres) {
-          console.error('No se encontró el elemento tablaCierresOperativo');
-          return;
-        }
-
-        tablaCierres.innerHTML = '';
-        const historialCierresOperativos = JSON.parse(localStorage.getItem('historialCierresOperativos')) || [];
-        console.log('Cargando historial de cierres operativos:', historialCierresOperativos);
-
-        if (!Array.isArray(historialCierresOperativos) || historialCierresOperativos.length === 0) {
-          const fila = document.createElement('tr');
-          fila.innerHTML = '<td colspan="8" class="text-center">No hay cierres operativos registrados</td>';
-          tablaCierres.appendChild(fila);
-          return;
-        }
-
-        // Ordenar cierres por fecha de más reciente a más antiguo
-        historialCierresOperativos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-        historialCierresOperativos.forEach(cierre => {
-          const checklistCompletado = Object.values(cierre.checklist).filter(item => item).length;
-          const checklistTotal = Object.keys(cierre.checklist).length;
-          const totales = cierre.totales ? `${formatearPrecio(cierre.totales.general)}` : 'No registrado';
-          const entregaInfo = cierre.entregaTurno && cierre.entregaTurno.nombreRecibe ? 
-            `${cierre.entregaTurno.nombreRecibe} (${formatearPrecio(cierre.entregaTurno.baseCajaDeja)})` : 'No especificado';
-          
-          const fila = document.createElement('tr');
-          fila.innerHTML = `
-            <td>${new Date(cierre.fecha).toLocaleString()}</td>
-            <td>${cierre.empleado?.nombre || 'N/A'}</td>
-            <td>${cierre.empleado?.cargo || 'N/A'}</td>
-            <td>${cierre.empleado?.horaInicio || 'N/A'} - ${cierre.empleado?.horaFin || 'N/A'}</td>
-            <td>${checklistCompletado}/${checklistTotal}</td>
-            <td>${totales}</td>
-            <td>${entregaInfo}</td>
-            <td>
-              <button class="btn btn-sm btn-outline-light" onclick="reimprimirCierreOperativo('${cierre.id}')">
-                <i class="fas fa-print"></i> Reimprimir
-              </button>
-            </td>
-          `;
-          tablaCierres.appendChild(fila);
-        });
-      } catch (error) {
-        console.error('Error al cargar historial de cierres operativos:', error);
-        const tablaCierres = document.getElementById('tablaCierresOperativo');
-        if (tablaCierres) {
-          tablaCierres.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error al cargar el historial</td></tr>';
-        }
-      }
-    }
-
-    // Función para filtrar cierres administrativos por fecha
-    function filtrarCierresAdmin() {
-      const fechaSeleccionada = document.getElementById('fechaCierresAdmin').value;
-      if (!fechaSeleccionada) {
-        cargarHistorialCierresAdmin();
+    // Función para reimprimir orden de cocina
+    function reimprimirCocina(ordenId) {
+        console.log('Intentando reimprimir orden de cocina:', ordenId);
+        
+        const ordenes = obtenerCocina();
+        console.log('Órdenes disponibles:', ordenes);
+        
+        const orden = ordenes.find(o => o.id == ordenId || o.id === parseInt(ordenId));
+        console.log('Orden encontrada:', orden);
+        
+        if (!orden) {
+            alert('No se encontró la orden con ID: ' + ordenId);
         return;
       }
 
-      try {
-        const tablaCierres = document.getElementById('tablaCierresAdmin');
-        const historialCierres = JSON.parse(localStorage.getItem('historialCierres')) || [];
+        // Crear ventana de impresión
+        const ventanaImpresion = window.open('', 'ImpresionCocina', 'width=500,height=700,scrollbars=yes,resizable=yes');
         
-        const cierresFiltrados = historialCierres.filter(cierre => {
-          const fechaCierre = new Date(cierre.fecha);
-          const fechaFiltro = new Date(fechaSeleccionada);
-          return fechaCierre.toDateString() === fechaFiltro.toDateString();
-        });
-
-        // Ordenar cierres filtrados por fecha de más reciente a más antiguo
-        cierresFiltrados.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-        tablaCierres.innerHTML = '';
-        if (cierresFiltrados.length === 0) {
-          const fila = document.createElement('tr');
-          fila.innerHTML = '<td colspan="7" class="text-center">No hay cierres administrativos para esta fecha</td>';
-          tablaCierres.appendChild(fila);
+        if (!ventanaImpresion) {
+            alert('No se pudo abrir la ventana de impresión. Verifica que no esté bloqueada por el navegador.');
           return;
         }
 
-        cierresFiltrados.forEach(cierre => {
-          const fila = document.createElement('tr');
-          fila.innerHTML = `
-            <td>${new Date(cierre.fecha).toLocaleString()}</td>
-            <td>${cierre.nombreCierre || 'N/A'}</td>
-            <td>${cierre.nombreRecibe || 'N/A'}</td>
-            <td>${formatearPrecio(cierre.ventas?.total || 0)}</td>
-            <td>${formatearPrecio(cierre.gastos || 0)}</td>
-            <td>${formatearPrecio(cierre.balance || 0)}</td>
-            <td>
-              <button class="btn btn-sm btn-outline-light" onclick="reimprimirCierreAdmin('${cierre.fecha}')">
-                <i class="fas fa-print"></i> Reimprimir
-              </button>
-            </td>
-          `;
-          tablaCierres.appendChild(fila);
-        });
-      } catch (error) {
-        console.error('Error al filtrar cierres administrativos:', error);
-        alert('Error al filtrar los cierres administrativos');
-      }
-    }
-
-    // Función para filtrar cierres operativos por fecha
-    function filtrarCierresOperativo() {
-      const fechaSeleccionada = document.getElementById('fechaCierresOperativo').value;
-      if (!fechaSeleccionada) {
-        cargarHistorialCierresOperativo();
-        return;
-      }
-
-      try {
-        const tablaCierres = document.getElementById('tablaCierresOperativo');
-        const historialCierresOperativos = JSON.parse(localStorage.getItem('historialCierresOperativos')) || [];
+        // Obtener información del cliente si existe
+        let infoCliente = '';
+        if (orden.cliente) {
+            infoCliente = `
+                <div class="cliente-info">
+                    <div class="cliente-label">Cliente:</div>
+                    <div class="cliente-datos">
+                        <strong>${orden.cliente}</strong><br>
+                        Tel: ${orden.telefono || 'No disponible'}<br>
+                        ${orden.mesa && orden.mesa.startsWith('DOM-') ? 
+                            `Dir: ${orden.direccion || 'No disponible'}` : 
+                            `Hora: ${orden.horaRecoger || 'No disponible'}`
+                        }
+                    </div>
+                </div>
+            `;
+        }
         
-        const cierresFiltrados = historialCierresOperativos.filter(cierre => {
-          const fechaCierre = new Date(cierre.fecha);
-          const fechaFiltro = new Date(fechaSeleccionada);
-          return fechaCierre.toDateString() === fechaFiltro.toDateString();
-        });
-
-        // Ordenar cierres filtrados por fecha de más reciente a más antiguo
-        cierresFiltrados.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-        tablaCierres.innerHTML = '';
-        if (cierresFiltrados.length === 0) {
-          const fila = document.createElement('tr');
-          fila.innerHTML = '<td colspan="8" class="text-center">No hay cierres operativos para esta fecha</td>';
-          tablaCierres.appendChild(fila);
-          return;
-        }
-
-        cierresFiltrados.forEach(cierre => {
-          const checklistCompletado = Object.values(cierre.checklist).filter(item => item).length;
-          const checklistTotal = Object.keys(cierre.checklist).length;
-          const totales = cierre.totales ? `${formatearPrecio(cierre.totales.general)}` : 'No registrado';
-          const entregaInfo = cierre.entregaTurno && cierre.entregaTurno.nombreRecibe ? 
-            `${cierre.entregaTurno.nombreRecibe} (${formatearPrecio(cierre.entregaTurno.baseCajaDeja)})` : 'No especificado';
-          
-          const fila = document.createElement('tr');
-          fila.innerHTML = `
-            <td>${new Date(cierre.fecha).toLocaleString()}</td>
-            <td>${cierre.empleado?.nombre || 'N/A'}</td>
-            <td>${cierre.empleado?.cargo || 'N/A'}</td>
-            <td>${cierre.empleado?.horaInicio || 'N/A'} - ${cierre.empleado?.horaFin || 'N/A'}</td>
-            <td>${checklistCompletado}/${checklistTotal}</td>
-            <td>${totales}</td>
-            <td>${entregaInfo}</td>
-            <td>
-              <button class="btn btn-sm btn-outline-light" onclick="reimprimirCierreOperativo('${cierre.id}')">
-                <i class="fas fa-print"></i> Reimprimir
-              </button>
-            </td>
-          `;
-          tablaCierres.appendChild(fila);
-        });
-      } catch (error) {
-        console.error('Error al filtrar cierres operativos:', error);
-        alert('Error al filtrar los cierres operativos');
-      }
-    }
-
-    // Función para reimprimir cierre
-    function reimprimirCierre(fechaCierre) {
-      try {
-        const historialCierres = JSON.parse(localStorage.getItem('historialCierres')) || [];
-        const cierre = historialCierres.find(c => c.fecha === fechaCierre);
-        
-        if (!cierre) {
-          alert('No se encontró el cierre');
-          return;
-        }
-
-        const ventana = window.open('', 'ImpresionCierre', 'width=400,height=600,scrollbars=yes');
-        if (!ventana) {
-          alert('Por favor, permite las ventanas emergentes para este sitio');
-          return;
-        }
-
-        ventana.document.write(`
-          <!DOCTYPE html>
-          <html>
+        ventanaImpresion.document.write(`
+            <!DOCTYPE html>
+            <html>
             <head>
-              <title>Cierre de Caja</title>
-              <meta charset="UTF-8">
-              <style>
-                body { 
-                  font-family: monospace; 
-                  font-size: 14px; 
-                  width: 57mm; 
-                  margin: 0; 
-                  padding: 1mm;
-                  background: white;
-                  color: black;
-                }
-                .text-center { text-align: center; }
-                .text-right { text-align: right; }
-                .mb-1 { margin-bottom: 0.5mm; }
-                .mt-1 { margin-top: 0.5mm; }
-                .border-top { border-top: 1px dashed #000; margin-top: 1mm; padding-top: 1mm; }
-                .header { border-bottom: 1px dashed #000; padding-bottom: 1mm; margin-bottom: 1mm; }
-                .total-row { font-weight: bold; font-size: 16px; }
-                .botones-impresion { 
-                  position: fixed; 
-                  top: 10px; 
-                  right: 10px; 
-                  z-index: 1000; 
-                  background: #fff; 
-                  padding: 5px; 
-                  border-radius: 5px; 
-                  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-                  display: flex;
-                  gap: 5px;
-                }
-              </style>
+                <title>Ticket de Cocina</title>
+                <meta charset="UTF-8">
+                <style>
+                    body { 
+                        font-family: monospace;
+                        font-size: 14px;
+                        width: 57mm;
+                        margin: 0;
+                        padding: 1mm;
+                    }
+                    .text-center { text-align: center; }
+                    .mb-1 { margin-bottom: 0.5mm; }
+                    .mt-1 { margin-top: 0.5mm; }
+                    table { 
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin: 1mm 0;
+                        font-size: 14px;
+                    }
+                    th, td { 
+                        padding: 0.5mm;
+                        text-align: left;
+                        font-size: 14px;
+                    }
+                    .border-top { 
+                        border-top: 1px dashed #000;
+                        margin-top: 1mm;
+                        padding-top: 1mm;
+                    }
+                    .header {
+                        border-bottom: 1px dashed #000;
+                        padding-bottom: 1mm;
+                        margin-bottom: 1mm;
+                    }
+                    .cliente-info {
+                        border: 1px solid #000;
+                        padding: 1mm;
+                        margin: 1mm 0;
+                        background: #f9f9f9;
+                    }
+                    .cliente-label {
+                        font-weight: bold;
+                        margin-bottom: 0.5mm;
+                    }
+                    .detalle-label {
+                        font-weight: bold;
+                        color: #666;
+                    }
+                    .botones-impresion {
+                        position: fixed;
+                        top: 10px;
+                        right: 10px;
+                        z-index: 1000;
+                        background: #fff;
+                        padding: 5px;
+                        border-radius: 5px;
+                        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                    }
+                    .botones-impresion button {
+                        margin: 0 5px;
+                        padding: 5px 10px;
+                        background: #007bff;
+                        color: white;
+                        border: none;
+                        border-radius: 3px;
+                        cursor: pointer;
+                    }
+                    .botones-impresion button:hover {
+                        background: #0056b3;
+                    }
+                    @media print {
+                        .botones-impresion {
+                            display: none;
+                        }
+                        @page {
+                            margin: 0;
+                            size: 57mm auto;
+                        }
+                        body {
+                            width: 57mm;
+                        }
+                    }
+                </style>
             </head>
             <body>
-              <div class="botones-impresion">
-                <button onclick="window.print()">Imprimir</button>
-                <button onclick="window.close()">Cerrar</button>
-              </div>
-              <div class="contenido-cierre">
+                <div class="botones-impresion">
+                    <button onclick="window.print()">Imprimir</button>
+                    <button onclick="window.close()">Cerrar</button>
+                </div>
+                
                 <div class="header text-center">
-                  <h2 style="margin: 0; font-size: 14px;">CIERRE DE CAJA</h2>
-                  <div class="mb-1">${new Date(cierre.fecha).toLocaleString()}</div>
+                    <h2 style="margin: 0; font-size: 24px; font-weight: bold;">COCINA</h2>
+                    <div class="mb-1" style="font-size: 20px; font-weight: bold;">Mesa: ${orden.mesa || 'N/A'}</div>
+                    <div class="mb-1" style="font-size: 18px; font-weight: bold;">Ronda: ${orden.ronda || 1}</div>
+                    <div class="mb-1">${new Date(orden.fecha).toLocaleString()}</div>
                 </div>
-
-                <div class="border-top">
-                  <div class="mb-1"><strong>Información de Cierre</strong></div>
-                  <div class="mb-1">Entrega: ${cierre.nombreCierre || 'N/A'}</div>
-                  <div class="mb-1">Recibe: ${cierre.nombreRecibe || 'N/A'}</div>
-                  <div class="mb-1">Base Caja: $ ${(cierre.montoBaseCaja || 0).toLocaleString()}</div>
+                
+                ${infoCliente}
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 20%">Cant</th>
+                            <th>Producto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${(orden.items || orden.productos) && (orden.items || orden.productos).length > 0 ? 
+                            (orden.items || orden.productos).map(item => `
+                                <tr>
+                                    <td>${item.cantidad}</td>
+                                    <td>
+                                        <div class="producto" style="font-weight: bold; font-size: 16px;">${item.nombre}</div>
+                                        ${item.detalles ? `
+                                            <div class="detalles">
+                                                <span class="detalle-label">Detalle:</span> ${item.detalles}
+                                            </div>
+                                        ` : ''}
+                                        ${item.observaciones ? `
+                                            <div class="detalles">
+                                                <span class="detalle-label">Obs:</span> ${item.observaciones}
+                                            </div>
+                                        ` : ''}
+                                    </td>
+                                </tr>
+                            `).join('') : 
+                            '<tr><td colspan="2">No hay productos registrados</td></tr>'
+                        }
+                    </tbody>
+                </table>
+                
+                <div class="text-center mt-1">
+                    <div class="border-top">¡Gracias!</div>
                 </div>
-
-                <div class="border-top">
-                  <div class="mb-1"><strong>Resumen de Ventas</strong></div>
-                  <div class="mb-1">Total: $ ${(cierre.ventas?.total || 0).toLocaleString()}</div>
-                  <div class="mb-1">- Efectivo: $ ${(cierre.ventas?.efectivo || 0).toLocaleString()}</div>
-                  <div class="mb-1">- Transferencia: $ ${(cierre.ventas?.transferencia || 0).toLocaleString()}</div>
-                  <div class="mb-1">- Tarjeta: $ ${(cierre.ventas?.tarjeta || 0).toLocaleString()}</div>
-                  <div class="mb-1">- Crédito: $ ${(cierre.ventas?.credito || 0).toLocaleString()}</div>
-                  <div class="mb-1">- Mixto: $ ${(cierre.ventas?.mixto || 0).toLocaleString()}</div>
-                </div>
-
-                <div class="border-top">
-                  <div class="mb-1"><strong>Gastos</strong></div>
-                  <div class="mb-1">Total: $ ${(cierre.gastos || 0).toLocaleString()}</div>
-                </div>
-
-                <div class="border-top">
-                  <div class="mb-1 total-row">Balance Final: $ ${(cierre.balance || 0).toLocaleString()}</div>
-                </div>
-
-                ${cierre.detalles ? `
-                <div class="border-top">
-                  <div class="mb-1"><strong>Detalles Adicionales</strong></div>
-                  <div class="mb-1">${cierre.detalles}</div>
-                </div>
-                ` : ''}
-
-                <div class="border-top text-center">
-                  <div class="mb-1">Firma de Entrega: _________________</div>
-                  <div class="mb-1">Firma de Recibe: _________________</div>
-                </div>
-              </div>
             </body>
-          </html>
+            </html>
         `);
-        ventana.document.close();
-      } catch (error) {
-        console.error('Error al reimprimir cierre:', error);
-        alert('Error al reimprimir el cierre');
-      }
+        
+        ventanaImpresion.document.close();
+        
+        // Esperar un momento y luego enfocar la ventana
+        setTimeout(() => {
+            ventanaImpresion.focus();
+        }, 100);
+    }
+
+    // Función para mostrar cocina
+    function mostrarCocina(ordenes) {
+        const tablaCocina = document.getElementById('tablaCocina');
+        if (!tablaCocina) return;
+        
+        tablaCocina.innerHTML = '';
+        ordenes.forEach(orden => {
+            const fila = document.createElement('tr');
+            fila.innerHTML = `
+                <td>${orden.fecha || 'N/A'}</td>
+                <td>${orden.mesa || 'N/A'}</td>
+                <td>${orden.productos ? orden.productos.length : 0} productos</td>
+                <td>${orden.estado || 'N/A'}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-light" onclick="reimprimirCocina('${orden.id}')">
+                        <i class="fas fa-print"></i> Reimprimir
+                    </button>
+                </td>
+            `;
+            tablaCocina.appendChild(fila);
+        });
+    }
+
+    // Función para mostrar cierres administrativos
+    function mostrarCierresAdmin(cierres) {
+        const tablaCierresAdmin = document.getElementById('tablaCierresAdmin');
+        if (!tablaCierresAdmin) return;
+        
+        tablaCierresAdmin.innerHTML = '';
+        cierres.forEach(cierre => {
+            const fila = document.createElement('tr');
+            fila.innerHTML = `
+                <td>${new Date(cierre.fecha).toLocaleString()}</td>
+                <td>${cierre.nombreCierre || 'N/A'}</td>
+                <td>$${cierre.ventas ? cierre.ventas.total || 0 : 0}</td>
+                <td>$${cierre.gastos || 0}</td>
+                <td>$${cierre.balance || 0}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-light" onclick="reimprimirCierreAdmin('${cierre.fecha}')">
+                        <i class="fas fa-print"></i> Reimprimir
+                    </button>
+                </td>
+            `;
+            tablaCierresAdmin.appendChild(fila);
+        });
+    }
+
+    // Función para mostrar cierres operativos
+    function mostrarCierresOperativo(cierres) {
+        const tablaCierresOperativo = document.getElementById('tablaCierresOperativo');
+        if (!tablaCierresOperativo) return;
+        
+        tablaCierresOperativo.innerHTML = '';
+        cierres.forEach(cierre => {
+            const fila = document.createElement('tr');
+            fila.innerHTML = `
+                <td>${new Date(cierre.fecha).toLocaleString()}</td>
+                <td>${cierre.empleado ? cierre.empleado.nombre || 'N/A' : 'N/A'}</td>
+                <td>$${cierre.totales ? cierre.totales.efectivo || 0 : 0}</td>
+                <td>$${cierre.totales ? cierre.totales.tarjeta || 0 : 0}</td>
+                <td>$${cierre.totales ? cierre.totales.general || 0 : 0}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-light" onclick="reimprimirCierreOperativo('${cierre.id}')">
+                        <i class="fas fa-print"></i> Reimprimir
+                    </button>
+                </td>
+            `;
+            tablaCierresOperativo.appendChild(fila);
+        });
     }
 
     // Función para reimprimir cierre administrativo
     function reimprimirCierreAdmin(fechaCierre) {
-      try {
-        const historialCierres = JSON.parse(localStorage.getItem('historialCierres')) || [];
-        const cierre = historialCierres.find(c => c.fecha === fechaCierre);
+        // Solicitar PIN de administrador
+        const pin = prompt('Ingresa el PIN de administrador para acceder al cierre administrativo:');
+        
+        if (pin !== '4321') {
+            alert('PIN incorrecto. Solo los administradores pueden acceder a esta información.');
+            return;
+        }
+        
+        const cierres = obtenerCierresAdmin();
+        const cierre = cierres.find(c => c.fecha === fechaCierre);
         
         if (!cierre) {
-          alert('No se encontró el cierre administrativo');
-          return;
+            alert('No se encontró el cierre administrativo');
+            return;
         }
-
-        const ventana = window.open('', 'ImpresionCierreAdmin', 'width=400,height=600,scrollbars=yes');
-        if (!ventana) {
-          alert('Por favor, permite las ventanas emergentes para este sitio');
-          return;
+        
+        // Crear ventana de impresión
+        const ventanaImpresion = window.open('', 'ImpresionCierreAdmin', 'width=500,height=700,scrollbars=yes,resizable=yes');
+        
+        if (!ventanaImpresion) {
+            alert('No se pudo abrir la ventana de impresión. Verifica que no esté bloqueada por el navegador.');
+            return;
         }
-
-        ventana.document.write(`
-          <!DOCTYPE html>
-          <html>
+        
+        // Función para formatear números
+        const formatearNumero = (numero) => {
+            return new Intl.NumberFormat('es-CO').format(numero);
+        };
+        
+        ventanaImpresion.document.write(`
+            <!DOCTYPE html>
+            <html>
             <head>
-              <title>Cierre Administrativo</title>
-              <meta charset="UTF-8">
-              <style>
-                body { 
-                  font-family: monospace; 
-                  font-size: 14px; 
-                  width: 57mm; 
-                  margin: 0; 
-                  padding: 1mm;
-                  background: white;
-                  color: black;
-                }
-                .text-center { text-align: center; }
-                .text-right { text-align: right; }
-                .mb-1 { margin-bottom: 0.5mm; }
-                .mt-1 { margin-top: 0.5mm; }
-                .border-top { border-top: 1px dashed #000; margin-top: 1mm; padding-top: 1mm; }
-                .header { border-bottom: 1px dashed #000; padding-bottom: 1mm; margin-bottom: 1mm; }
-                .total-row { font-weight: bold; font-size: 16px; }
-                .botones-impresion { 
-                  position: fixed; 
-                  top: 10px; 
-                  right: 10px; 
-                  background: #f0f0f0; 
-                  padding: 5px; 
-                  border-radius: 5px; 
-                  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-                  display: flex;
-                  gap: 5px;
-                }
-              </style>
+                <title>Cierre Administrativo - ${new Date(cierre.fecha).toLocaleDateString()}</title>
+                <style>
+                    body { 
+                        font-family: monospace;
+                        font-size: 14px;
+                        width: 57mm;
+                        margin: 0;
+                        padding: 1mm;
+                    }
+                    .text-center { text-align: center; }
+                    .text-right { text-align: right; }
+                    .mb-1 { margin-bottom: 0.5mm; }
+                    .mt-1 { margin-top: 0.5mm; }
+                    .border-top { 
+                        border-top: 1px dashed #000;
+                        margin-top: 1mm;
+                        padding-top: 1mm;
+                    }
+                    .header {
+                        border-bottom: 1px dashed #000;
+                        padding-bottom: 1mm;
+                        margin-bottom: 1mm;
+                    }
+                    .total-row {
+                        font-weight: bold;
+                        font-size: 16px;
+                    }
+                    .botones-impresion {
+                        position: fixed;
+                        top: 10px;
+                        right: 10px;
+                        z-index: 1000;
+                        background: #fff;
+                        padding: 5px;
+                        border-radius: 5px;
+                        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                    }
+                    .botones-impresion button {
+                        margin: 0 5px;
+                        padding: 5px 10px;
+                        background: #007bff;
+                        color: white;
+                        border: none;
+                        border-radius: 3px;
+                        cursor: pointer;
+                    }
+                    .botones-impresion button:hover {
+                        background: #0056b3;
+                    }
+                    @media print {
+                        .botones-impresion {
+                            display: none;
+                        }
+                        @page {
+                            margin: 0;
+                            size: 57mm auto;
+                        }
+                        body {
+                            width: 57mm;
+                        }
+                    }
+                </style>
             </head>
             <body>
-              <div class="botones-impresion">
-                <button onclick="window.print()">Imprimir</button>
-                <button onclick="window.close()">Cerrar</button>
-              </div>
-              <div class="contenido-cierre">
+                <div class="botones-impresion">
+                    <button onclick="window.print()">Imprimir</button>
+                    <button onclick="window.close()">Cerrar</button>
+                </div>
+                
                 <div class="header text-center">
-                  <h2 style="margin: 0; font-size: 14px;">CIERRE ADMINISTRATIVO</h2>
-                  <div class="mb-1">${new Date(cierre.fecha).toLocaleString()}</div>
+                    <h2 style="margin: 0; font-size: 14px;">CIERRE ADMINISTRATIVO</h2>
+                    <div class="mb-1">${new Date(cierre.fecha).toLocaleString()}</div>
+                    <div class="mb-1">Usuario: ${cierre.nombreCierre || 'N/A'}</div>
                 </div>
-
+                
                 <div class="border-top">
-                  <div class="mb-1"><strong>Información de Cierre</strong></div>
-                  <div class="mb-1">Entrega: ${cierre.nombreCierre || 'N/A'}</div>
-                  <div class="mb-1">Recibe: ${cierre.nombreRecibe || 'N/A'}</div>
-                  <div class="mb-1">Base Caja: $ ${(cierre.montoBaseCaja || 0).toLocaleString()}</div>
+                    <div class="mb-1">Total Ventas: <span class="text-right">$ ${formatearNumero(cierre.ventas ? cierre.ventas.total || 0 : 0)}</span></div>
+                    <div class="mb-1">Total Gastos: <span class="text-right">$ ${formatearNumero(cierre.gastos || 0)}</span></div>
+                    <div class="mb-1 total-row">Balance: <span class="text-right">$ ${formatearNumero(cierre.balance || 0)}</span></div>
                 </div>
-
-                <div class="border-top">
-                  <div class="mb-1"><strong>Resumen de Ventas</strong></div>
-                  <div class="mb-1">Total: $ ${(cierre.ventas?.total || 0).toLocaleString()}</div>
-                  <div class="mb-1">- Efectivo: $ ${(cierre.ventas?.efectivo || 0).toLocaleString()}</div>
-                  <div class="mb-1">- Transferencia: $ ${(cierre.ventas?.transferencia || 0).toLocaleString()}</div>
-                  <div class="mb-1">- Tarjeta: $ ${(cierre.ventas?.tarjeta || 0).toLocaleString()}</div>
-                  <div class="mb-1">- Crédito: $ ${(cierre.ventas?.credito || 0).toLocaleString()}</div>
-                  <div class="mb-1">- Mixto: $ ${(cierre.ventas?.mixto || 0).toLocaleString()}</div>
+                
+                <div class="text-center mt-1">
+                    <div class="border-top">ToySoft POS</div>
                 </div>
-
-                <div class="border-top">
-                  <div class="mb-1"><strong>Gastos</strong></div>
-                  <div class="mb-1">Total: $ ${(cierre.gastos || 0).toLocaleString()}</div>
-                </div>
-
-                <div class="border-top">
-                  <div class="mb-1 total-row">Balance Final: $ ${(cierre.balance || 0).toLocaleString()}</div>
-                </div>
-
-                ${cierre.detalles ? `
-                <div class="border-top">
-                  <div class="mb-1"><strong>Detalles Adicionales</strong></div>
-                  <div class="mb-1">${cierre.detalles}</div>
-                </div>
-                ` : ''}
-
-                <div class="border-top text-center">
-                  <div class="mb-1">Firma de Entrega: _________________</div>
-                  <div class="mb-1">Firma de Recibe: _________________</div>
-                </div>
-              </div>
             </body>
-          </html>
+            </html>
         `);
-        ventana.document.close();
-      } catch (error) {
-        console.error('Error al reimprimir cierre administrativo:', error);
-        alert('Error al reimprimir el cierre administrativo');
-      }
+        
+        ventanaImpresion.document.close();
+        
+        setTimeout(() => {
+            ventanaImpresion.focus();
+        }, 100);
     }
 
     // Función para reimprimir cierre operativo
     function reimprimirCierreOperativo(cierreId) {
-      try {
-        const historialCierresOperativos = JSON.parse(localStorage.getItem('historialCierresOperativos')) || [];
-        const cierre = historialCierresOperativos.find(c => c.id === cierreId);
+        const cierres = obtenerCierresOperativo();
+        const cierre = cierres.find(c => c.id == cierreId || c.id === parseInt(cierreId));
         
         if (!cierre) {
-          alert('No se encontró el cierre operativo');
-          return;
+            alert('No se encontró el cierre operativo');
+            return;
         }
-
-        const ventana = window.open('', 'ImpresionCierreOperativo', 'width=400,height=600,scrollbars=yes');
-        if (!ventana) {
-          alert('Por favor, permite las ventanas emergentes para este sitio');
-          return;
+        
+        // Crear ventana de impresión
+        const ventanaImpresion = window.open('', 'ImpresionCierreOperativo', 'width=500,height=700,scrollbars=yes,resizable=yes');
+        
+        if (!ventanaImpresion) {
+            alert('No se pudo abrir la ventana de impresión. Verifica que no esté bloqueada por el navegador.');
+            return;
         }
-
-        ventana.document.write(`
-          <!DOCTYPE html>
-          <html>
+        
+        // Función para formatear números
+        const formatearNumero = (numero) => {
+            return new Intl.NumberFormat('es-CO').format(numero);
+        };
+        
+        ventanaImpresion.document.write(`
+            <!DOCTYPE html>
+            <html>
             <head>
-              <title>Cierre Operativo</title>
-              <meta charset="UTF-8">
-              <style>
-                body { 
-                  font-family: monospace; 
-                  font-size: 14px; 
-                  width: 57mm; 
-                  margin: 0; 
-                  padding: 1mm;
-                  background: white;
-                  color: black;
-                }
-                .text-center { text-align: center; }
-                .text-right { text-align: right; }
-                .mb-1 { margin-bottom: 0.5mm; }
-                .mt-1 { margin-top: 0.5mm; }
-                .border-top { border-top: 1px dashed #000; margin-top: 1mm; padding-top: 1mm; }
-                .header { border-bottom: 1px dashed #000; padding-bottom: 1mm; margin-bottom: 1mm; }
-                .total-row { font-weight: bold; font-size: 16px; }
-                .checklist-item { margin-bottom: 0.3mm; }
-                .botones-impresion { 
-                  position: fixed; 
-                  top: 10px; 
-                  right: 10px; 
-                  background: #f0f0f0; 
-                  padding: 5px; 
-                  border-radius: 5px; 
-                  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-                  display: flex;
-                  gap: 5px;
-                }
-              </style>
+                <title>Cierre Operativo - ${cierre.empleado ? cierre.empleado.nombre : 'N/A'}</title>
+                <style>
+                    body { 
+                        font-family: monospace;
+                        font-size: 14px;
+                        width: 57mm;
+                        margin: 0;
+                        padding: 1mm;
+                    }
+                    .text-center { text-align: center; }
+                    .text-right { text-align: right; }
+                    .mb-1 { margin-bottom: 0.5mm; }
+                    .mt-1 { margin-top: 0.5mm; }
+                    .border-top { 
+                        border-top: 1px dashed #000;
+                        margin-top: 1mm;
+                        padding-top: 1mm;
+                    }
+                    .header {
+                        border-bottom: 1px dashed #000;
+                        padding-bottom: 1mm;
+                        margin-bottom: 1mm;
+                    }
+                    .total-row {
+                        font-weight: bold;
+                        font-size: 16px;
+                    }
+                    .botones-impresion {
+                        position: fixed;
+                        top: 10px;
+                        right: 10px;
+                        z-index: 1000;
+                        background: #fff;
+                        padding: 5px;
+                        border-radius: 5px;
+                        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                    }
+                    .botones-impresion button {
+                        margin: 0 5px;
+                        padding: 5px 10px;
+                        background: #007bff;
+                        color: white;
+                        border: none;
+                        border-radius: 3px;
+                        cursor: pointer;
+                    }
+                    .botones-impresion button:hover {
+                        background: #0056b3;
+                    }
+                    @media print {
+                        .botones-impresion {
+                            display: none;
+                        }
+                        @page {
+                            margin: 0;
+                            size: 57mm auto;
+                        }
+                        body {
+                            width: 57mm;
+                        }
+                    }
+                </style>
             </head>
             <body>
-              <div class="botones-impresion">
-                <button onclick="window.print()">Imprimir</button>
-                <button onclick="window.close()">Cerrar</button>
-              </div>
-              <div class="contenido-cierre">
+                <div class="botones-impresion">
+                    <button onclick="window.print()">Imprimir</button>
+                    <button onclick="window.close()">Cerrar</button>
+                </div>
+                
                 <div class="header text-center">
-                  <h2 style="margin: 0; font-size: 14px;">CIERRE OPERATIVO</h2>
-                  <div class="mb-1">${new Date(cierre.fecha).toLocaleString()}</div>
+                    <h2 style="margin: 0; font-size: 14px;">CIERRE OPERATIVO</h2>
+                    <div class="mb-1">${new Date(cierre.fecha).toLocaleString()}</div>
+                    <div class="mb-1">Empleado: ${cierre.empleado ? cierre.empleado.nombre : 'N/A'}</div>
+                    <div class="mb-1">Cargo: ${cierre.empleado ? cierre.empleado.cargo : 'N/A'}</div>
                 </div>
-
+                
                 <div class="border-top">
-                  <div class="mb-1"><strong>Información del Empleado</strong></div>
-                  <div class="mb-1">Nombre: ${cierre.empleado?.nombre || 'N/A'}</div>
-                  <div class="mb-1">Cargo: ${cierre.empleado?.cargo || 'N/A'}</div>
-                  <div class="mb-1">Horario: ${cierre.empleado?.horaInicio || 'N/A'} - ${cierre.empleado?.horaFin || 'N/A'}</div>
+                    <div class="mb-1">Ventas Efectivo: <span class="text-right">$ ${formatearNumero(cierre.totales ? cierre.totales.efectivo || 0 : 0)}</span></div>
+                    <div class="mb-1">Ventas Tarjeta: <span class="text-right">$ ${formatearNumero(cierre.totales ? cierre.totales.tarjeta || 0 : 0)}</span></div>
+                    <div class="mb-1">Ventas Transferencia: <span class="text-right">$ ${formatearNumero(cierre.totales ? cierre.totales.transferencia || 0 : 0)}</span></div>
+                    <div class="mb-1 total-row">Total General: <span class="text-right">$ ${formatearNumero(cierre.totales ? cierre.totales.general || 0 : 0)}</span></div>
                 </div>
-
-                ${cierre.entregaTurno && cierre.entregaTurno.nombreRecibe ? `
-                <div class="border-top">
-                  <div class="mb-1"><strong>Entrega de Turno</strong></div>
-                  <div class="mb-1">Recibe: ${cierre.entregaTurno.nombreRecibe}</div>
-                  <div class="mb-1">Cargo: ${cierre.entregaTurno.cargoRecibe || 'No especificado'}</div>
-                  <div class="mb-1">Base de caja: $ ${(cierre.entregaTurno.baseCajaDeja || 0).toLocaleString()}</div>
-                  ${cierre.entregaTurno.observacionesEntrega ? `<div class="mb-1">Observaciones: ${cierre.entregaTurno.observacionesEntrega}</div>` : ''}
+                
+                <div class="text-center mt-1">
+                    <div class="border-top">ToySoft POS</div>
                 </div>
-                ` : ''}
-
-                <div class="border-top">
-                  <div class="mb-1"><strong>Checklist Completado</strong></div>
-                  ${Object.entries(cierre.checklist || {}).map(([item, completado]) => 
-                    `<div class="checklist-item">${completado ? '✓' : '✗'} ${item}</div>`
-                  ).join('')}
-                </div>
-
-                ${cierre.totales ? `
-                <div class="border-top">
-                  <div class="mb-1"><strong>Totales Manuales</strong></div>
-                  <div class="mb-1">Efectivo: $ ${(cierre.totales.efectivo || 0).toLocaleString()}</div>
-                  <div class="mb-1">Transferencia: $ ${(cierre.totales.transferencia || 0).toLocaleString()}</div>
-                  <div class="mb-1">Tarjeta: $ ${(cierre.totales.tarjeta || 0).toLocaleString()}</div>
-                  <div class="mb-1 total-row">Total General: $ ${(cierre.totales.general || 0).toLocaleString()}</div>
-                </div>
-                ` : ''}
-
-                ${cierre.observaciones ? `
-                <div class="border-top">
-                  <div class="mb-1"><strong>Observaciones</strong></div>
-                  <div class="mb-1">${cierre.observaciones}</div>
-                </div>
-                ` : ''}
-
-                ${cierre.tareasPendientes ? `
-                <div class="border-top">
-                  <div class="mb-1"><strong>Tareas Pendientes</strong></div>
-                  <div class="mb-1">${cierre.tareasPendientes}</div>
-                </div>
-                ` : ''}
-
-                <div class="border-top text-center">
-                  <div class="mb-1">Firma del Empleado: _________________</div>
-                  ${cierre.entregaTurno && cierre.entregaTurno.nombreRecibe ? 
-                    `<div class="mb-1">Firma de quien recibe: _________________</div>` : ''}
-                  <div class="mb-1">Fecha: ${new Date(cierre.fecha).toLocaleDateString()}</div>
-                </div>
-              </div>
             </body>
-          </html>
+            </html>
         `);
-        ventana.document.close();
-      } catch (error) {
-        console.error('Error al reimprimir cierre operativo:', error);
-        alert('Error al reimprimir el cierre operativo');
+        
+        ventanaImpresion.document.close();
+        
+        setTimeout(() => {
+            ventanaImpresion.focus();
+        }, 100);
+    }
+
+    // Cargar datos al iniciar
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('📄 Cargando historial.html...');
+        mostrarVentas(obtenerVentas());
+        mostrarCocina(obtenerCocina());
+        mostrarCierresAdmin(obtenerCierresAdmin());
+        mostrarCierresOperativo(obtenerCierresOperativo());
+        
+        // Verificar rol después de cargar los datos
+        setTimeout(() => {
+          console.log('🔍 Verificando rol después de cargar datos...');
+          verificarRolUsuario();
+        }, 200);
+    });
+
+
+    // Función para verificar el rol del usuario y mostrar/ocultar pestañas
+    function verificarRolUsuario() {
+      // Obtener el tipo de usuario desde localStorage o window.usuarioActual
+      const rolUsuario = localStorage.getItem('usuarioActual') || window.usuarioActual;
+      console.log('🔍 Verificando rol:', rolUsuario);
+      
+      if (rolUsuario === 'admin') {
+        // Mostrar pestaña de cierres administrativos para administradores
+        const tabCierresAdmin = document.getElementById('tab-cierres-admin');
+        if (tabCierresAdmin) {
+          tabCierresAdmin.style.display = 'block';
+          console.log('✅ Mostrando pestaña de cierres administrativos para administrador');
+        }
+      } else {
+        // Ocultar pestaña de cierres administrativos para empleados
+        const tabCierresAdmin = document.getElementById('tab-cierres-admin');
+        if (tabCierresAdmin) {
+          tabCierresAdmin.style.display = 'none';
+          console.log('❌ Ocultando pestaña de cierres administrativos para empleado');
+        }
       }
     }
+
+    // Función para verificar rol con delay (para asegurar que window.usuarioActual esté disponible)
+    function verificarRolConDelay() {
+      setTimeout(() => {
+        verificarRolUsuario();
+      }, 100);
+    }
+
+    // Verificar rol al cargar la página y también con delay
+    verificarRolUsuario();
+    verificarRolConDelay();
+
+    // Hacer las funciones disponibles globalmente
+    window.buscarVentas = buscarVentas;
+    window.buscarCocina = buscarCocina;
+    window.buscarCierresAdmin = buscarCierresAdmin;
+    window.buscarCierresOperativo = buscarCierresOperativo;
+    window.reimprimirFactura = reimprimirFactura;
+    window.reimprimirCocina = reimprimirCocina;
+    window.reimprimirCierreAdmin = reimprimirCierreAdmin;
+    window.reimprimirCierreOperativo = reimprimirCierreOperativo;
+    window.verificarRolUsuario = verificarRolUsuario;
   </script>
-
-  <!-- Modal de Ayuda Contextual -->
-  <div class="modal fade" id="modalAyuda" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content bg-dark text-white">
-        <div class="modal-header">
-          <h5 class="modal-title">
-            <i class="fas fa-question-circle text-info"></i>
-            Ayuda: <span id="tituloAyuda">Historial de Ventas</span>
-          </h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <div id="contenidoAyuda"></div>
-          <div id="enlacesAyuda" class="mt-3">
-            <h6>Enlaces Relacionados:</h6>
-            <div class="list-group list-group-flush bg-dark">
-              <!-- Enlaces dinámicos -->
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal de PIN de Acceso -->
-  <div class="modal fade" id="modalPinAcceso" tabindex="-1" aria-labelledby="modalPinAccesoLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content bg-dark text-white">
-        <div class="modal-header">
-          <h5 class="modal-title" id="modalPinAccesoLabel">
-            <i class="fas fa-lock text-warning"></i>
-            Acceso Restringido
-          </h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="text-center mb-3">
-            <i class="fas fa-shield-alt text-warning" style="font-size: 3rem;"></i>
-            <p class="mt-2">Ingrese el PIN de acceso para continuar</p>
-          </div>
-          <div class="form-group">
-            <label for="pinAcceso" class="form-label">PIN de Acceso:</label>
-            <input type="password" class="form-control bg-dark text-white border-light" 
-                   id="pinAcceso" placeholder="Ingrese el PIN" maxlength="4" 
-                   onkeypress="if(event.key === 'Enter') verificarPinAcceso()">
-            <div id="mensajeErrorPin" class="text-danger mt-2" style="display: none;">
-              <i class="fas fa-exclamation-triangle"></i> PIN incorrecto. Intente nuevamente.
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-warning" onclick="verificarPinAcceso()">
-            <i class="fas fa-unlock"></i> Verificar PIN
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="ayuda.js"></script>
-  <script src="app.js"></script>
 </body>
 </html> 

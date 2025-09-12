@@ -4,6 +4,26 @@ window.productos = JSON.parse(localStorage.getItem('productos')) || [];
 window.ventas = JSON.parse(localStorage.getItem('ventas')) || [];
 window.clientes = JSON.parse(localStorage.getItem('clientes')) || [];
 
+// Función auxiliar para obtener todas las ventas (normales + rápidas)
+function obtenerTodasLasVentas() {
+    const ventas = JSON.parse(localStorage.getItem('ventas')) || [];
+    const historialVentas = JSON.parse(localStorage.getItem('historialVentas')) || [];
+    
+    // Combinar ventas evitando duplicados por ID
+    const todasLasVentas = [...ventas, ...historialVentas];
+    const ventasUnicas = [];
+    const idsVistos = new Set();
+    
+    todasLasVentas.forEach(venta => {
+        if (!idsVistos.has(venta.id)) {
+            idsVistos.add(venta.id);
+            ventasUnicas.push(venta);
+        }
+    });
+    
+    return ventasUnicas;
+}
+
 // Variables para backup automático
 const MAX_BACKUPS = 3; // Reducido a 3 backups
 const BACKUP_INTERVAL = 60 * 60 * 1000; // 1 hora en lugar de 30 minutos
@@ -734,11 +754,12 @@ function mostrarModalCierreDiario() {
         const ultimaHoraCierreStr = localStorage.getItem('ultimaHoraCierre');
         const ultimaHoraCierre = ultimaHoraCierreStr ? new Date(ultimaHoraCierreStr) : null;
 
-        // Obtener ventas almacenadas
-        const ventas = JSON.parse(localStorage.getItem('ventas')) || [];
+        // Obtener todas las ventas (normales + rápidas)
+        const todasLasVentas = obtenerTodasLasVentas();
         const hoy = new Date();
         const hoyStr = hoy.toISOString().slice(0, 10);
-        const ventasHoy = ventas.filter(v => {
+        
+        const ventasHoy = todasLasVentas.filter(v => {
             const fechaVenta = new Date(v.fecha);
             if (ultimaHoraCierre) {
                 return fechaVenta > ultimaHoraCierre;
@@ -887,13 +908,13 @@ function guardarCierreDiario() {
             return;
         }
 
-        // Obtener ventas y gastos del día
-        const ventas = JSON.parse(localStorage.getItem('ventas')) || [];
+        // Obtener todas las ventas (normales + rápidas) y gastos del día
+        const todasLasVentas = obtenerTodasLasVentas();
         const gastos = JSON.parse(localStorage.getItem('gastos')) || [];
         const hoy = new Date();
         const hoyStr = hoy.toISOString().slice(0, 10);
 
-        const ventasHoy = ventas.filter(v => {
+        const ventasHoy = todasLasVentas.filter(v => {
             const fechaVenta = new Date(v.fecha);
             const fechaVentaStr = fechaVenta.toISOString().slice(0, 10);
             return fechaVentaStr === hoyStr;

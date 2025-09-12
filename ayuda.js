@@ -103,6 +103,53 @@ const ayudaContextual = {
                     </div>
                 </div>
                 
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <h5 class="text-success">⚡ Venta Rápida</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-warning">🚀 Características Principales</h6>
+                                <ul>
+                                    <li><strong>Vista Lateral:</strong> Productos agregados y controles en el lado derecho</li>
+                                    <li><strong>Sin Scroll:</strong> No necesitas bajar para ver la orden actual</li>
+                                    <li><strong>Contador en Vivo:</strong> Ve cuántos productos has agregado</li>
+                                    <li><strong>Total Dinámico:</strong> Se actualiza automáticamente</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-primary">🎯 Cómo Usar</h6>
+                                <ul>
+                                    <li><strong>1. Abrir Modal:</strong> Haz clic en "Venta Rápida"</li>
+                                    <li><strong>2. Seleccionar:</strong> Elige categoría y productos</li>
+                                    <li><strong>3. Ver Orden:</strong> Revisa en el panel derecho</li>
+                                    <li><strong>4. Procesar:</strong> "Procesar Venta" o "Limpiar Orden"</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-2">
+                            <div class="col-md-6">
+                                <h6 class="text-info">📱 Panel de Control</h6>
+                                <ul>
+                                    <li><strong>Contador:</strong> Número de productos agregados</li>
+                                    <li><strong>Lista de Productos:</strong> Vista detallada de la orden</li>
+                                    <li><strong>Total:</strong> Monto total de la venta</li>
+                                    <li><strong>Botones de Acción:</strong> Procesar o limpiar</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-warning">⚙️ Funciones Disponibles</h6>
+                                <ul>
+                                    <li><strong>Procesar Venta:</strong> Generar recibo y cobrar</li>
+                                    <li><strong>Limpiar Orden:</strong> Reiniciar la venta</li>
+                                    <li><strong>Ayuda:</strong> Guía específica del módulo</li>
+                                    <li><strong>Cancelar:</strong> Cerrar sin procesar</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="alert alert-warning mt-3">
                     <strong>💡 Consejos:</strong>
                     <ul class="mb-0 mt-2">
@@ -111,6 +158,8 @@ const ayudaContextual = {
                         <li>Los clientes se guardan automáticamente para futuras ventas</li>
                         <li>Al generar el recibo final, la mesa/pedido se elimina automáticamente</li>
                         <li>Las mesas solo aparecen cuando tienen productos agregados</li>
+                        <li><strong>⚡ Venta Rápida:</strong> Ideal para ventas directas sin mesa, con vista lateral de la orden</li>
+                        <li><strong>📱 Panel Lateral:</strong> En venta rápida, el panel derecho muestra la orden en tiempo real</li>
                         <li><strong>📝 Configuración:</strong> Las categorías y productos se crean en Administración</li>
                         <li><strong>📝 Nomenclatura:</strong> Los productos deben estar en MAYÚSCULAS para mejor visibilidad</li>
                     </ul>
@@ -1030,6 +1079,67 @@ function mostrarAyudaEspecifica(tipo) {
                     </ul>
                 </div>
             `
+        },
+        'cierre-operativo': {
+            titulo: 'Cierre Operativo',
+            contenido: `
+                <div class="help-content">
+                    <h4><i class="fas fa-user-clock text-success"></i> Cierre Operativo - Control de Turnos</h4>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5 class="text-info">👤 Información del Empleado</h5>
+                            <ul>
+                                <li><strong>Nombre:</strong> Nombre completo del empleado</li>
+                                <li><strong>Cargo:</strong> Posición o rol en el negocio</li>
+                                <li><strong>Hora Inicio:</strong> Cuándo comenzó el turno</li>
+                                <li><strong>Hora Fin:</strong> Cuándo termina el turno</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h5 class="text-warning">📋 Checklist de Tareas</h5>
+                            <ul>
+                                <li><strong>Limpieza:</strong> Área de trabajo ordenada</li>
+                                <li><strong>Inventario:</strong> Verificar stock disponible</li>
+                                <li><strong>Equipos:</strong> Verificar funcionamiento</li>
+                                <li><strong>Seguridad:</strong> Cerrar y asegurar</li>
+                                <li><strong>Mesas:</strong> Verificar estado final</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <h5 class="text-success">💰 Totales de Ventas</h5>
+                            <ul>
+                                <li><strong>Efectivo:</strong> Ventas en dinero en efectivo</li>
+                                <li><strong>Transferencia:</strong> Pagos por transferencia</li>
+                                <li><strong>Tarjeta:</strong> Pagos con tarjeta</li>
+                                <li><strong>Total General:</strong> Suma de todos los métodos</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h5 class="text-primary">🔄 Entrega de Turno</h5>
+                            <ul>
+                                <li><strong>Quien Recibe:</strong> Nombre del siguiente empleado</li>
+                                <li><strong>Cargo:</strong> Posición del que recibe</li>
+                                <li><strong>Base Caja:</strong> Dinero que deja para el siguiente</li>
+                                <li><strong>Observaciones:</strong> Notas importantes</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info mt-3">
+                        <h6><i class="fas fa-lightbulb"></i> Consejos Importantes</h6>
+                        <ul class="mb-0">
+                            <li><strong>Completar Checklist:</strong> Marcar todas las tareas realizadas</li>
+                            <li><strong>Verificar Totales:</strong> Confirmar que los números coincidan</li>
+                            <li><strong>Documentar Problemas:</strong> Anotar cualquier incidencia</li>
+                            <li><strong>Comunicar Cambios:</strong> Informar al siguiente turno</li>
+                        </ul>
+                    </div>
+                </div>
+            `
         }
     };
     
@@ -1046,7 +1156,7 @@ function mostrarAyudaEspecifica(tipo) {
                 <div class="modal-content bg-dark text-white">
                     <div class="modal-header">
                         <h5 class="modal-title">
-                            <i class="fas fa-question-circle text-info"></i> ${ayuda.titulo}
+                            <span style="font-size: 1.3em;">🤖</span> ${ayuda.titulo}
                         </h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
@@ -1087,7 +1197,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btnAyuda.id = 'btnAyudaFlotante';
         btnAyuda.className = 'btn btn-info position-fixed';
         btnAyuda.style.cssText = 'bottom: 20px; right: 20px; z-index: 1000; border-radius: 50%; width: 45px; height: 45px;';
-        btnAyuda.innerHTML = '<i class="fas fa-question-circle"></i>';
+        btnAyuda.innerHTML = '<span style="font-size: 1.5em;">🤖</span>';
         btnAyuda.title = 'Ayuda (F1)';
         btnAyuda.onclick = mostrarAyudaContextual;
         

@@ -13,6 +13,60 @@ let historialVentas = []; // Almacena el historial de ventas
 let historialCocina = []; // Almacena el historial de órdenes de cocina
 let ultimaFechaContadores = null; // Fecha del último contador
 
+// Función auxiliar para obtener todas las ventas (normales + rápidas)
+function obtenerTodasLasVentas() {
+    const ventas = JSON.parse(localStorage.getItem('ventas')) || [];
+    const historialVentas = JSON.parse(localStorage.getItem('historialVentas')) || [];
+    
+    // Combinar ventas evitando duplicados por ID
+    const todasLasVentas = [...ventas, ...historialVentas];
+    const ventasUnicas = [];
+    const idsVistos = new Set();
+    
+    todasLasVentas.forEach(venta => {
+        if (!idsVistos.has(venta.id)) {
+            idsVistos.add(venta.id);
+            ventasUnicas.push(venta);
+        }
+    });
+    
+    return ventasUnicas;
+}
+
+// Función de depuración para verificar ventas rápidas
+function debugVentasRapidas() {
+    console.log('=== DEBUG VENTAS RÁPIDAS ===');
+    const historialVentas = JSON.parse(localStorage.getItem('historialVentas')) || [];
+    const ventasRapidas = historialVentas.filter(v => v.tipo === 'venta_rapida');
+    
+    console.log('Total ventas en historial:', historialVentas.length);
+    console.log('Ventas rápidas encontradas:', ventasRapidas.length);
+    
+    ventasRapidas.forEach((venta, index) => {
+        console.log(`Venta rápida ${index + 1}:`, {
+            id: venta.id,
+            fecha: venta.fecha,
+            total: venta.total,
+            metodoPago: venta.metodoPago,
+            mesa: venta.mesa
+        });
+    });
+    
+    // Verificar filtro de fecha
+    const hoy = new Date();
+    const hoyStr = hoy.toISOString().slice(0, 10);
+    console.log('Fecha de hoy (ISO):', hoyStr);
+    
+    const ventasHoy = ventasRapidas.filter(v => {
+        const fechaVenta = new Date(v.fecha);
+        const fechaVentaStr = fechaVenta.toISOString().slice(0, 10);
+        return fechaVentaStr === hoyStr;
+    });
+    
+    console.log('Ventas rápidas de hoy:', ventasHoy.length);
+    return ventasRapidas;
+}
+
 // Variables globales para cotizaciones
 let cotizaciones = [];
 let modoProductoManual = false;
@@ -28,9 +82,13 @@ let recordatorios = [];
 let recordatoriosActivos = [];
 let notificacionesActivas = [];
 
-// Variables globales para el PIN
-let PIN_ACCESO = '4321'; // PIN por defecto
+// Variables globales para el PIN y roles
+let PIN_ADMIN = '4321'; // PIN de administrador
+let PIN_EMPLEADO = '1234'; // PIN de empleado
+let PIN_ACCESO = PIN_ADMIN; // PIN por defecto (mantener compatibilidad)
 let accionPendiente = null;
+let usuarioActual = null; // Almacena el tipo de usuario actual
+window.usuarioActual = usuarioActual; // Hacer disponible globalmente
 
 // Utilidad: obtener fecha local en formato ISO (YYYY-MM-DD) evitando desfase por zona horaria
 function obtenerFechaLocalISO() {
@@ -765,6 +823,10 @@ function guardarMesas() {
 // Función para actualizar la vista de mesas activas
 function actualizarMesasActivas() {
   const container = document.getElementById('mesasContainer');
+  if (!container) {
+    console.log('No se encontró el elemento mesasContainer - probablemente no estamos en la página POS');
+    return;
+  }
   container.innerHTML = '';
 
   mesasActivas.forEach((orden, mesa) => {
@@ -823,9 +885,7 @@ function mostrarProductos() {
   const categoriasDiv = document.getElementById('categorias');
   console.log('Elemento #categorias encontrado:', !!categoriasDiv);
   if (!categoriasDiv) {
-    console.error('No se encontró el elemento #categorias');
-    console.log('Elementos con ID que contienen "categoria":', document.querySelectorAll('[id*="categoria"]'));
-    console.log('Todos los elementos con ID:', Array.from(document.querySelectorAll('[id]')).map(el => el.id));
+    console.log('No se encontró el elemento #categorias - probablemente no estamos en la página POS');
     return;
   }
   
@@ -1387,13 +1447,35 @@ function actualizarVistaOrden(mesa) {
   const pedido = mesasActivas.get(mesa);
   console.log('Orden de la mesa:', pedido);
 
-  // Mostrar/ocultar campo de domicilio
+  // Mostrar/ocultar campo de domicilio con animación
   const domicilioContainer = document.getElementById('domicilioContainer');
+  const valorDomicilioInput = document.getElementById('valorDomicilio');
+  
   if (mesa.startsWith('DOM-')) {
     domicilioContainer.style.display = 'block';
+    // Enfocar automáticamente el input de domicilio para mejor UX
+    setTimeout(() => {
+      valorDomicilioInput.focus();
+      valorDomicilioInput.select();
+    }, 300);
+    
+    // Agregar clase especial para destacar
+    domicilioContainer.classList.add('domicilio-activo');
+    
+    console.log('🏍️ Input de domicilio activado para:', mesa);
   } else {
     domicilioContainer.style.display = 'none';
+    domicilioContainer.classList.remove('domicilio-activo');
+    // Limpiar el valor cuando no es domicilio
+    valorDomicilioInput.value = '';
   }
+  
+  // Agregar event listener para actualizar total automáticamente
+  valorDomicilioInput.addEventListener('input', function() {
+    if (mesaSeleccionada) {
+      actualizarTotal(mesaSeleccionada);
+    }
+  });
 
   // Actualizar el título de la orden con el nombre del cliente si es domicilio o recoger
   const mesaActual = document.getElementById('mesaActual');
@@ -1788,7 +1870,7 @@ function mostrarReciboVentaRapida(venta) {
         <div class="header text-center">
           <h2 style="margin: 0; font-size: 14px;">RESTAURANTE</h2>
           <div class="mb-1">VENTA RÁPIDA</div>
-          <div class="mb-1">${new Date().toLocaleString()}</div>
+          <div class="mb-1">${new Date(venta.fecha).toLocaleString()}</div>
           <div class="mb-1">${venta.mesa === 'VENTA DIRECTA' ? 'Venta Directa' : `Mesa: ${venta.mesa}`}</div>
         </div>
         
@@ -2044,28 +2126,41 @@ function agregarProductoVentaRapida(productoId) {
 // Función para actualizar lista de productos en venta rápida
 function actualizarListaProductosVentaRapida() {
   const listaContainer = document.getElementById('listaProductosVentaRapida');
+  const contadorContainer = document.getElementById('contadorProductosVentaRapida');
   const items = window.pedidoVentaRapida.items;
   
+  // Actualizar contador de productos
+  if (contadorContainer) {
+    const totalProductos = items.reduce((sum, item) => sum + item.cantidad, 0);
+    contadorContainer.textContent = `${totalProductos} productos`;
+  }
+  
   if (items.length === 0) {
-    listaContainer.innerHTML = '<p class="text-white text-center">No hay productos agregados</p>';
+    listaContainer.innerHTML = `
+      <div class="text-center text-muted py-4">
+        <i class="fas fa-shopping-bag fa-2x mb-2"></i>
+        <p class="mb-0">No hay productos agregados</p>
+        <small>Selecciona productos de la izquierda</small>
+      </div>
+    `;
     return;
   }
   
   let html = '';
   items.forEach((item, index) => {
     html += `
-      <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-dark rounded producto-venta-rapida">
+      <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-gradient bg-secondary bg-opacity-10 border border-secondary rounded producto-venta-rapida">
         <div class="flex-grow-1">
           <div class="d-flex justify-content-between align-items-start mb-1">
-            <span class="fw-bold nombre-producto">${item.nombre}</span>
-            <span class="badge bg-primary fs-6">Cant: ${item.cantidad}</span>
+            <span class="fw-bold text-white nombre-producto">${item.nombre}</span>
+            <span class="badge bg-info fs-6">${item.cantidad}</span>
           </div>
           <div class="d-flex justify-content-between align-items-center">
             <small class="text-muted">${formatearPrecio(item.precio)} c/u</small>
-            <span class="fw-bold text-info precio-producto">${formatearPrecio(item.precio * item.cantidad)}</span>
+            <span class="fw-bold text-warning precio-producto">${formatearPrecio(item.precio * item.cantidad)}</span>
           </div>
         </div>
-        <div class="d-flex align-items-center gap-2 ms-2">
+        <div class="d-flex align-items-center gap-1 ms-2">
           <button class="btn btn-outline-warning btn-sm" onclick="cambiarCantidadVentaRapida(${index}, -1)" title="Reducir cantidad">
             <i class="fas fa-minus"></i>
           </button>
@@ -2121,14 +2216,20 @@ function cambiarCantidadVentaRapida(index, cambio) {
 // Función para actualizar total en venta rápida
 function actualizarTotalVentaRapida() {
   const total = window.pedidoVentaRapida.items.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
-  document.getElementById('totalVentaRapidaModal').textContent = formatearPrecio(total);
+  const totalElement = document.getElementById('totalVentaRapidaModal');
   
-  // Habilitar/deshabilitar botones
+  if (totalElement) {
+    totalElement.textContent = formatearPrecio(total);
+  }
+  
+  // Habilitar/deshabilitar botón de procesar
   const btnProcesar = document.getElementById('btnProcesarVentaRapida');
-  const btnVistaPrevia = document.getElementById('btnVistaPreviaVentaRapida');
   
-  if (btnProcesar) btnProcesar.disabled = total === 0;
-  if (btnVistaPrevia) btnVistaPrevia.disabled = total === 0;
+  if (btnProcesar) {
+    btnProcesar.disabled = total === 0;
+    btnProcesar.classList.toggle('btn-success', total > 0);
+    btnProcesar.classList.toggle('btn-secondary', total === 0);
+  }
 }
 
 // Función para procesar venta rápida directa
@@ -2272,7 +2373,7 @@ function procesarVentaRapida(pedido, total, metodoPago = 'efectivo', montoRecibi
     metodoPago: metodoPago,
     montoRecibido: montoRecibido,
     cambio: Math.max(0, montoRecibido - total),
-    fecha: new Date().toLocaleString(),
+    fecha: new Date().toISOString(),
     tipo: 'venta_rapida',
     estado: 'completada'
   };
@@ -2281,6 +2382,10 @@ function procesarVentaRapida(pedido, total, metodoPago = 'efectivo', montoRecibi
   let historial = JSON.parse(localStorage.getItem('historialVentas') || '[]');
   historial.push(venta);
   localStorage.setItem('historialVentas', JSON.stringify(historial));
+  
+  // Log para depuración
+  console.log('Venta rápida guardada:', venta);
+  console.log('Total ventas en historial:', historial.length);
 
   // Actualizar inventario si está disponible
   try {
@@ -3767,13 +3872,13 @@ function mostrarModalCierreDiario() {
         const ultimaHoraCierreStr = localStorage.getItem('ultimaHoraCierre');
         const ultimaHoraCierre = ultimaHoraCierreStr ? new Date(ultimaHoraCierreStr) : null;
 
-        // Obtener ventas almacenadas
-        const ventas = JSON.parse(localStorage.getItem('ventas')) || [];
+        // Obtener todas las ventas (normales + rápidas)
+        const todasLasVentas = obtenerTodasLasVentas();
         const hoy = new Date();
         const hoyStr = hoy.toISOString().slice(0, 10); // YYYY-MM-DD
 
         // Filtrar ventas posteriores al último cierre o, si no existe, del día actual
-        const ventasHoy = ventas.filter(v => {
+        const ventasHoy = todasLasVentas.filter(v => {
             const fechaVenta = new Date(v.fecha);
             if (ultimaHoraCierre) {
                 return fechaVenta > ultimaHoraCierre;
@@ -3891,9 +3996,10 @@ function guardarCierreDiario() {
         const hoy = new Date();
         const hoyStr = hoy.toISOString().slice(0, 10); // YYYY-MM-DD
 
-        // Obtener ventas del día
-        const ventas = JSON.parse(localStorage.getItem('ventas')) || [];
-        const ventasHoy = ventas.filter(v => {
+        // Obtener todas las ventas (normales + rápidas)
+        const todasLasVentas = obtenerTodasLasVentas();
+        
+        const ventasHoy = todasLasVentas.filter(v => {
             const fechaVenta = new Date(v.fecha);
             const fechaVentaStr = fechaVenta.toISOString().slice(0, 10);
             return fechaVentaStr === hoyStr;
@@ -4096,11 +4202,12 @@ function exportarCierresDiariosExcel() {
 
 function imprimirBalanceDiario() {
     try {
-        // Obtener ventas del día desde la clave 'ventas'
-        const ventas = JSON.parse(localStorage.getItem('ventas')) || [];
+        // Obtener todas las ventas (normales + rápidas)
+        const todasLasVentas = obtenerTodasLasVentas();
         const hoy = new Date();
         const hoyStr = hoy.toISOString().slice(0, 10); // YYYY-MM-DD
-        const ventasHoy = ventas.filter(v => {
+        
+        const ventasHoy = todasLasVentas.filter(v => {
             const fechaVenta = new Date(v.fecha);
             const fechaVentaStr = fechaVenta.toISOString().slice(0, 10);
             return fechaVentaStr === hoyStr;
@@ -4296,19 +4403,23 @@ function mostrarHistorialVentas() {
   const fechaSeleccionada = document.getElementById('fechaHistorialVentas').value;
   const fechaFiltro = fechaSeleccionada ? new Date(fechaSeleccionada) : new Date();
 
+  // Obtener todas las ventas (normales + rápidas)
+  const todasLasVentas = obtenerTodasLasVentas();
+
   // Filtrar ventas por fecha
-  const ventasFiltradas = historialVentas.filter(venta => {
+  const ventasFiltradas = todasLasVentas.filter(venta => {
     const fechaVenta = new Date(venta.fecha);
     return fechaVenta.toDateString() === fechaFiltro.toDateString();
   });
 
   ventasFiltradas.forEach(venta => {
     const fila = document.createElement('tr');
+    const fechaFormateada = new Date(venta.fecha).toLocaleString();
     fila.innerHTML = `
-      <td>${venta.fecha}</td>
-      <td>${venta.tipo}</td>
-      <td>${venta.cliente || '-'}</td>
-      <td>${venta.total.toFixed(2)}</td>
+      <td>${fechaFormateada}</td>
+      <td>${venta.tipo || 'Normal'}</td>
+      <td>${venta.cliente || venta.mesa || '-'}</td>
+      <td>$${venta.total.toFixed(2)}</td>
       <td>${venta.metodoPago}</td>
       <td>
         <button class="btn btn-sm btn-info" onclick="reimprimirFactura('${venta.id}')">
@@ -4460,33 +4571,48 @@ document.addEventListener('DOMContentLoaded', () => {
   inicializarWhatsApp();
   
   // Agregar evento para el botón de nueva mesa
-  document.getElementById('btnNuevaMesa').addEventListener('click', crearNuevaMesa);
+  const btnNuevaMesa = document.getElementById('btnNuevaMesa');
+  if (btnNuevaMesa) {
+    btnNuevaMesa.addEventListener('click', crearNuevaMesa);
+  }
   
   // Agregar evento para la tecla Enter en el input de número de mesa
-  document.getElementById('nuevaMesa').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      crearNuevaMesa();
-    }
-  });
+  const nuevaMesa = document.getElementById('nuevaMesa');
+  if (nuevaMesa) {
+    nuevaMesa.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        crearNuevaMesa();
+      }
+    });
+  }
   
   // Actualizar total cuando cambian propina o descuento
-  document.getElementById('propina').addEventListener('input', () => {
-    if (mesaSeleccionada) {
-      actualizarTotal(mesaSeleccionada);
-    }
-  });
+  const propina = document.getElementById('propina');
+  if (propina) {
+    propina.addEventListener('input', () => {
+      if (mesaSeleccionada) {
+        actualizarTotal(mesaSeleccionada);
+      }
+    });
+  }
   
-  document.getElementById('descuento').addEventListener('input', () => {
-    if (mesaSeleccionada) {
-      actualizarTotal(mesaSeleccionada);
-    }
-  });
+  const descuento = document.getElementById('descuento');
+  if (descuento) {
+    descuento.addEventListener('input', () => {
+      if (mesaSeleccionada) {
+        actualizarTotal(mesaSeleccionada);
+      }
+    });
+  }
   
-  document.getElementById('valorDomicilio').addEventListener('input', () => {
-    if (mesaSeleccionada) {
-      actualizarTotal(mesaSeleccionada);
-    }
-  });
+  const valorDomicilio = document.getElementById('valorDomicilio');
+  if (valorDomicilio) {
+    valorDomicilio.addEventListener('input', () => {
+      if (mesaSeleccionada) {
+        actualizarTotal(mesaSeleccionada);
+      }
+    });
+  }
 });
 
 // Función para mostrar el modal de configuración de cierre
@@ -5137,8 +5263,8 @@ function generarReciboPreliminar() {
 
 function imprimirBalancePorPeriodo(tipoPeriodo) {
     try {
-        // Obtener ventas desde la clave 'ventas'
-        const ventas = JSON.parse(localStorage.getItem('ventas')) || [];
+        // Obtener todas las ventas (normales + rápidas)
+        const todasLasVentas = obtenerTodasLasVentas();
         const hoy = new Date();
         let fechaInicio, fechaFin;
         // Determinar el rango de fechas según el tipo de período
@@ -5167,7 +5293,7 @@ function imprimirBalancePorPeriodo(tipoPeriodo) {
                 throw new Error('Tipo de período no válido');
         }
         // Filtrar ventas por rango de fechas
-        const ventasFiltradas = ventas.filter(v => {
+        const ventasFiltradas = todasLasVentas.filter(v => {
             const fechaVenta = new Date(v.fecha);
             return fechaVenta >= fechaInicio && fechaVenta <= fechaFin;
         });
@@ -7377,27 +7503,55 @@ function mostrarModalPin(accion) {
   modal.show();
 }
 
-// Función para verificar el PIN
+// Función para verificar el PIN y determinar el rol
 function verificarPinAcceso() {
   const pinIngresado = document.getElementById('pinAcceso').value;
   const mensajeError = document.getElementById('mensajeErrorPin');
   
-  if (pinIngresado === PIN_ACCESO) {
-    // Cerrar modal de PIN
-    const modal = bootstrap.Modal.getInstance(document.getElementById('modalPinAcceso'));
-    modal.hide();
-    
-    // Ejecutar la acción pendiente
-    if (accionPendiente === 'balance') {
+  // Determinar el tipo de usuario basado en el PIN
+  if (pinIngresado === PIN_ADMIN) {
+    usuarioActual = 'admin';
+    window.usuarioActual = 'admin'; // Actualizar variable global
+    console.log('🔐 Acceso de Administrador autorizado');
+  } else if (pinIngresado === PIN_EMPLEADO) {
+    usuarioActual = 'empleado';
+    window.usuarioActual = 'empleado'; // Actualizar variable global
+    console.log('🔐 Acceso de Empleado autorizado');
+  } else {
+    mensajeError.style.display = 'block';
+    document.getElementById('pinAcceso').value = '';
+    return;
+  }
+  
+  // Cerrar modal de PIN
+  const modal = bootstrap.Modal.getInstance(document.getElementById('modalPinAcceso'));
+  modal.hide();
+  
+  // Verificar permisos según el rol
+  if (accionPendiente === 'balance') {
+    if (usuarioActual === 'admin') {
       console.log('🔐 Acceso autorizado al Balance');
       mostrarModalBalance();
-    } else if (accionPendiente === 'inventario') {
-      console.log('🔐 Acceso autorizado al Inventario');
-      window.location.href = 'inventario.html';
-    } else if (accionPendiente === 'cierre-administrativo') {
+    } else {
+      alert('❌ Solo los administradores pueden acceder al Balance');
+    }
+  } else if (accionPendiente === 'inventario') {
+    console.log('🔐 Acceso autorizado al Inventario');
+    window.location.href = 'inventario.html';
+  } else if (accionPendiente === 'cierre-administrativo') {
+    if (usuarioActual === 'admin') {
       console.log('🔐 Acceso autorizado al Cierre Administrativo');
       mostrarModalCierreDiario();
-    } else if (accionPendiente === 'historial-admin') {
+    } else {
+      alert('❌ Solo los administradores pueden realizar cierres administrativos');
+    }
+  } else if (accionPendiente === 'historial') {
+    console.log('🔐 Acceso autorizado al Historial');
+    // Guardar el rol en localStorage para que esté disponible en historial.html
+    localStorage.setItem('usuarioActual', usuarioActual);
+    window.location.href = 'historial.html';
+  } else if (accionPendiente === 'historial-admin') {
+    if (usuarioActual === 'admin') {
       console.log('🔐 Acceso autorizado al Historial Administrativo');
       // Cambiar a la pestaña de cierres administrativos
       const tabCierresAdmin = document.getElementById('cierres-admin-tab');
@@ -7405,14 +7559,13 @@ function verificarPinAcceso() {
         const tab = new bootstrap.Tab(tabCierresAdmin);
         tab.show();
       }
+    } else {
+      alert('❌ Solo los administradores pueden ver los cierres administrativos');
     }
-    
-    // Limpiar acción pendiente
-    accionPendiente = null;
-  } else {
-    mensajeError.style.display = 'block';
-    document.getElementById('pinAcceso').value = '';
   }
+  
+  // Limpiar acción pendiente
+  accionPendiente = null;
 }
 
 // Modificar el botón de balance en el HTML para usar el PIN
