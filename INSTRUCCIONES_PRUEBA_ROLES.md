@@ -91,3 +91,4 @@ Si hay problemas, verificar:
 ---
 
 **Nota**: El sistema guarda el rol en `localStorage` para mantener la sesión entre páginas.
+

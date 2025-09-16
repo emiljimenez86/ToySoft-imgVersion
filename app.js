@@ -13,62 +13,831 @@ let historialVentas = []; // Almacena el historial de ventas
 let historialCocina = []; // Almacena el historial de órdenes de cocina
 let ultimaFechaContadores = null; // Fecha del último contador
 
-// Función auxiliar para obtener todas las ventas (normales + rápidas)
+// Función simplificada para obtener todas las ventas del día
 function obtenerTodasLasVentas() {
-    const ventas = JSON.parse(localStorage.getItem('ventas')) || [];
-    const historialVentas = JSON.parse(localStorage.getItem('historialVentas')) || [];
+    try {
+        // Leer de historialVentas (fuente principal)
+        const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
+        
+        // Leer de ventas (ventas activas)
+        const ventasActivas = JSON.parse(localStorage.getItem('ventas') || '[]');
+        
+        // Leer de domicilios
+        const domicilios = JSON.parse(localStorage.getItem('domicilios') || '[]');
+        
+        // Combinar todas las fuentes
+        const todasLasVentas = [...historialVentas, ...ventasActivas, ...domicilios];
+        
+        // Filtrar ventas válidas y deduplicar por ID
+        const ventasValidas = [];
+        const idsVistos = new Set();
+        
+        for (const venta of todasLasVentas) {
+            if (venta && venta.id && venta.total && !idsVistos.has(venta.id)) {
+                idsVistos.add(venta.id);
+                ventasValidas.push(venta);
+            }
+        }
+        
+        console.log(`📊 Total ventas encontradas: ${ventasValidas.length}`);
+        return ventasValidas;
+        
+    } catch (error) {
+        console.error('Error al obtener ventas:', error);
+        return [];
+    }
+}
+
+// Helper: parseo robusto de fechas (ISO y formato local dd/mm/yyyy, hh:mm:ss a. m./p. m.)
+function parseFechaSeguro(valor) {
+    if (valor instanceof Date) return valor;
+    if (typeof valor !== 'string') return null;
+
+    // Intentar ISO primero
+    const iso = new Date(valor);
+    if (!isNaN(iso.getTime())) return iso;
+
+    // Intentar formato local: 16/9/2025, 5:58:46 p. m.
+    const re = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:,\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(a\. m\.|p\. m\.)\s*)?$/i;
+    const m = valor.match(re);
+    if (m) {
+        const d = parseInt(m[1], 10);
+        const mo = parseInt(m[2], 10) - 1;
+        const y = parseInt(m[3], 10);
+        let h = m[4] ? parseInt(m[4], 10) : 0;
+        const min = m[5] ? parseInt(m[5], 10) : 0;
+        const s = m[6] ? parseInt(m[6], 10) : 0;
+        const ampm = m[7] ? m[7].toLowerCase() : null;
+        if (ampm && ampm.includes('p. m.') && h < 12) h += 12;
+        if (ampm && ampm.includes('a. m.') && h === 12) h = 0;
+        const dt = new Date(y, mo, d, h, min, s);
+        if (!isNaN(dt.getTime())) return dt;
+    }
+    return null;
+}
+
+// Helper: compara fechas por componentes locales (año/mes/día)
+function esMismaFechaLocal(fechaA, fechaB = new Date()) {
+    try {
+        const a = parseFechaSeguro(fechaA);
+        const b = parseFechaSeguro(fechaB) || new Date();
+        if (!a) return false;
+        return a.getFullYear() === b.getFullYear() &&
+               a.getMonth() === b.getMonth() &&
+               a.getDate() === b.getDate();
+    } catch (e) {
+        return false;
+    }
+}
+
+// Normaliza el historial de ventas: asegura fecha ISO, método/tipo coherentes
+function normalizarHistorialVentas() {
+    try {
+        let historial = JSON.parse(localStorage.getItem('historialVentas') || '[]');
+        if (!Array.isArray(historial)) return;
+
+        const normalizado = historial.map((venta) => {
+            const copia = { ...venta };
+
+            // Fecha: si no es ISO, convertir a ISO local
+            if (typeof copia.fecha === 'string' || copia.fecha instanceof Date) {
+                const d = parseFechaSeguro(copia.fecha);
+                if (d) {
+                    copia.fecha = d.toISOString();
+                } else {
+                    // Mantener fecha original si no podemos parsear; NO cambiarla a hoy
+                    copia.fechaOriginal = copia.fecha;
+                }
+            }
+
+            // Método de pago a minúsculas
+            if (copia.metodoPago && typeof copia.metodoPago === 'string') {
+                copia.metodoPago = copia.metodoPago.toLowerCase().trim();
+                if (copia.metodoPago === 'combinado') copia.metodoPago = 'mixto';
+            }
+
+            // Tipo de venta estandarizado - NO modificar si ya existe
+            if (!copia.tipo) {
+                copia.tipo = copia.mesa && copia.mesa !== 'VENTA DIRECTA' ? 'mesa' : 'venta_rapida';
+            }
+            // Si ya tiene tipo, mantenerlo tal como está
+
+            // Totales numéricos seguros
+            copia.total = parseFloat(copia.total) || 0;
+
+            return copia;
+        });
+
+        localStorage.setItem('historialVentas', JSON.stringify(normalizado));
+    } catch (e) {
+        console.error('Error normalizando historial de ventas:', e);
+    }
+}
+
+// Función para limpiar duplicados en localStorage
+function limpiarDuplicadosVentas() {
+    try {
+        console.log('=== LIMPIANDO DUPLICADOS DE VENTAS ===');
+        
+        const ventas = JSON.parse(localStorage.getItem('ventas') || '[]');
+        const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
+        
+        console.log(`Ventas antes: ${ventas.length}`);
+        console.log(`Historial antes: ${historialVentas.length}`);
+        
+        // Crear un mapa de ventas únicas por ID
+        const ventasUnicas = new Map();
+        
+        // Agregar ventas del historial (prioridad)
+        historialVentas.forEach(venta => {
+            if (venta.id) {
+                ventasUnicas.set(venta.id, venta);
+            }
+        });
+        
+        // Agregar ventas de ventas (solo si no existen en historial)
+        ventas.forEach(venta => {
+            if (venta.id && !ventasUnicas.has(venta.id)) {
+                ventasUnicas.set(venta.id, venta);
+            }
+        });
+        
+        const ventasLimpias = Array.from(ventasUnicas.values());
+        
+        // Guardar solo en historialVentas
+        localStorage.setItem('historialVentas', JSON.stringify(ventasLimpias));
+        
+        // Limpiar ventas duplicadas
+        localStorage.setItem('ventas', '[]');
+        
+        console.log(`Ventas después de limpiar: ${ventasLimpias.length}`);
+        console.log('✅ Duplicados eliminados exitosamente');
+        
+        return ventasLimpias;
+    } catch (error) {
+        console.error('Error al limpiar duplicados:', error);
+        return [];
+    }
+}
+
+// Función para limpiar completamente el localStorage de ventas
+function limpiarCompletamenteVentas() {
+    try {
+        console.log('=== LIMPIEZA COMPLETA DE VENTAS ===');
+        
+        // Obtener todas las ventas
+        const ventas = JSON.parse(localStorage.getItem('ventas') || '[]');
+        const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
+        
+        console.log(`Ventas totales antes: ${ventas.length + historialVentas.length}`);
+        
+        // Crear un mapa de ventas únicas por ID
+        const ventasUnicas = new Map();
+        
+        // Agregar todas las ventas (historial + ventas)
+        [...historialVentas, ...ventas].forEach(venta => {
+            if (venta.id) {
+                ventasUnicas.set(venta.id, venta);
+            }
+        });
+        
+        const ventasLimpias = Array.from(ventasUnicas.values());
+        
+        // Guardar solo en historialVentas
+        localStorage.setItem('historialVentas', JSON.stringify(ventasLimpias));
+        
+        // Limpiar ventas duplicadas
+        localStorage.setItem('ventas', '[]');
+        
+        console.log(`Ventas únicas después: ${ventasLimpias.length}`);
+        console.log('✅ Limpieza completa exitosa');
+        
+        return ventasLimpias;
+    } catch (error) {
+        console.error('Error en limpieza completa:', error);
+        return [];
+    }
+}
+
+// Función para reiniciar completamente el sistema después del cierre
+function reiniciarSistemaCompleto() {
+    try {
+        console.log('=== REINICIANDO SISTEMA COMPLETO ===');
+        // Marcar hora de cierre para que los siguientes cálculos ignoren ventas previas
+        localStorage.setItem('ultimaHoraCierre', new Date().toISOString());
+        
+        // 1. Limpiar ventas del día actual
+        console.log('🧹 Limpiando ventas del día...');
+        localStorage.setItem('ventas', '[]');
+        
+        // Limpiar historial de ventas del día actual
+        console.log('📊 Limpiando historial de ventas del día...');
+        const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
+        const hoy = new Date();
+        const historialFiltrado = historialVentas.filter(venta => {
+            try {
+                const fechaVenta = new Date(venta.fecha);
+                return !esMismaFechaLocal(fechaVenta, hoy);
+            } catch (e) {
+                return true; // Mantener si hay error en fecha
+            }
+        });
+        localStorage.setItem('historialVentas', JSON.stringify(historialFiltrado));
+        
+        // 2. Limpiar domicilios del día actual
+        console.log('🚚 Limpiando domicilios del día...');
+        const domicilios = JSON.parse(localStorage.getItem('domicilios') || '[]');
+        const hoyStr = hoy.toISOString().slice(0, 10);
+        const domiciliosFiltrados = domicilios.filter(domicilio => {
+            try {
+                const fechaDomicilio = new Date(domicilio.fecha).toISOString().slice(0, 10);
+                return fechaDomicilio !== hoyStr;
+            } catch (e) {
+                return true; // Mantener si hay error en fecha
+            }
+        });
+        localStorage.setItem('domicilios', JSON.stringify(domiciliosFiltrados));
+        
+        // 3. Limpiar gastos del día actual
+        console.log('💰 Limpiando gastos del día...');
+        const gastos = JSON.parse(localStorage.getItem('gastos') || '[]');
+        const gastosFiltrados = gastos.filter(gasto => {
+            try {
+                const fechaGasto = new Date(gasto.fecha).toISOString().slice(0, 10);
+                return fechaGasto !== hoyStr;
+            } catch (e) {
+                return true; // Mantener si hay error en fecha
+            }
+        });
+        localStorage.setItem('gastos', JSON.stringify(gastosFiltrados));
+        
+        // 4. Reiniciar estado de mesas
+        console.log('🪑 Reiniciando estado de mesas...');
+        localStorage.setItem('mesasActivas', '[]');
+        localStorage.setItem('estadoMesas', '[]');
+        
+        // 5. Reiniciar órdenes de cocina
+        console.log('👨‍🍳 Reiniciando órdenes de cocina...');
+        localStorage.setItem('ordenesCocina', '[]');
+        
+        // 6. Limpiar órdenes pendientes
+        console.log('📋 Limpiando órdenes pendientes...');
+        localStorage.setItem('ordenesPendientes', '[]');
+        
+        // 7. Reiniciar variables globales
+        console.log('🔄 Reiniciando variables globales...');
+        if (typeof mesasActivas !== 'undefined') {
+            mesasActivas.clear();
+        }
+        if (typeof ordenesCocina !== 'undefined') {
+            ordenesCocina.clear();
+        }
+        
+        console.log('✅ Sistema reiniciado completamente');
+        console.log('📊 Estado después del reinicio:');
+        console.log(`   - Ventas del día: ${JSON.parse(localStorage.getItem('ventas') || '[]').length}`);
+        console.log(`   - Historial de ventas: ${historialFiltrado.length}`);
+        console.log(`   - Domicilios del día: ${domiciliosFiltrados.length}`);
+        console.log(`   - Gastos del día: ${gastosFiltrados.length}`);
+        console.log(`   - Mesas activas: ${JSON.parse(localStorage.getItem('mesasActivas') || '[]').length}`);
+        console.log(`   - Órdenes de cocina: ${JSON.parse(localStorage.getItem('ordenesCocina') || '[]').length}`);
+        
+        return true;
+    } catch (error) {
+        console.error('Error al reiniciar sistema:', error);
+        return false;
+    }
+}
+
+// Función para limpiar la interfaz de ventas después del cierre
+function limpiarInterfazVentas() {
+    try {
+        console.log('🧹 Limpiando interfaz de ventas...');
+        
+        // Limpiar carrito de venta rápida
+        if (typeof carritoVentaRapida !== 'undefined') {
+            carritoVentaRapida.length = 0;
+        }
+        
+        // Limpiar totales de venta rápida
+        const totalElement = document.getElementById('totalVentaRapida');
+        if (totalElement) {
+            totalElement.textContent = '$ 0';
+        }
+        
+        // Limpiar lista de productos en venta rápida
+        const listaProductos = document.getElementById('listaProductosVentaRapida');
+        if (listaProductos) {
+            listaProductos.innerHTML = '';
+        }
+        
+        // Limpiar campos de pago
+        const montoRecibido = document.getElementById('montoRecibido');
+        if (montoRecibido) {
+            montoRecibido.value = '';
+        }
+        
+        const cambio = document.getElementById('cambio');
+        if (cambio) {
+            cambio.textContent = '$ 0';
+        }
+        
+        // Limpiar selección de método de pago
+        const metodoPago = document.getElementById('metodoPago');
+        if (metodoPago) {
+            metodoPago.value = 'efectivo';
+        }
+        
+        // Limpiar campos de transferencia
+        const numeroTransferencia = document.getElementById('numeroTransferencia');
+        if (numeroTransferencia) {
+            numeroTransferencia.value = '';
+        }
+        
+        // Limpiar campos de tarjeta
+        const numeroTarjeta = document.getElementById('numeroTarjeta');
+        if (numeroTarjeta) {
+            numeroTarjeta.value = '';
+        }
+        
+        // Limpiar campos de crédito
+        const nombreCliente = document.getElementById('nombreCliente');
+        if (nombreCliente) {
+            nombreCliente.value = '';
+        }
+        
+        const telefonoCliente = document.getElementById('telefonoCliente');
+        if (telefonoCliente) {
+            telefonoCliente.value = '';
+        }
+        
+        // Limpiar campos de domicilio
+        const direccionDomicilio = document.getElementById('direccionDomicilio');
+        if (direccionDomicilio) {
+            direccionDomicilio.value = '';
+        }
+        
+        const horaRecoger = document.getElementById('horaRecoger');
+        if (horaRecoger) {
+            horaRecoger.value = '';
+        }
+        
+        // Limpiar campos de cliente
+        const nombreClienteGeneral = document.getElementById('nombreClienteGeneral');
+        if (nombreClienteGeneral) {
+            nombreClienteGeneral.value = '';
+        }
+        
+        const telefonoClienteGeneral = document.getElementById('telefonoClienteGeneral');
+        if (telefonoClienteGeneral) {
+            telefonoClienteGeneral.value = '';
+        }
+        
+        // Limpiar campos de propina y descuento
+        const propina = document.getElementById('propina');
+        if (propina) {
+            propina.value = '0';
+        }
+        
+        const descuento = document.getElementById('descuento');
+        if (descuento) {
+            descuento.value = '0';
+        }
+        
+        // Limpiar campos de valor domicilio
+        const valorDomicilio = document.getElementById('valorDomicilio');
+        if (valorDomicilio) {
+            valorDomicilio.value = '0';
+        }
+        
+        // Ocultar campos específicos de pago
+        const camposTransferencia = document.getElementById('camposTransferencia');
+        if (camposTransferencia) {
+            camposTransferencia.style.display = 'none';
+        }
+        
+        const camposTarjeta = document.getElementById('camposTarjeta');
+        if (camposTarjeta) {
+            camposTarjeta.style.display = 'none';
+        }
+        
+        const camposCredito = document.getElementById('camposCredito');
+        if (camposCredito) {
+            camposCredito.style.display = 'none';
+        }
+        
+        const camposDomicilio = document.getElementById('camposDomicilio');
+        if (camposDomicilio) {
+            camposDomicilio.style.display = 'none';
+        }
+        
+        console.log('✅ Interfaz de ventas limpiada');
+        
+    } catch (error) {
+        console.error('Error al limpiar interfaz de ventas:', error);
+    }
+}
+
+// Función para actualizar solo los datos del modal de cierre sin recrearlo
+function actualizarDatosCierreModal() {
+    try {
+        console.log('🔄 Actualizando datos del modal de cierre...');
+        
+        // Obtener el rango seleccionado
+        const rangoSeleccionado = document.querySelector('input[name="rangoVentas"]:checked')?.value || 'ultimoCierre';
+        
+        // Obtener la marca de tiempo del último cierre (si existe)
+        const ultimaHoraCierreStr = localStorage.getItem('ultimaHoraCierre');
+        const ultimaHoraCierre = ultimaHoraCierreStr ? new Date(ultimaHoraCierreStr) : null;
+        
+        // Obtener ventas
+        const todasLasVentas = obtenerTodasLasVentas();
+        const hoy = new Date();
+        
+        // Filtrar ventas según el rango seleccionado
+        const ventasHoy = todasLasVentas.filter(v => {
+            try {
+                const fechaVenta = new Date(v.fecha);
+                
+                if (rangoSeleccionado === 'todoDia') {
+                    // Mostrar todas las ventas del día actual
+                    return esMismaFechaLocal(fechaVenta, hoy);
+                } else {
+                    // Comportamiento por defecto: desde último cierre
+                    if (ultimaHoraCierre) {
+                        const despuesDeCierre = fechaVenta.getTime() >= new Date(ultimaHoraCierre).getTime();
+                        const mismoDia = esMismaFechaLocal(fechaVenta, hoy);
+                        return despuesDeCierre && mismoDia;
+                    }
+                    return esMismaFechaLocal(fechaVenta, hoy);
+                }
+            } catch (e) {
+                return false;
+            }
+        });
+        
+        console.log(`📊 Ventas filtradas: ${ventasHoy.length} (rango: ${rangoSeleccionado})`);
+        
+        // Calcular totales
+        const calculos = calcularTotalesVentas(ventasHoy);
+        const totalVentas = calculos.totalGeneral;
+        const totalEfectivo = calculos.totalEfectivo;
+        const totalTransferencia = calculos.totalTransferencia;
+        const totalTarjeta = calculos.totalTarjeta;
+        const totalCredito = calculos.totalCredito;
+        const totalMixto = calculos.totalMixto;
+        
+        // Obtener gastos del día
+        const gastos = JSON.parse(localStorage.getItem('gastos')) || [];
+        const gastosHoy = gastos.filter(g => {
+            const fechaGasto = new Date(g.fecha);
+            if (ultimaHoraCierre) {
+                return fechaGasto > ultimaHoraCierre;
+            }
+            const fechaGastoStr = fechaGasto.toISOString().slice(0, 10);
+            const hoyStr = hoy.toISOString().slice(0, 10);
+            return fechaGastoStr === hoyStr;
+        });
+        const totalGastos = gastosHoy.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
+        
+        // Calcular balance final
+        const balanceFinal = totalVentas - totalGastos;
+        
+        // Actualizar valores en el modal
+        document.getElementById('totalVentasHoy').textContent = `$ ${totalVentas.toLocaleString()}`;
+        document.getElementById('totalEfectivoHoy').textContent = `$ ${totalEfectivo.toLocaleString()}`;
+        document.getElementById('totalTransferenciaHoy').textContent = `$ ${totalTransferencia.toLocaleString()}`;
+        if(document.getElementById('totalTarjetaHoy')) document.getElementById('totalTarjetaHoy').textContent = `$ ${totalTarjeta.toLocaleString()}`;
+        if(document.getElementById('totalCreditoHoy')) document.getElementById('totalCreditoHoy').textContent = `$ ${totalCredito.toLocaleString()}`;
+        if(document.getElementById('totalMixtoHoy')) document.getElementById('totalMixtoHoy').textContent = `$ ${totalMixto.toLocaleString()}`;
+        document.getElementById('totalGastosHoy').textContent = `$ ${totalGastos.toLocaleString()}`;
+        document.getElementById('balanceFinal').textContent = `$ ${balanceFinal.toLocaleString()}`;
+        
+        // Actualizar indicador de rango activo
+        const indicadorRango = document.getElementById('indicadorRango');
+        if (indicadorRango) {
+            const textoRango = rangoSeleccionado === 'todoDia' ? 'Todo el día' : 'Desde último cierre';
+            indicadorRango.textContent = `Mostrando: ${textoRango} (${ventasHoy.length} ventas)`;
+        }
+        
+        // Actualizar secciones de ventas rápidas y mesas si existen
+        if (document.getElementById('totalVentasRapidasHoy')) {
+            document.getElementById('totalVentasRapidasHoy').textContent = `$ ${calculos.totalVentasRapidas.toLocaleString()}`;
+        }
+        if (document.getElementById('totalEfectivoRapidasHoy')) {
+            document.getElementById('totalEfectivoRapidasHoy').textContent = `$ ${calculos.efectivoRapidas.toLocaleString()}`;
+        }
+        if (document.getElementById('totalTransferenciaRapidasHoy')) {
+            document.getElementById('totalTransferenciaRapidasHoy').textContent = `$ ${calculos.transferenciaRapidas.toLocaleString()}`;
+        }
+        if (document.getElementById('totalTarjetaRapidasHoy')) {
+            document.getElementById('totalTarjetaRapidasHoy').textContent = `$ ${calculos.tarjetaRapidas.toLocaleString()}`;
+        }
+        
+        if (document.getElementById('totalVentasMesasHoy')) {
+            document.getElementById('totalVentasMesasHoy').textContent = `$ ${calculos.totalVentasMesas.toLocaleString()}`;
+        }
+        if (document.getElementById('totalEfectivoMesasHoy')) {
+            document.getElementById('totalEfectivoMesasHoy').textContent = `$ ${calculos.efectivoMesas.toLocaleString()}`;
+        }
+        if (document.getElementById('totalTransferenciaMesasHoy')) {
+            document.getElementById('totalTransferenciaMesasHoy').textContent = `$ ${calculos.transferenciaMesas.toLocaleString()}`;
+        }
+        if (document.getElementById('totalTarjetaMesasHoy')) {
+            document.getElementById('totalTarjetaMesasHoy').textContent = `$ ${calculos.tarjetaMesas.toLocaleString()}`;
+        }
+        
+        console.log('✅ Datos del modal actualizados correctamente');
+        
+    } catch (error) {
+        console.error('Error al actualizar datos del modal:', error);
+    }
+}
+
+// Función para limpiar overlays de Bootstrap que puedan quedar activos
+function limpiarOverlaysBootstrap() {
+    try {
+        console.log('🧹 Limpiando overlays de Bootstrap...');
+        
+        // Remover todos los backdrops de modales
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => {
+            backdrop.remove();
+            console.log('✅ Backdrop removido');
+        });
+        
+        // Remover clases del body que causan el oscurecimiento
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+        
+        // Remover cualquier overlay de Bootstrap
+        const overlays = document.querySelectorAll('.modal, .fade, .show');
+        overlays.forEach(overlay => {
+            if (overlay.classList.contains('modal-backdrop') || 
+                overlay.classList.contains('modal')) {
+                overlay.classList.remove('show', 'fade');
+                overlay.style.display = 'none';
+            }
+        });
+        
+        // Limpiar instancias de modales de Bootstrap
+        const modales = document.querySelectorAll('[data-bs-toggle="modal"]');
+        modales.forEach(modal => {
+            const modalInstance = bootstrap.Modal.getInstance(modal);
+            if (modalInstance) {
+                modalInstance.dispose();
+            }
+        });
+        
+        // Forzar reflow del DOM
+        document.body.offsetHeight;
+        
+        console.log('✅ Overlays de Bootstrap limpiados');
+        
+    } catch (error) {
+        console.error('Error al limpiar overlays de Bootstrap:', error);
+    }
+}
+
+// Función de debug para verificar el estado del sistema después del cierre
+window.debugEstadoSistema = function() {
+    console.log('=== DEBUG ESTADO DEL SISTEMA ===');
     
-    // Combinar ventas evitando duplicados por ID
-    const todasLasVentas = [...ventas, ...historialVentas];
-    const ventasUnicas = [];
-    const idsVistos = new Set();
+    const ventas = JSON.parse(localStorage.getItem('ventas') || '[]');
+    const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
+    const domicilios = JSON.parse(localStorage.getItem('domicilios') || '[]');
+    const gastos = JSON.parse(localStorage.getItem('gastos') || '[]');
+    const mesasActivas = JSON.parse(localStorage.getItem('mesasActivas') || '[]');
+    const ultimaHoraCierre = localStorage.getItem('ultimaHoraCierre');
     
-    todasLasVentas.forEach(venta => {
-        if (!idsVistos.has(venta.id)) {
-            idsVistos.add(venta.id);
-            ventasUnicas.push(venta);
+    console.log('📊 Estado actual:');
+    console.log(`   - Ventas activas: ${ventas.length}`);
+    console.log(`   - Historial de ventas: ${historialVentas.length}`);
+    console.log(`   - Domicilios: ${domicilios.length}`);
+    console.log(`   - Gastos: ${gastos.length}`);
+    console.log(`   - Mesas activas: ${mesasActivas.length}`);
+    console.log(`   - Última hora de cierre: ${ultimaHoraCierre}`);
+    
+    // Verificar ventas de hoy
+    const hoy = new Date();
+    const ventasHoy = historialVentas.filter(v => {
+        try {
+            const fechaVenta = new Date(v.fecha);
+            return esMismaFechaLocal(fechaVenta, hoy);
+        } catch (e) {
+            return false;
         }
     });
     
-    return ventasUnicas;
+    console.log(`   - Ventas de hoy en historial: ${ventasHoy.length}`);
+    
+    if (ventasHoy.length > 0) {
+        console.log('⚠️ PROBLEMA: Aún hay ventas de hoy en el historial');
+        console.log('Ventas encontradas:', ventasHoy.map(v => ({
+            id: v.id,
+            fecha: v.fecha,
+            total: v.total,
+            tipo: v.tipo
+        })));
+    } else {
+        console.log('✅ CORRECTO: No hay ventas de hoy en el historial');
+    }
+}
+
+// Función de debug para probar el recibo de venta rápida
+window.debugReciboVentaRapida = function() {
+    console.log('🔍 DEBUG RECIBO VENTA RÁPIDA - PRUEBA');
+    
+    // Crear una venta de prueba
+    const ventaPrueba = {
+        id: Date.now(),
+        mesa: 'VENTA DIRECTA',
+        items: [
+            {
+                id: 1,
+                nombre: 'Empanada de carne',
+                precio: 2500,
+                cantidad: 3,
+                estado: 'listo'
+            },
+            {
+                id: 2,
+                nombre: 'Bebida',
+                precio: 2000,
+                cantidad: 2,
+                estado: 'listo'
+            }
+        ],
+        subtotal: 11500,
+        propina: 0,
+        descuento: 0,
+        valorDomicilio: 0,
+        total: 11500,
+        metodoPago: 'efectivo',
+        montoRecibido: 15000,
+        cambio: 3500,
+        fecha: new Date().toISOString(),
+        tipo: 'venta_rapida',
+        estado: 'completada'
+    };
+    
+    console.log('Venta de prueba creada:', ventaPrueba);
+    
+    // Mostrar el recibo
+    mostrarReciboVentaRapida(ventaPrueba);
+}
+
+// Función de debug para probar el flujo completo de venta rápida
+window.debugFlujoVentaRapida = function() {
+    console.log('🔍 DEBUG FLUJO COMPLETO VENTA RÁPIDA');
+    
+    // 1. Crear pedido inicial
+    const pedido = {
+        items: [],
+        cliente: null,
+        telefono: null,
+        direccion: null,
+        horaRecoger: null,
+        tipo: 'venta_rapida'
+    };
+    
+    console.log('1. Pedido inicial creado:', pedido);
+    
+    // 2. Simular agregar productos
+    pedido.items.push({
+        id: 1,
+        nombre: 'Empanada de carne',
+        precio: 2500,
+        cantidad: 2,
+        estado: 'listo'
+    });
+    
+    pedido.items.push({
+        id: 2,
+        nombre: 'Bebida',
+        precio: 2000,
+        cantidad: 1,
+        estado: 'listo'
+    });
+    
+    console.log('2. Productos agregados:', pedido);
+    
+    // 3. Calcular total
+    const total = pedido.items.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+    console.log('3. Total calculado:', total);
+    
+    // 4. Simular procesar venta rápida
+    procesarVentaRapida(pedido, total, 'efectivo', total);
+    
+    console.log('4. Venta procesada');
+}
+
+// Función de debug específica para el problema de ventas que se sobrescriben
+window.debugVentasConflictivas = function() {
+    console.log('=== DEBUG VENTAS CONFLICTIVAS ===');
+    
+    const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
+    const hoy = new Date();
+    
+    // Filtrar ventas de hoy
+    const ventasHoy = historialVentas.filter(v => {
+        try {
+            const fechaVenta = new Date(v.fecha);
+            return esMismaFechaLocal(fechaVenta, hoy);
+        } catch (e) {
+            return false;
+        }
+    });
+    
+    console.log(`📊 Ventas de hoy encontradas: ${ventasHoy.length}`);
+    
+    // Mostrar todas las ventas de hoy con detalles
+    ventasHoy.forEach((venta, index) => {
+        console.log(`Venta ${index + 1}:`, {
+            id: venta.id,
+            fecha: venta.fecha,
+            mesa: venta.mesa,
+            tipo: venta.tipo,
+            total: venta.total,
+            metodoPago: venta.metodoPago,
+            items: venta.items?.length || 0
+        });
+    });
+    
+    // Verificar si hay IDs duplicados
+    const ids = ventasHoy.map(v => v.id);
+    const idsUnicos = [...new Set(ids)];
+    
+    if (ids.length !== idsUnicos.length) {
+        console.log('⚠️ PROBLEMA: Hay IDs duplicados');
+        const duplicados = ids.filter((id, index) => ids.indexOf(id) !== index);
+        console.log('IDs duplicados:', duplicados);
+    } else {
+        console.log('✅ IDs únicos correctos');
+    }
+    
+    // Verificar si hay ventas rápidas
+    const ventasRapidas = ventasHoy.filter(v => v.tipo === 'venta_rapida' || v.mesa === 'VENTA DIRECTA');
+    console.log(`⚡ Ventas rápidas: ${ventasRapidas.length}`);
+    
+    // Verificar si hay ventas de mesa
+    const ventasMesa = ventasHoy.filter(v => v.tipo === 'mesa' && v.mesa !== 'VENTA DIRECTA');
+    console.log(`🪑 Ventas de mesa: ${ventasMesa.length}`);
+    
+    // Calcular totales
+    const totalEfectivo = ventasHoy
+        .filter(v => v.metodoPago === 'efectivo')
+        .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
+    
+    console.log(`💰 Total efectivo calculado: $${totalEfectivo.toLocaleString()}`);
+    
+    return {
+        ventasHoy,
+        ventasRapidas,
+        ventasMesa,
+        totalEfectivo,
+        idsDuplicados: ids.length !== idsUnicos.length
+    };
 }
 
 // Función de depuración para verificar ventas rápidas
 function debugVentasRapidas() {
     console.log('=== DEBUG VENTAS RÁPIDAS ===');
-    const historialVentas = JSON.parse(localStorage.getItem('historialVentas')) || [];
+    
+    const ventas = JSON.parse(localStorage.getItem('ventas') || '[]');
+    const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
+    
+    console.log('Ventas activas:', ventas.length);
+    console.log('Historial ventas:', historialVentas.length);
+    
     const ventasRapidas = historialVentas.filter(v => v.tipo === 'venta_rapida');
+    console.log('Ventas rápidas en historial:', ventasRapidas.length);
+    console.log('Ventas rápidas:', ventasRapidas);
     
-    console.log('Total ventas en historial:', historialVentas.length);
-    console.log('Ventas rápidas encontradas:', ventasRapidas.length);
-    
-    ventasRapidas.forEach((venta, index) => {
-        console.log(`Venta rápida ${index + 1}:`, {
-            id: venta.id,
-            fecha: venta.fecha,
-            total: venta.total,
-            metodoPago: venta.metodoPago,
-            mesa: venta.mesa
-        });
-    });
-    
-    // Verificar filtro de fecha
     const hoy = new Date();
-    const hoyStr = hoy.toISOString().slice(0, 10);
-    console.log('Fecha de hoy (ISO):', hoyStr);
-    
-    const ventasHoy = ventasRapidas.filter(v => {
-        const fechaVenta = new Date(v.fecha);
-        const fechaVentaStr = fechaVenta.toISOString().slice(0, 10);
-        return fechaVentaStr === hoyStr;
+    const ventasRapidasHoy = ventasRapidas.filter(v => {
+        try {
+            return esMismaFechaLocal(v.fecha, hoy);
+        } catch (e) {
+            return false;
+        }
     });
     
-    console.log('Ventas rápidas de hoy:', ventasHoy.length);
-    return ventasRapidas;
+    console.log('Ventas rápidas de hoy:', ventasRapidasHoy.length);
+    console.log('Ventas rápidas de hoy:', ventasRapidasHoy);
+    
+    return {
+        ventas,
+        historialVentas,
+        ventasRapidas,
+        ventasRapidasHoy
+    };
 }
 
+
 // Variables globales para cotizaciones
-let cotizaciones = [];
+window.cotizaciones = window.cotizaciones || [];
 let modoProductoManual = false;
 let productosFiltrados = [];
 
@@ -119,17 +888,22 @@ function guardarContadores() {
 // Función para guardar historial de ventas
 function guardarHistorialVentas() {
   try {
-    // Asegurarse de que historialVentas sea un array
-    if (!Array.isArray(historialVentas)) {
-      console.error('historialVentas no es un array:', historialVentas);
-      historialVentas = [];
+    // Leer el historial actual desde localStorage
+    let historialActual = JSON.parse(localStorage.getItem('historialVentas') || '[]');
+    
+    // Asegurarse de que sea un array
+    if (!Array.isArray(historialActual)) {
+      console.error('historialVentas no es un array:', historialActual);
+      historialActual = [];
     }
-    // Guardar en ambas claves para sincronizar
-    localStorage.setItem('historialVentas', JSON.stringify(historialVentas));
-    console.log('Historial de ventas guardado:', historialVentas);
+    
+    // Guardar en localStorage
+    localStorage.setItem('historialVentas', JSON.stringify(historialActual));
+    console.log('Historial de ventas guardado:', historialActual.length, 'ventas');
+    
     // Verificar que se guardó correctamente
-    const guardado = localStorage.getItem('historialVentas');
-    console.log('Verificación de guardado:', guardado);
+    const guardado = JSON.parse(localStorage.getItem('historialVentas') || '[]');
+    console.log('Verificación de guardado:', guardado.length, 'ventas');
   } catch (error) {
     console.error('Error al guardar historial de ventas:', error);
   }
@@ -1760,6 +2534,11 @@ function ventaRapida() {
 
 // Función para mostrar recibo de venta rápida
 function mostrarReciboVentaRapida(venta) {
+  console.log('🔍 DEBUG RECIBO VENTA RÁPIDA:');
+  console.log('   - Venta recibida:', venta);
+  console.log('   - Items:', venta.items);
+  console.log('   - Cantidad de items:', venta.items ? venta.items.length : 'undefined');
+  
   const ventanaRecibo = window.open('', '_blank', 'width=400,height=600,scrollbars=yes');
   if (!ventanaRecibo) {
     alert('No se pudo abrir la ventana de impresión. Por favor, verifique que los bloqueadores de ventanas emergentes estén desactivados.');
@@ -1884,14 +2663,18 @@ function mostrarReciboVentaRapida(venta) {
             </tr>
           </thead>
           <tbody>
-            ${venta.items.map(item => `
+            ${venta.items && venta.items.length > 0 ? venta.items.map(item => `
               <tr>
-                <td><strong>${item.nombre}</strong></td>
-                <td>${item.cantidad}</td>
-                <td class="text-right">${formatearNumero(item.precio)}</td>
-                <td class="text-right">${formatearNumero(item.precio * item.cantidad)}</td>
+                <td><strong>${item.nombre || 'Producto'}</strong></td>
+                <td>${item.cantidad || 0}</td>
+                <td class="text-right">${formatearNumero(item.precio || 0)}</td>
+                <td class="text-right">${formatearNumero((item.precio || 0) * (item.cantidad || 0))}</td>
               </tr>
-            `).join('')}
+            `).join('') : `
+              <tr>
+                <td colspan="4" class="text-center">No hay productos en esta venta</td>
+              </tr>
+            `}
           </tbody>
         </table>
         
@@ -2101,14 +2884,24 @@ function mostrarProductosCategoriaVentaRapida(categoria) {
 
 // Función para agregar producto a venta rápida
 function agregarProductoVentaRapida(productoId) {
+  console.log('🔍 DEBUG AGREGAR PRODUCTO VENTA RÁPIDA:');
+  console.log('   - Producto ID:', productoId);
+  console.log('   - window.pedidoVentaRapida antes:', window.pedidoVentaRapida);
+  
   const producto = productos.find(p => p.id === productoId);
-  if (!producto) return;
+  if (!producto) {
+    console.log('   - Producto no encontrado');
+    return;
+  }
+  
+  console.log('   - Producto encontrado:', producto);
   
   // Buscar si ya existe en el pedido
   const itemExistente = window.pedidoVentaRapida.items.find(item => item.id === productoId);
   
   if (itemExistente) {
     itemExistente.cantidad += 1;
+    console.log('   - Cantidad incrementada para producto existente');
   } else {
     window.pedidoVentaRapida.items.push({
       id: producto.id,
@@ -2117,7 +2910,11 @@ function agregarProductoVentaRapida(productoId) {
       cantidad: 1,
       estado: 'listo'
     });
+    console.log('   - Producto agregado al pedido');
   }
+  
+  console.log('   - window.pedidoVentaRapida después:', window.pedidoVentaRapida);
+  console.log('   - Items después:', window.pedidoVentaRapida.items);
   
   actualizarListaProductosVentaRapida();
   actualizarTotalVentaRapida();
@@ -2234,12 +3031,18 @@ function actualizarTotalVentaRapida() {
 
 // Función para procesar venta rápida directa
 function procesarVentaRapidaDirecta() {
+  console.log('🔍 DEBUG PROCESAR VENTA RÁPIDA DIRECTA:');
+  console.log('   - window.pedidoVentaRapida:', window.pedidoVentaRapida);
+  console.log('   - Items:', window.pedidoVentaRapida?.items);
+  
   if (!window.pedidoVentaRapida || window.pedidoVentaRapida.items.length === 0) {
     alert('No hay productos en la orden');
     return;
   }
   
   const total = window.pedidoVentaRapida.items.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+  
+  console.log('   - Total calculado:', total);
   
   // Cerrar modal de productos
   const modalProductos = bootstrap.Modal.getInstance(document.getElementById('modalAgregarProductosVentaRapida'));
@@ -2294,9 +3097,22 @@ function mostrarModalVentaRapida(pedido, total, subtotal, propina, descuento, va
   document.getElementById('montoRecibidoVentaRapida').value = '';
   document.getElementById('cambioVentaRapida').textContent = 'Cambio: $0';
   
-  // Guardar datos para usar en confirmación
+  // Debug: verificar datos antes de guardar
+  console.log('🔍 DEBUG MOSTRAR MODAL VENTA RÁPIDA:');
+  console.log('   - Pedido recibido:', pedido);
+  console.log('   - Items del pedido:', pedido.items);
+  console.log('   - Total:', total);
+  
+  // Guardar datos para usar en confirmación (hacer copia profunda del pedido)
   window.datosVentaRapida = {
-    pedido: pedido,
+    pedido: {
+      items: [...pedido.items], // Copia profunda del array de items
+      cliente: pedido.cliente,
+      telefono: pedido.telefono,
+      direccion: pedido.direccion,
+      horaRecoger: pedido.horaRecoger,
+      tipo: pedido.tipo
+    },
     total: total,
     subtotal: subtotal,
     propina: propina,
@@ -2304,6 +3120,8 @@ function mostrarModalVentaRapida(pedido, total, subtotal, propina, descuento, va
     valorDomicilio: valorDomicilio,
     propinaCalculada: propinaCalculada
   };
+  
+  console.log('   - Datos guardados en window.datosVentaRapida:', window.datosVentaRapida);
   
   // Mostrar modal
   const modal = new bootstrap.Modal(document.getElementById('modalVentaRapida'));
@@ -2331,6 +3149,11 @@ function confirmarVentaRapida() {
     alert('Error: No hay datos de venta rápida');
     return;
   }
+  
+  console.log('🔍 DEBUG CONFIRMAR VENTA RÁPIDA:');
+  console.log('   - Datos venta rápida:', window.datosVentaRapida);
+  console.log('   - Pedido:', window.datosVentaRapida.pedido);
+  console.log('   - Items del pedido:', window.datosVentaRapida.pedido.items);
   
   const metodoPago = document.getElementById('metodoPagoVentaRapida').value;
   const montoRecibido = parseFloat(document.getElementById('montoRecibidoVentaRapida').value) || 0;
@@ -2360,12 +3183,17 @@ function confirmarVentaRapida() {
 
 // Función para procesar venta rápida (actualizada)
 function procesarVentaRapida(pedido, total, metodoPago = 'efectivo', montoRecibido = 0) {
+  console.log('🔍 DEBUG PROCESAR VENTA RÁPIDA:');
+  console.log('   - Pedido recibido:', pedido);
+  console.log('   - Items del pedido:', pedido.items);
+  console.log('   - Total recibido:', total);
+  
   // Crear objeto de venta
   const venta = {
     id: Date.now(),
     mesa: pedido.tipo === 'venta_rapida' ? 'VENTA DIRECTA' : mesaSeleccionada,
-    items: pedido.items,
-    subtotal: pedido.items.reduce((sum, item) => sum + (item.precio * item.cantidad), 0),
+    items: pedido.items || [],
+    subtotal: (pedido.items || []).reduce((sum, item) => sum + (item.precio * item.cantidad), 0),
     propina: parseFloat(document.getElementById('propina')?.value) || 0,
     descuento: parseFloat(document.getElementById('descuento')?.value) || 0,
     valorDomicilio: parseFloat(document.getElementById('valorDomicilio')?.value) || 0,
@@ -2377,15 +3205,19 @@ function procesarVentaRapida(pedido, total, metodoPago = 'efectivo', montoRecibi
     tipo: 'venta_rapida',
     estado: 'completada'
   };
+  
+  console.log('   - Venta creada:', venta);
 
   // Guardar en historial
   let historial = JSON.parse(localStorage.getItem('historialVentas') || '[]');
   historial.push(venta);
   localStorage.setItem('historialVentas', JSON.stringify(historial));
   
-  // Log para depuración
-  console.log('Venta rápida guardada:', venta);
-  console.log('Total ventas en historial:', historial.length);
+  // Debug: verificar que se guardó correctamente
+  console.log('🔍 DEBUG VENTA RÁPIDA:');
+  console.log('   - Venta creada:', venta);
+  console.log('   - Historial antes:', historial.length - 1, 'ventas');
+  console.log('   - Historial después:', historial.length, 'ventas');
 
   // Actualizar inventario si está disponible
   try {
@@ -3424,13 +4256,22 @@ function procesarPago() {
   }
 
   // Agregar al historial de ventas
-  if (!Array.isArray(historialVentas)) {
-    historialVentas = [];
+  let historialActual = JSON.parse(localStorage.getItem('historialVentas') || '[]');
+  if (!Array.isArray(historialActual)) {
+    historialActual = [];
   }
-  historialVentas.push(factura);
-  guardarHistorialVentas();
-
-  // Agregar la venta a la lista de ventas activas (para el cierre diario)
+  
+  // Guardar en historial de ventas (unificado)
+  historialActual.push(factura);
+  localStorage.setItem('historialVentas', JSON.stringify(historialActual));
+  
+  // Debug: verificar que se guardó correctamente
+  console.log('🔍 DEBUG VENTA DE MESA:');
+  console.log('   - Factura creada:', factura);
+  console.log('   - Historial antes:', historialActual.length - 1, 'ventas');
+  console.log('   - Historial después:', historialActual.length, 'ventas');
+  
+  // También guardar en ventas para compatibilidad (pero sin duplicar)
   let ventasActuales = JSON.parse(localStorage.getItem('ventas')) || [];
   ventasActuales.push(factura);
   localStorage.setItem('ventas', JSON.stringify(ventasActuales));
@@ -3864,72 +4705,60 @@ function reimprimirFactura(ventaId) {
   }
 }
 
-// Función para mostrar el modal de cierre diario
+// Función simplificada para mostrar el modal de cierre diario
 function mostrarModalCierreDiario() {
     try {
-        console.log('Iniciando mostrarModalCierreDiario...');
-        // Obtener la marca de tiempo del último cierre (si existe)
-        const ultimaHoraCierreStr = localStorage.getItem('ultimaHoraCierre');
-        const ultimaHoraCierre = ultimaHoraCierreStr ? new Date(ultimaHoraCierreStr) : null;
-
-        // Obtener todas las ventas (normales + rápidas)
+        console.log('=== INICIANDO CIERRE ADMINISTRATIVO ===');
+        
+        // Obtener todas las ventas del día
         const todasLasVentas = obtenerTodasLasVentas();
         const hoy = new Date();
-        const hoyStr = hoy.toISOString().slice(0, 10); // YYYY-MM-DD
-
-        // Filtrar ventas posteriores al último cierre o, si no existe, del día actual
+        
+        // Filtrar solo ventas de hoy
         const ventasHoy = todasLasVentas.filter(v => {
-            const fechaVenta = new Date(v.fecha);
-            if (ultimaHoraCierre) {
-                return fechaVenta > ultimaHoraCierre;
+            try {
+                const fechaVenta = new Date(v.fecha);
+                return esMismaFechaLocal(fechaVenta, hoy);
+            } catch (e) {
+                return false;
             }
-            const fechaVentaStr = fechaVenta.toISOString().slice(0, 10);
-            return fechaVentaStr === hoyStr;
         });
-        // Calcular totales por método de pago
-        let totalEfectivo = 0, totalTransferencia = 0, totalTarjeta = 0, totalCredito = 0, totalMixto = 0, totalVentas = 0;
-        ventasHoy.forEach(v => {
-            const total = parseFloat(v.total) || 0;
-            const metodo = (v.metodoPago || '').toLowerCase();
-            if (metodo === 'mixto') {
-                const efectivoMixto = parseFloat(v.montoRecibido) || 0;
-                const transferenciaMixto = parseFloat(v.montoTransferencia) || 0;
-                totalMixto += total;
-                totalEfectivo += efectivoMixto;
-                totalTransferencia += transferenciaMixto;
-            } else {
-                switch (metodo) {
-                    case 'efectivo':
-                        totalEfectivo += total;
-                        break;
-                    case 'transferencia':
-                        totalTransferencia += total;
-                        break;
-                    case 'tarjeta':
-                        totalTarjeta += total;
-                        break;
-                    case 'crédito':
-                    case 'credito':
-                        totalCredito += total;
-                        break;
-                }
-            }
-            totalVentas += total;
-        });
+        
+        console.log(`📊 Ventas del día: ${ventasHoy.length}`);
+        
+        // Calcular totales simples
+        const totalVentas = ventasHoy.reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
+        const totalEfectivo = ventasHoy
+            .filter(v => v.metodoPago === 'efectivo')
+            .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
+        const totalTransferencia = ventasHoy
+            .filter(v => v.metodoPago === 'transferencia')
+            .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
+        const totalTarjeta = ventasHoy
+            .filter(v => v.metodoPago === 'tarjeta')
+            .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
+        const totalCredito = ventasHoy
+            .filter(v => v.metodoPago === 'credito')
+            .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
+        const totalMixto = ventasHoy
+            .filter(v => v.metodoPago === 'mixto')
+            .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
+        
         // Obtener gastos del día
-        const gastos = JSON.parse(localStorage.getItem('gastos')) || [];
-console.log('[BALANCE] Fuente de gastos:', gastos);
+        const gastos = JSON.parse(localStorage.getItem('gastos') || '[]');
         const gastosHoy = gastos.filter(g => {
-            const fechaGasto = new Date(g.fecha);
-            if (ultimaHoraCierre) {
-                return fechaGasto > ultimaHoraCierre;
+            try {
+                const fechaGasto = new Date(g.fecha);
+                return esMismaFechaLocal(fechaGasto, hoy);
+            } catch (e) {
+                return false;
             }
-            const fechaGastoStr = fechaGasto.toISOString().slice(0, 10);
-            return fechaGastoStr === hoyStr;
         });
         const totalGastos = gastosHoy.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
+        
         // Calcular balance final
         const balanceFinal = totalVentas - totalGastos;
+        
         // Actualizar valores en el modal
         document.getElementById('totalVentasHoy').textContent = `$ ${totalVentas.toLocaleString()}`;
         document.getElementById('totalEfectivoHoy').textContent = `$ ${totalEfectivo.toLocaleString()}`;
@@ -3939,122 +4768,107 @@ console.log('[BALANCE] Fuente de gastos:', gastos);
         if(document.getElementById('totalMixtoHoy')) document.getElementById('totalMixtoHoy').textContent = `$ ${totalMixto.toLocaleString()}`;
         document.getElementById('totalGastosHoy').textContent = `$ ${totalGastos.toLocaleString()}`;
         document.getElementById('balanceFinal').textContent = `$ ${balanceFinal.toLocaleString()}`;
-        // Actualizar detalles de créditos pendientes
-        const creditosPendientes = ventasHoy.filter(v => (v.metodoPago || '').toLowerCase() === 'crédito');
-        const detallesCreditos = document.getElementById('detallesCreditos');
-        if (detallesCreditos) {
-            detallesCreditos.innerHTML = creditosPendientes.map(credito => `
-                <div class="mb-2">
-                    <div>Cliente: ${credito.cliente || 'No especificado'}</div>
-                    <div>Monto: $ ${credito.total.toLocaleString()}</div>
-                    <div>Fecha: ${new Date(credito.fecha).toLocaleString()}</div>
-                </div>
-            `).join('') || '<div>No hay créditos pendientes</div>';
-        }
-        // Limpiar el campo de detalles
+        
+        // Limpiar campos del modal
+        document.getElementById('nombreCierre').value = '';
+        document.getElementById('nombreRecibe').value = '';
+        document.getElementById('montoBaseCaja').value = '';
         document.getElementById('detallesCierre').value = '';
+        
+        // Debug de ventas conflictivas
+        debugVentasConflictivas();
+        
         // Mostrar el modal
         const modal = new bootstrap.Modal(document.getElementById('modalCierreDiario'));
         modal.show();
-        console.log('Modal de cierre diario mostrado correctamente');
+        
+        console.log('✅ Modal de cierre mostrado correctamente');
+        console.log(`💰 Total Ventas: $${totalVentas.toLocaleString()}`);
+        console.log(`💵 Efectivo: $${totalEfectivo.toLocaleString()}`);
+        console.log(`🏦 Transferencia: $${totalTransferencia.toLocaleString()}`);
+        console.log(`💳 Tarjeta: $${totalTarjeta.toLocaleString()}`);
+        console.log(`📝 Crédito: $${totalCredito.toLocaleString()}`);
+        console.log(`🔄 Mixto: $${totalMixto.toLocaleString()}`);
+        console.log(`💸 Gastos: $${totalGastos.toLocaleString()}`);
+        console.log(`⚖️ Balance: $${balanceFinal.toLocaleString()}`);
+        
     } catch (error) {
         console.error('Error en mostrarModalCierreDiario:', error);
         alert('Error al mostrar el cierre diario: ' + error.message);
     }
 }
 
+// ===== NUEVO CIERRE ADMINISTRATIVO MEJORADO =====
 function guardarCierreDiario() {
     try {
-        // Validar campos requeridos
-        const nombreCierre = document.getElementById('nombreCierre').value.trim();
-        const nombreRecibe = document.getElementById('nombreRecibe').value.trim();
-        const montoBaseCaja = parseFloat(document.getElementById('montoBaseCaja').value) || 0;
-
-        if (!nombreCierre || !nombreRecibe || montoBaseCaja <= 0) {
-            alert('Por favor complete todos los campos requeridos');
-            return;
-        }
-
-        // Mostrar confirmación
-        const confirmacion = confirm(
-            '¿Está seguro de realizar el cierre?\n\n' +
-            'Se realizarán las siguientes acciones:\n' +
-            '- Se reiniciarán todas las ventas\n' +
-            '- Se reiniciarán todos los gastos\n' +
-            '- Se reiniciarán los contadores de delivery y recoger\n' +
-            '- Se limpiarán todas las mesas activas\n\n' +
-            'Esta acción no se puede deshacer.'
-        );
-
-        if (!confirmacion) {
-            return;
-        }
-
-        // Calcular rango de filtro (último cierre o día actual)
-        const ultimaHoraCierreStr = localStorage.getItem('ultimaHoraCierre');
-        const ultimaHoraCierre = ultimaHoraCierreStr ? new Date(ultimaHoraCierreStr) : null;
-        const hoy = new Date();
-        const hoyStr = hoy.toISOString().slice(0, 10); // YYYY-MM-DD
-
-        // Obtener todas las ventas (normales + rápidas)
-        const todasLasVentas = obtenerTodasLasVentas();
+        console.log('=== GUARDANDO CIERRE ADMINISTRATIVO ===');
+        // 1. VALIDAR CAMPOS
+        const nombreCierre = document.getElementById('nombreCierre')?.value?.trim() || '';
+        const nombreRecibe = document.getElementById('nombreRecibe')?.value?.trim() || '';
+        const montoBaseCaja = parseFloat(document.getElementById('montoBaseCaja')?.value) || 0;
+        const detalles = document.getElementById('detallesCierre')?.value?.trim() || '';
         
+        if (!nombreCierre) {
+            alert('❌ Por favor, ingrese el nombre de quien realiza el cierre');
+            return;
+        }
+        
+        if (!nombreRecibe) {
+            alert('❌ Por favor, ingrese el nombre de quien recibe la caja');
+            return;
+        }
+        
+        // 2. OBTENER VENTAS DEL DÍA
+        const todasLasVentas = obtenerTodasLasVentas();
+        const hoy = new Date();
         const ventasHoy = todasLasVentas.filter(v => {
-            const fechaVenta = new Date(v.fecha);
-            const fechaVentaStr = fechaVenta.toISOString().slice(0, 10);
-            return fechaVentaStr === hoyStr;
-        });
-
-        // Calcular totales
-        let totalEfectivo = 0, totalTransferencia = 0, totalTarjeta = 0, totalCredito = 0, totalMixto = 0, totalVentas = 0;
-        ventasHoy.forEach(v => {
-            const total = parseFloat(v.total) || 0;
-            const metodo = (v.metodoPago || '').toLowerCase();
-            if (metodo === 'mixto') {
-                const efectivoMixto = parseFloat(v.montoRecibido) || 0;
-                const transferenciaMixto = parseFloat(v.montoTransferencia) || 0;
-                totalMixto += total;
-                totalEfectivo += efectivoMixto;
-                totalTransferencia += transferenciaMixto;
-            } else {
-                switch (metodo) {
-                    case 'efectivo':
-                        totalEfectivo += total;
-                        break;
-                    case 'transferencia':
-                        totalTransferencia += total;
-                        break;
-                    case 'tarjeta':
-                        totalTarjeta += total;
-                        break;
-                    case 'crédito':
-                    case 'credito':
-                        totalCredito += total;
-                        break;
-                }
+            try {
+                const fechaVenta = new Date(v.fecha);
+                return esMismaFechaLocal(fechaVenta, hoy);
+            } catch (e) {
+                return false;
             }
-            totalVentas += total;
         });
-
-        // Obtener gastos del día
-        const gastos = JSON.parse(localStorage.getItem('gastos')) || [];
-console.log('[BALANCE] Fuente de gastos:', gastos);
+        
+        // 3. CALCULAR TOTALES SIMPLES
+        const totalVentas = ventasHoy.reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
+        const totalEfectivo = ventasHoy
+            .filter(v => v.metodoPago === 'efectivo')
+            .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
+        const totalTransferencia = ventasHoy
+            .filter(v => v.metodoPago === 'transferencia')
+            .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
+        const totalTarjeta = ventasHoy
+            .filter(v => v.metodoPago === 'tarjeta')
+            .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
+        const totalCredito = ventasHoy
+            .filter(v => v.metodoPago === 'credito')
+            .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
+        const totalMixto = ventasHoy
+            .filter(v => v.metodoPago === 'mixto')
+            .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
+        
+        // 4. OBTENER GASTOS
+        const gastos = JSON.parse(localStorage.getItem('gastos') || '[]');
         const gastosHoy = gastos.filter(g => {
-            const fechaGasto = new Date(g.fecha);
-            if (ultimaHoraCierre) {
-                return fechaGasto > ultimaHoraCierre;
+            try {
+                const fechaGasto = new Date(g.fecha);
+                return esMismaFechaLocal(fechaGasto, hoy);
+            } catch (e) {
+                return false;
             }
-            const fechaGastoStr = fechaGasto.toISOString().slice(0, 10);
-            return fechaGastoStr === hoyStr;
         });
         const totalGastos = gastosHoy.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
-
-        // Calcular balance final
+        
+        // 5. CALCULAR BALANCE
         const balanceFinal = totalVentas - totalGastos;
-
-        // Crear objeto de cierre
+        
+        // 6. CREAR OBJETO DE CIERRE
         const cierre = {
+            id: Date.now(),
             fecha: hoy.toISOString(),
+            fechaLocal: hoy.toLocaleDateString('es-ES'),
+            hora: hoy.toLocaleTimeString('es-ES'),
             ventas: {
                 total: totalVentas,
                 efectivo: totalEfectivo,
@@ -4068,71 +4882,493 @@ console.log('[BALANCE] Fuente de gastos:', gastos);
             nombreCierre: nombreCierre,
             nombreRecibe: nombreRecibe,
             montoBaseCaja: montoBaseCaja,
-            detalles: document.getElementById('detallesCierre').value.trim()
+            detalles: detalles
         };
 
-        // Guardar cierre en localStorage
-        const historialCierres = JSON.parse(localStorage.getItem('historialCierres')) || [];
+        // 7. GUARDAR EN LOCALSTORAGE
+        const historialCierres = JSON.parse(localStorage.getItem('historialCierres') || '[]');
         historialCierres.push(cierre);
         localStorage.setItem('historialCierres', JSON.stringify(historialCierres));
 
-        // Imprimir tirilla ANTES de reiniciar ventas y gastos
-        imprimirBalanceDiario();
-
-        // Enviar email automáticamente
-        if (typeof enviarCierreAdministrativoEmail === 'function') {
-          try {
-            enviarCierreAdministrativoEmail(cierre);
-            console.log('📧 Email de cierre administrativo enviado automáticamente');
-          } catch (error) {
-            console.error('Error al enviar email de cierre administrativo:', error);
-          }
+        // 8. IMPRIMIR
+        try {
+            imprimirBalanceDiario(cierre);
+        } catch (e) {
+            console.error('Error al imprimir:', e);
         }
 
-        // Reiniciar sistema
-        // Guardar ventas actuales en historial antes de reiniciar
-        const ventasActuales = JSON.parse(localStorage.getItem('ventas')) || [];
-        const historialVentas = JSON.parse(localStorage.getItem('historialVentas')) || [];
-        ventasActuales.forEach(venta => {
-            if (!historialVentas.some(v => v.id === venta.id)) {
-                historialVentas.push(venta);
-            }
-        });
-        localStorage.setItem('historialVentas', JSON.stringify(historialVentas));
+        // 9. REINICIAR SISTEMA
+        const reinicioExitoso = reiniciarSistemaCompleto();
         
-        // Reiniciar ventas y gastos temporales
-        localStorage.setItem('ventas', JSON.stringify([]));
-        localStorage.setItem('gastos', JSON.stringify([])); // Solo reiniciamos los gastos temporales
-        // NO reiniciamos historialGastos para mantener el historial completo
-        // ... existing code ...
+        if (reinicioExitoso) {
+            console.log('✅ Sistema reiniciado correctamente');
+            // Forzar actualización de la interfaz
+            setTimeout(() => {
+                try {
+                    // Recargar datos
+                    if (typeof cargarDatos === 'function') {
+                        cargarDatos();
+                    }
+                    // Actualizar vista de mesas
+                    if (typeof actualizarVistaMesas === 'function') {
+                        actualizarVistaMesas();
+                    }
+                    // Limpiar interfaz de ventas
+                    limpiarInterfazVentas();
+                    console.log('✅ Interfaz actualizada después del reinicio');
+                    // Verificar estado del sistema
+                    debugEstadoSistema();
+                } catch (e) {
+                    console.error('Error al actualizar interfaz:', e);
+                }
+            }, 500);
+        } else {
+            console.error('❌ Error al reiniciar sistema');
+        }
 
-        // Actualizar la hora del último cierre
-        localStorage.setItem('ultimaHoraCierre', new Date().toISOString());
-
-        localStorage.setItem('contadorDelivery', '1');
-        localStorage.setItem('contadorRecoger', '1');
-        localStorage.setItem('mesasActivas', JSON.stringify([]));
-    
-        // REINICIO EXPLÍCITO DE CONTADORES GLOBALES Y FECHA
-        contadorDomicilios = 0;
-        contadorRecoger = 0;
-        ultimaFechaContadores = new Date().toLocaleDateString();
-        guardarContadores();
-    
-        // Refrescar variables globales y estado de la app
-        cargarDatos();
-    
-    // Cerrar modal
-    const modal = bootstrap.Modal.getInstance(document.getElementById('modalCierreDiario'));
-    modal.hide();
-    
-    // Mostrar mensaje de éxito
-    alert('Cierre diario guardado exitosamente');
+        // 10. CERRAR MODAL
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalCierreDiario'));
+        if (modal) modal.hide();
+        
+        // 11. LIMPIAR OVERLAYS
+        setTimeout(() => {
+            limpiarOverlaysBootstrap();
+        }, 100);
+        
+        // 12. MENSAJE DE ÉXITO
+        alert('✅ Cierre diario guardado exitosamente\n\n' +
+              `💰 Total Ventas: $${totalVentas.toLocaleString()}\n` +
+              `💵 Efectivo: $${totalEfectivo.toLocaleString()}\n` +
+              `🏦 Transferencia: $${totalTransferencia.toLocaleString()}\n` +
+              `💳 Tarjeta: $${totalTarjeta.toLocaleString()}\n` +
+              `📝 Crédito: $${totalCredito.toLocaleString()}\n` +
+              `🔄 Mixto: $${totalMixto.toLocaleString()}\n` +
+              `💸 Gastos: $${totalGastos.toLocaleString()}\n` +
+              `⚖️ Balance Final: $${balanceFinal.toLocaleString()}`);
+        
+        console.log('=== CIERRE COMPLETADO EXITOSAMENTE ===');
 
     } catch (error) {
-        console.error('Error al guardar cierre:', error);
-        alert('Error al guardar el cierre');
+        console.error('ERROR EN CIERRE:', error);
+        alert('❌ Error al guardar el cierre: ' + error.message);
     }
+}
+
+// ===== FUNCIÓN PARA OBTENER VENTANA DE IMPRESIÓN =====
+function obtenerVentanaImpresion() {
+    try {
+        // Intentar reutilizar ventana existente
+        let ventana = window.open('', 'ImpresionBalance', 'width=800,height=600,scrollbars=yes,resizable=yes');
+        
+        if (!ventana || ventana.closed) {
+            // Si no se puede abrir, crear una nueva
+            ventana = window.open('', 'ImpresionBalance', 'width=800,height=600,scrollbars=yes,resizable=yes');
+        }
+        
+        if (!ventana) {
+            throw new Error('No se pudo abrir la ventana de impresión. Por favor, permite las ventanas emergentes.');
+        }
+        
+        // Configurar la ventana
+        ventana.document.title = 'Cierre Diario - ToySoft POS';
+        ventana.focus();
+        
+        return ventana;
+    } catch (error) {
+        console.error('Error al obtener ventana de impresión:', error);
+        throw error;
+    }
+}
+
+// ===== FUNCIÓN PARA ENVIAR EMAIL DE CIERRE ADMINISTRATIVO =====
+function enviarCierreAdministrativoEmail(cierre) {
+    try {
+        console.log('=== ENVIANDO EMAIL DE CIERRE ADMINISTRATIVO ===');
+        
+        // Verificar si EmailJS está disponible
+        if (typeof emailjs === 'undefined') {
+            console.log('EmailJS no está disponible, saltando envío de email');
+            return;
+        }
+        
+        // Obtener configuración de email
+        const configEmail = JSON.parse(localStorage.getItem('configuracionEmail') || '{}');
+        if (!configEmail.serviceId || !configEmail.templateId || !configEmail.publicKey) {
+            console.log('Configuración de email incompleta, saltando envío');
+            return;
+        }
+        
+        // Configurar EmailJS
+        emailjs.init(configEmail.publicKey);
+        
+        // Preparar datos del email
+        const datosEmail = {
+            to_email: configEmail.emailDestino || 'admin@toysoft.com',
+            subject: `Cierre Administrativo - ${cierre.fechaFormateada}`,
+            nombre_negocio: JSON.parse(localStorage.getItem('datosNegocio') || '{}').nombre || 'ToySoft',
+            fecha: cierre.fechaFormateada,
+            hora: cierre.hora,
+            total_ventas: cierre.ventas.total.toLocaleString(),
+            efectivo: cierre.ventas.efectivo.toLocaleString(),
+            transferencia: cierre.ventas.transferencia.toLocaleString(),
+            tarjeta: cierre.ventas.tarjeta.toLocaleString(),
+            credito: cierre.ventas.credito.toLocaleString(),
+            mixto: cierre.ventas.mixto.toLocaleString(),
+            ventas_rapidas: cierre.ventasRapidas.total.toLocaleString(),
+            ventas_mesas: cierre.ventasMesas.total.toLocaleString(),
+            gastos: cierre.gastos.toLocaleString(),
+            balance_final: cierre.balance.toLocaleString(),
+            nombre_cierre: cierre.nombreCierre,
+            nombre_recibe: cierre.nombreRecibe,
+            monto_base_caja: cierre.montoBaseCaja.toLocaleString(),
+            detalles: cierre.detalles || 'Sin detalles adicionales'
+        };
+        
+        // Enviar email
+        emailjs.send(configEmail.serviceId, configEmail.templateId, datosEmail)
+            .then(function(response) {
+                console.log('✅ Email enviado exitosamente:', response);
+            })
+            .catch(function(error) {
+                console.error('❌ Error al enviar email:', error);
+            });
+            
+    } catch (error) {
+        console.error('Error en enviarCierreAdministrativoEmail:', error);
+    }
+}
+
+// ===== FUNCIÓN PARA CALCULAR TOTALES DE FORMA PRECISA =====
+function calcularTotalesVentas(ventas) {
+    console.log('=== CALCULANDO TOTALES DE VENTAS ===');
+    
+    // Eliminar duplicados por ID
+    const ventasUnicas = [];
+    const idsVistos = new Set();
+    
+    ventas.forEach(venta => {
+        if (!idsVistos.has(venta.id)) {
+            idsVistos.add(venta.id);
+            ventasUnicas.push(venta);
+        }
+    });
+    
+    console.log(`📊 Ventas procesadas: ${ventasUnicas.length} de ${ventas.length} totales`);
+    if (ventas.length !== ventasUnicas.length) {
+        console.log(`⚠️ Se eliminaron ${ventas.length - ventasUnicas.length} duplicados`);
+    }
+    
+    // Inicializar contadores
+    let totalGeneral = 0;
+    let totalEfectivo = 0, totalTransferencia = 0, totalTarjeta = 0, totalCredito = 0, totalMixto = 0;
+    let totalVentasRapidas = 0, totalVentasMesas = 0;
+    let efectivoRapidas = 0, transferenciaRapidas = 0, tarjetaRapidas = 0, creditoRapidas = 0, mixtoRapidas = 0;
+    let efectivoMesas = 0, transferenciaMesas = 0, tarjetaMesas = 0, creditoMesas = 0, mixtoMesas = 0;
+
+    // Procesar cada venta individualmente
+    ventasUnicas.forEach((venta) => {
+        const total = parseFloat(venta.total) || 0;
+        const metodo = (venta.metodoPago || '').toLowerCase().trim();
+        // Clasificación robusta: considera venta rápida si el tipo es 'venta_rapida' o si la mesa es 'VENTA DIRECTA'
+        const esVentaRapida = (venta.tipo === 'venta_rapida') || (venta.mesa === 'VENTA DIRECTA');
+        
+        // Sumar al total general
+        totalGeneral += total;
+        
+        // Clasificar por tipo de venta
+        if (esVentaRapida) {
+            totalVentasRapidas += total;
+        } else {
+            totalVentasMesas += total;
+        }
+
+        // Procesar por método de pago
+        switch (metodo) {
+            case 'efectivo':
+                totalEfectivo += total;
+                if (esVentaRapida) {
+                    efectivoRapidas += total;
+                } else {
+                    efectivoMesas += total;
+                }
+                break;
+                
+            case 'transferencia':
+                totalTransferencia += total;
+                if (esVentaRapida) {
+                    transferenciaRapidas += total;
+                } else {
+                    transferenciaMesas += total;
+                }
+                break;
+                
+            case 'tarjeta':
+                totalTarjeta += total;
+                if (esVentaRapida) {
+                    tarjetaRapidas += total;
+                } else {
+                    tarjetaMesas += total;
+                }
+                break;
+                
+            case 'crédito':
+            case 'credito':
+                totalCredito += total;
+                if (esVentaRapida) {
+                    creditoRapidas += total;
+                } else {
+                    creditoMesas += total;
+                }
+                break;
+                
+            case 'mixto':
+                totalMixto += total;
+                const efectivoMixto = parseFloat(venta.montoRecibido) || 0;
+                const transferenciaMixto = parseFloat(venta.montoTransferencia) || 0;
+                totalEfectivo += efectivoMixto;
+                totalTransferencia += transferenciaMixto;
+                
+                if (esVentaRapida) {
+                    mixtoRapidas += total;
+                    efectivoRapidas += efectivoMixto;
+                    transferenciaRapidas += transferenciaMixto;
+                } else {
+                    mixtoMesas += total;
+                    efectivoMesas += efectivoMixto;
+                    transferenciaMesas += transferenciaMixto;
+                }
+                break;
+                
+            default:
+                console.warn(`Método de pago no reconocido: "${metodo}"`);
+                break;
+        }
+    });
+
+    // Verificar coherencia
+    const sumaVentasRapidas = efectivoRapidas + transferenciaRapidas + tarjetaRapidas + creditoRapidas + mixtoRapidas;
+    const sumaVentasMesas = efectivoMesas + transferenciaMesas + tarjetaMesas + creditoMesas + mixtoMesas;
+    const sumaTotal = totalEfectivo + totalTransferencia + totalTarjeta + totalCredito;
+
+    console.log(`📊 Total General: $${totalGeneral.toLocaleString()}`);
+    console.log(`⚡ Ventas Rápidas: $${totalVentasRapidas.toLocaleString()}`);
+    console.log(`🪑 Ventas Mesas: $${totalVentasMesas.toLocaleString()}`);
+    
+    // Verificar coherencia de cálculos
+    const sumaManualFinal = ventasUnicas.reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
+    if (sumaManualFinal !== totalGeneral) {
+        console.warn('⚠️ Los totales no coinciden! Diferencia:', Math.abs(sumaManualFinal - totalGeneral));
+    }
+
+    return {
+        totalGeneral,
+        totalEfectivo,
+        totalTransferencia,
+        totalTarjeta,
+        totalCredito,
+        totalMixto,
+        totalVentasRapidas,
+        totalVentasMesas,
+        efectivoRapidas,
+        transferenciaRapidas,
+        tarjetaRapidas,
+        creditoRapidas,
+        mixtoRapidas,
+        efectivoMesas,
+        transferenciaMesas,
+        tarjetaMesas,
+        creditoMesas,
+        mixtoMesas
+    };
+}
+
+// ===== FUNCIÓN DE DEBUG PARA VERIFICAR VENTAS =====
+function debugVentasCompletas() {
+    console.log('=== DEBUG COMPLETO DE VENTAS ===');
+    
+    const ventas = JSON.parse(localStorage.getItem('ventas') || '[]');
+    const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
+    const todasLasVentas = [...ventas, ...historialVentas];
+    
+    console.log(`📊 Ventas activas: ${ventas.length}`);
+    console.log(`📊 Historial ventas: ${historialVentas.length}`);
+    console.log(`📊 Total ventas: ${todasLasVentas.length}`);
+}
+
+// ===== FUNCIÓN DE DEBUG ESPECÍFICA PARA CIERRE ADMINISTRATIVO =====
+function debugCierreAdministrativo() {
+    console.log('=== DEBUG CIERRE ADMINISTRATIVO ===');
+    
+    // Obtener todas las ventas del día
+    const ventas = JSON.parse(localStorage.getItem('ventas') || '[]');
+    const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
+    const todasLasVentas = [...ventas, ...historialVentas];
+    const hoy = new Date();
+    const hoyStr = hoy.toISOString().slice(0, 10);
+    
+    const ventasHoy = todasLasVentas.filter(v => {
+        try {
+            return esMismaFechaLocal(v.fecha, hoy);
+        } catch (e) {
+            return false;
+        }
+    });
+    
+    console.log(`📅 Fecha de hoy (local): ${hoy.toLocaleDateString('es-ES')}`);
+    console.log(`📊 Ventas de mesas: ${ventas.length}`);
+    console.log(`📊 Ventas rápidas (historial): ${historialVentas.length}`);
+    console.log(`📊 Total ventas: ${todasLasVentas.length}`);
+    console.log(`📊 Ventas de hoy: ${ventasHoy.length}`);
+    
+    // Calcular usando la función mejorada
+    const calculos = calcularTotalesVentas(ventasHoy);
+    
+    console.log('\n=== RESULTADOS DEL CÁLCULO ===');
+    console.log(`💰 Total General: $${calculos.totalGeneral.toLocaleString()}`);
+    console.log(`💵 Efectivo: $${calculos.totalEfectivo.toLocaleString()}`);
+    console.log(`🏦 Transferencia: $${calculos.totalTransferencia.toLocaleString()}`);
+    console.log(`💳 Tarjeta: $${calculos.totalTarjeta.toLocaleString()}`);
+    console.log(`📝 Crédito: $${calculos.totalCredito.toLocaleString()}`);
+    console.log(`🔄 Mixto: $${calculos.totalMixto.toLocaleString()}`);
+    
+    console.log('\n=== VENTAS RÁPIDAS ===');
+    console.log(`📊 Total: $${calculos.totalVentasRapidas.toLocaleString()}`);
+    console.log(`💵 Efectivo: $${calculos.efectivoRapidas.toLocaleString()}`);
+    console.log(`🏦 Transferencia: $${calculos.transferenciaRapidas.toLocaleString()}`);
+    console.log(`💳 Tarjeta: $${calculos.tarjetaRapidas.toLocaleString()}`);
+    console.log(`📝 Crédito: $${calculos.creditoRapidas.toLocaleString()}`);
+    console.log(`🔄 Mixto: $${calculos.mixtoRapidas.toLocaleString()}`);
+    
+    console.log('\n=== VENTAS MESAS ===');
+    console.log(`📊 Total: $${calculos.totalVentasMesas.toLocaleString()}`);
+    console.log(`💵 Efectivo: $${calculos.efectivoMesas.toLocaleString()}`);
+    console.log(`🏦 Transferencia: $${calculos.transferenciaMesas.toLocaleString()}`);
+    console.log(`💳 Tarjeta: $${calculos.tarjetaMesas.toLocaleString()}`);
+    console.log(`📝 Crédito: $${calculos.creditoMesas.toLocaleString()}`);
+    console.log(`🔄 Mixto: $${calculos.mixtoMesas.toLocaleString()}`);
+    
+    // Verificar coherencia
+    const sumaTotal = calculos.totalEfectivo + calculos.totalTransferencia + calculos.totalTarjeta + calculos.totalCredito;
+    console.log('\n=== VERIFICACIÓN ===');
+    console.log(`🔍 Total General: $${calculos.totalGeneral.toLocaleString()}`);
+    console.log(`🔢 Suma por métodos: $${sumaTotal.toLocaleString()}`);
+    console.log(`✅ ¿Coinciden? ${calculos.totalGeneral === sumaTotal ? 'SÍ' : 'NO'}`);
+    
+    // Verificar total de ventas
+    const totalManual = ventasHoy.reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
+    console.log(`💰 Total ventas del día: $${totalManual.toLocaleString()}`);
+    
+    return calculos;
+}
+
+// ===== FUNCIÓN DE DEBUG DETALLADO PARA VENTAS =====
+function debugVentasDetallado() {
+    console.log('=== DEBUG DETALLADO DE VENTAS ===');
+    
+    // Obtener todas las ventas
+    const ventas = JSON.parse(localStorage.getItem('ventas') || '[]');
+    const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
+    
+    console.log(`📊 Ventas de mesas: ${ventas.length}`);
+    console.log(`📊 Ventas rápidas: ${historialVentas.length}`);
+    
+    // Verificar fechas
+    const hoy = new Date();
+    console.log(`\n📅 Fecha de hoy (local): ${hoy.toLocaleDateString('es-ES')}`);
+    
+    // Filtrar ventas de hoy
+    const todasLasVentas = [...ventas, ...historialVentas];
+    const ventasHoy = todasLasVentas.filter(v => {
+        try {
+            return esMismaFechaLocal(v.fecha, hoy);
+        } catch (e) {
+            console.error('Error al procesar fecha:', e, v);
+            return false;
+        }
+    });
+    
+    console.log(`📊 Ventas de hoy: ${ventasHoy.length}`);
+    
+    // Calcular totales manualmente
+    const totalManual = ventasHoy.reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
+    console.log(`\n💰 TOTAL MANUAL: $${totalManual.toLocaleString()}`);
+    
+    return {
+        ventas,
+        historialVentas,
+        ventasHoy,
+        totalManual
+    };
+}
+
+// ===== FUNCIÓN PARA OBTENER VENTAS DEL DÍA =====
+function obtenerVentasDelDia() {
+    const ventas = JSON.parse(localStorage.getItem('ventas') || '[]');
+    
+    // Filtrar solo ventas activas de hoy (NO historial)
+    const hoy = new Date();
+    const hoyStr = hoy.toISOString().slice(0, 10);
+    
+    const ventasHoy = ventas.filter(v => {
+        try {
+            const fechaVenta = new Date(v.fecha);
+            const fechaVentaStr = fechaVenta.toISOString().slice(0, 10);
+            return fechaVentaStr === hoyStr;
+        } catch (e) {
+            return false;
+        }
+    });
+    
+    console.log(`📅 Filtro aplicado: Solo ventas activas de hoy`);
+    console.log(`📊 Ventas activas de hoy: ${ventasHoy.length}`);
+    
+    console.log(`📊 Ventas de hoy: ${ventasHoy.length}`);
+    
+    // Verificar total de ventas
+    const totalManual = ventasHoy.reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
+    console.log(`💰 Total ventas del día: $${totalManual.toLocaleString()}`);
+    
+    const sumaTotal = ventasHoy.reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
+    console.log(`\n💰 SUMA TOTAL MANUAL: $${sumaTotal.toLocaleString()}`);
+    
+    return ventasHoy;
+}
+
+// ===== FUNCIÓN PARA REINICIAR SISTEMA =====
+function reiniciarSistemaDespuesCierre() {
+    console.log('=== REINICIANDO SISTEMA ===');
+    
+    // Usar la función de reinicio completo
+    const reinicioExitoso = reiniciarSistemaCompleto();
+    
+    if (!reinicioExitoso) {
+        console.error('❌ Error al reiniciar sistema');
+        return;
+    }
+    
+    // Reiniciar contadores específicos
+    localStorage.setItem('ultimaHoraCierre', new Date().toISOString());
+    localStorage.setItem('contadorDelivery', '1');
+    localStorage.setItem('contadorRecoger', '1');
+    
+    // Reiniciar contadores globales
+    if (typeof contadorDomicilios !== 'undefined') contadorDomicilios = 0;
+    if (typeof contadorRecoger !== 'undefined') contadorRecoger = 0;
+    if (typeof ultimaFechaContadores !== 'undefined') ultimaFechaContadores = new Date().toLocaleDateString();
+    
+    try {
+        if (typeof guardarContadores === 'function') guardarContadores();
+        if (typeof cargarDatos === 'function') cargarDatos();
+    } catch (e) {
+        console.error('Error al refrescar datos:', e);
+    }
+    
+    console.log('✅ Sistema reiniciado correctamente');
+    
+    // Recargar la página para reiniciar completamente
+    setTimeout(() => {
+        location.reload();
+    }, 1000);
 }
 
 function exportarCierresDiariosExcel() {
@@ -4200,53 +5436,88 @@ function exportarCierresDiariosExcel() {
     }
 }
 
-function imprimirBalanceDiario() {
+function imprimirBalanceDiario(datosCierre = null) {
     try {
+        console.log('Iniciando imprimirBalanceDiario con datos:', datosCierre);
+        
+        // Obtener la marca de tiempo del último cierre (si existe)
+        const ultimaHoraCierreStr = localStorage.getItem('ultimaHoraCierre');
+        const ultimaHoraCierre = ultimaHoraCierreStr ? new Date(ultimaHoraCierreStr) : null;
+        
         // Obtener todas las ventas (normales + rápidas)
         const todasLasVentas = obtenerTodasLasVentas();
+        console.log('Ventas obtenidas:', todasLasVentas.length);
+        
         const hoy = new Date();
-        const hoyStr = hoy.toISOString().slice(0, 10); // YYYY-MM-DD
+        console.log('Fecha de hoy (local):', hoy.toLocaleDateString('es-ES'));
         
         const ventasHoy = todasLasVentas.filter(v => {
             const fechaVenta = new Date(v.fecha);
-            const fechaVentaStr = fechaVenta.toISOString().slice(0, 10);
-            return fechaVentaStr === hoyStr;
-        });
-
-        // Calcular totales por método de pago
-        let totalEfectivo = 0, totalTransferencia = 0, totalTarjeta = 0, totalCredito = 0, totalMixto = 0, totalVentas = 0;
-        ventasHoy.forEach(v => {
-            const total = parseFloat(v.total) || 0;
-            const metodo = (v.metodoPago || '').toLowerCase();
-            if (metodo === 'mixto') {
-                const efectivoMixto = parseFloat(v.montoRecibido) || 0;
-                const transferenciaMixto = parseFloat(v.montoTransferencia) || 0;
-                totalMixto += total;
-                totalEfectivo += efectivoMixto;
-                totalTransferencia += transferenciaMixto;
-            } else {
-                switch (metodo) {
-                    case 'efectivo':
-                        totalEfectivo += total;
-                        break;
-                    case 'transferencia':
-                        totalTransferencia += total;
-                        break;
-                    case 'tarjeta':
-                        totalTarjeta += total;
-                        break;
-                    case 'crédito':
-                    case 'credito':
-                        totalCredito += total;
-                        break;
-                }
+            if (ultimaHoraCierre) {
+                return fechaVenta > ultimaHoraCierre;
             }
-            totalVentas += total;
+            return esMismaFechaLocal(fechaVenta, hoy);
         });
+        console.log('Ventas de hoy filtradas:', ventasHoy.length);
+
+        // Usar datos del cierre si están disponibles, sino calcular
+        let totalEfectivo, totalTransferencia, totalTarjeta, totalCredito, totalMixto, totalVentas;
+        let totalEfectivoRapida, totalTransferenciaRapida, totalTarjetaRapida, totalCreditoRapida, totalMixtoRapida, totalVentasRapidas;
+        let totalEfectivoMesa, totalTransferenciaMesa, totalTarjetaMesa, totalCreditoMesa, totalMixtoMesa, totalVentasMesas;
+        
+        if (datosCierre && datosCierre.ventas) {
+            // Usar datos del cierre
+            totalVentas = datosCierre.ventas.total || 0;
+            totalEfectivo = datosCierre.ventas.efectivo || 0;
+            totalTransferencia = datosCierre.ventas.transferencia || 0;
+            totalTarjeta = datosCierre.ventas.tarjeta || 0;
+            totalCredito = datosCierre.ventas.credito || 0;
+            totalMixto = datosCierre.ventas.mixto || 0;
+            
+            // Datos separados por tipo
+            if (datosCierre.ventasRapidas) {
+                totalVentasRapidas = datosCierre.ventasRapidas.total || 0;
+                totalEfectivoRapida = datosCierre.ventasRapidas.efectivo || 0;
+                totalTransferenciaRapida = datosCierre.ventasRapidas.transferencia || 0;
+                totalTarjetaRapida = datosCierre.ventasRapidas.tarjeta || 0;
+                totalCreditoRapida = datosCierre.ventasRapidas.credito || 0;
+                totalMixtoRapida = datosCierre.ventasRapidas.mixto || 0;
+            }
+            
+            if (datosCierre.ventasMesas) {
+                totalVentasMesas = datosCierre.ventasMesas.total || 0;
+                totalEfectivoMesa = datosCierre.ventasMesas.efectivo || 0;
+                totalTransferenciaMesa = datosCierre.ventasMesas.transferencia || 0;
+                totalTarjetaMesa = datosCierre.ventasMesas.tarjeta || 0;
+                totalCreditoMesa = datosCierre.ventasMesas.credito || 0;
+                totalMixtoMesa = datosCierre.ventasMesas.mixto || 0;
+            }
+        } else {
+            // Si no hay datos de cierre, usar la función mejorada de cálculo
+            const calculos = calcularTotalesVentas(ventasHoy);
+            totalVentas = calculos.totalGeneral;
+            totalEfectivo = calculos.totalEfectivo;
+            totalTransferencia = calculos.totalTransferencia;
+            totalTarjeta = calculos.totalTarjeta;
+            totalCredito = calculos.totalCredito;
+            totalMixto = calculos.totalMixto;
+            totalVentasRapidas = calculos.totalVentasRapidas;
+            totalVentasMesas = calculos.totalVentasMesas;
+            totalEfectivoRapida = calculos.efectivoRapidas;
+            totalTransferenciaRapida = calculos.transferenciaRapidas;
+            totalTarjetaRapida = calculos.tarjetaRapidas;
+            totalCreditoRapida = calculos.creditoRapidas;
+            totalMixtoRapida = calculos.mixtoRapidas;
+            totalEfectivoMesa = calculos.efectivoMesas;
+            totalTransferenciaMesa = calculos.transferenciaMesas;
+            totalTarjetaMesa = calculos.tarjetaMesas;
+            totalCreditoMesa = calculos.creditoMesas;
+            totalMixtoMesa = calculos.mixtoMesas;
+        }
 
         // Obtener gastos del día
         const gastos = JSON.parse(localStorage.getItem('gastos')) || [];
-console.log('[BALANCE] Fuente de gastos:', gastos);
+        console.log('[BALANCE] Fuente de gastos:', gastos);
         const gastosHoy = gastos.filter(g => {
             const fechaGasto = new Date(g.fecha);
             if (ultimaHoraCierre) {
@@ -4261,24 +5532,37 @@ console.log('[BALANCE] Fuente de gastos:', gastos);
         const balanceFinal = totalVentas - totalGastos;
 
         // Obtener información del cierre
-        const nombreCierre = document.getElementById('nombreCierre').value.trim();
-        const nombreRecibe = document.getElementById('nombreRecibe').value.trim();
-        const montoBaseCaja = parseFloat(document.getElementById('montoBaseCaja').value) || 0;
-        const detalles = document.getElementById('detallesCierre').value;
+        let nombreCierre, nombreRecibe, montoBaseCaja, detalles;
+        
+        if (datosCierre) {
+            // Usar datos pasados como parámetro
+            nombreCierre = datosCierre.nombreCierre || '';
+            nombreRecibe = datosCierre.nombreRecibe || '';
+            montoBaseCaja = datosCierre.montoBaseCaja || 0;
+            detalles = datosCierre.detalles || '';
+        } else {
+            // Intentar obtener del DOM (para compatibilidad)
+            const nombreCierreEl = document.getElementById('nombreCierre');
+            const nombreRecibeEl = document.getElementById('nombreRecibe');
+            const montoBaseCajaEl = document.getElementById('montoBaseCaja');
+            const detallesEl = document.getElementById('detallesCierre');
+            
+            nombreCierre = nombreCierreEl ? nombreCierreEl.value.trim() : '';
+            nombreRecibe = nombreRecibeEl ? nombreRecibeEl.value.trim() : '';
+            montoBaseCaja = montoBaseCajaEl ? parseFloat(montoBaseCajaEl.value) || 0 : 0;
+            detalles = detallesEl ? detallesEl.value : '';
+        }
 
         // Obtener información del negocio
         const datosNegocio = JSON.parse(localStorage.getItem('datosNegocio'));
 
         // Crear ventana de impresión
         let ventana;
-        if (typeof obtenerVentanaImpresion === 'function') {
+        try {
             ventana = obtenerVentanaImpresion();
-        } else {
-            ventana = window.open('', 'ImpresionBalance', 'width=400,height=600,scrollbars=yes');
-            if (!ventana) {
-                alert('Por favor, permite las ventanas emergentes para este sitio');
-                return;
-            }
+        } catch (error) {
+            alert('Error al abrir ventana de impresión: ' + error.message);
+            return;
         }
         let infoNegocio = '';
         if (datosNegocio && (
@@ -4334,13 +5618,37 @@ console.log('[BALANCE] Fuente de gastos:', gastos);
                     
                     <div class="border-top">
                         <div class="mb-1"><strong>Resumen de Ventas</strong></div>
-                        <div class="mb-1">Total: $ ${totalVentas.toLocaleString()}</div>
+                        <div class="mb-1">Total General: $ ${totalVentas.toLocaleString()}</div>
                         <div class="mb-1">- Efectivo: $ ${totalEfectivo.toLocaleString()}</div>
                         <div class="mb-1">- Transferencia: $ ${totalTransferencia.toLocaleString()}</div>
                         <div class="mb-1">- Tarjeta: $ ${totalTarjeta.toLocaleString()}</div>
                         <div class="mb-1">- Crédito: $ ${totalCredito.toLocaleString()}</div>
                         <div class="mb-1">- Mixto: $ ${totalMixto.toLocaleString()}</div>
                     </div>
+                    
+                    ${totalVentasRapidas > 0 ? `
+                    <div class="border-top">
+                        <div class="mb-1"><strong>Ventas Rápidas</strong></div>
+                        <div class="mb-1">Total: $ ${totalVentasRapidas.toLocaleString()}</div>
+                        <div class="mb-1">- Efectivo: $ ${(totalEfectivoRapida || 0).toLocaleString()}</div>
+                        <div class="mb-1">- Transferencia: $ ${(totalTransferenciaRapida || 0).toLocaleString()}</div>
+                        <div class="mb-1">- Tarjeta: $ ${(totalTarjetaRapida || 0).toLocaleString()}</div>
+                        <div class="mb-1">- Crédito: $ ${(totalCreditoRapida || 0).toLocaleString()}</div>
+                        <div class="mb-1">- Mixto: $ ${(totalMixtoRapida || 0).toLocaleString()}</div>
+                    </div>
+                    ` : ''}
+                    
+                    ${totalVentasMesas > 0 ? `
+                    <div class="border-top">
+                        <div class="mb-1"><strong>Ventas de Mesas</strong></div>
+                        <div class="mb-1">Total: $ ${totalVentasMesas.toLocaleString()}</div>
+                        <div class="mb-1">- Efectivo: $ ${(totalEfectivoMesa || 0).toLocaleString()}</div>
+                        <div class="mb-1">- Transferencia: $ ${(totalTransferenciaMesa || 0).toLocaleString()}</div>
+                        <div class="mb-1">- Tarjeta: $ ${(totalTarjetaMesa || 0).toLocaleString()}</div>
+                        <div class="mb-1">- Crédito: $ ${(totalCreditoMesa || 0).toLocaleString()}</div>
+                        <div class="mb-1">- Mixto: $ ${(totalMixtoMesa || 0).toLocaleString()}</div>
+                    </div>
+                    ` : ''}
                     
                     <div class="border-top">
                         <div class="mb-1"><strong>Gastos</strong></div>
@@ -4389,8 +5697,444 @@ console.log('[BALANCE] Fuente de gastos:', gastos);
         ventana.document.close();
     } catch (error) {
         console.error('Error al imprimir balance:', error);
-        alert('Error al generar el balance');
+        console.error('Stack trace:', error.stack);
+        alert('Error al generar el balance: ' + error.message);
     }
+}
+
+// ===== FUNCIÓN DE IMPRESIÓN MEJORADA =====
+function imprimirBalanceDiarioMejorado(cierre) {
+    console.log('=== IMPRIMIENDO BALANCE DIARIO MEJORADO ===');
+    
+    const fecha = new Date(cierre.fecha);
+    const fechaFormateada = fecha.toLocaleDateString('es-ES');
+    const hora = fecha.toLocaleTimeString('es-ES');
+    
+    // Extraer datos del cierre
+    const { ventas, ventasRapidas, ventasMesas, gastos, balance, nombreCierre, nombreRecibe, montoBaseCaja, detalles } = cierre;
+    
+    const contenido = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Cierre Diario - ToySoft POS</title>
+        <style>
+            @page {
+                size: A4;
+                margin: 1cm;
+            }
+            
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-size: 12px;
+                line-height: 1.4;
+                color: #333;
+                margin: 0;
+                padding: 0;
+            }
+            
+            .header {
+                text-align: center;
+                border-bottom: 3px solid #2c3e50;
+                padding-bottom: 15px;
+                margin-bottom: 20px;
+            }
+            
+            .logo {
+                font-size: 24px;
+                font-weight: bold;
+                color: #2c3e50;
+                margin-bottom: 5px;
+            }
+            
+            .title {
+                font-size: 18px;
+                font-weight: bold;
+                color: #34495e;
+                margin: 10px 0;
+            }
+            
+            .date-time {
+                font-size: 14px;
+                color: #7f8c8d;
+                margin-bottom: 10px;
+            }
+            
+            .section {
+                margin-bottom: 20px;
+                border: 1px solid #bdc3c7;
+                border-radius: 8px;
+                overflow: hidden;
+            }
+            
+            .section-header {
+                background: linear-gradient(135deg, #3498db, #2980b9);
+                color: white;
+                padding: 10px 15px;
+                font-weight: bold;
+                font-size: 14px;
+            }
+            
+            .section-content {
+                padding: 15px;
+                background: #f8f9fa;
+            }
+            
+            .info-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 15px;
+                margin-bottom: 15px;
+            }
+            
+            .info-item {
+                display: flex;
+                justify-content: space-between;
+                padding: 8px 12px;
+                background: white;
+                border-radius: 5px;
+                border-left: 4px solid #3498db;
+            }
+            
+            .info-label {
+                font-weight: 600;
+                color: #2c3e50;
+            }
+            
+            .info-value {
+                font-weight: bold;
+                color: #27ae60;
+            }
+            
+            .totals-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+                margin-top: 15px;
+            }
+            
+            .total-section {
+                background: white;
+                border-radius: 8px;
+                padding: 15px;
+                border: 2px solid #e74c3c;
+            }
+            
+            .total-section.rapidas {
+                border-color: #f39c12;
+            }
+            
+            .total-section.mesas {
+                border-color: #9b59b6;
+            }
+            
+            .total-title {
+                font-size: 16px;
+                font-weight: bold;
+                text-align: center;
+                margin-bottom: 10px;
+                padding: 8px;
+                border-radius: 5px;
+            }
+            
+            .total-title.rapidas {
+                background: #f39c12;
+                color: white;
+            }
+            
+            .total-title.mesas {
+                background: #9b59b6;
+                color: white;
+            }
+            
+            .total-item {
+                display: flex;
+                justify-content: space-between;
+                padding: 5px 0;
+                border-bottom: 1px solid #ecf0f1;
+            }
+            
+            .total-item:last-child {
+                border-bottom: none;
+                font-weight: bold;
+                font-size: 14px;
+                color: #2c3e50;
+                margin-top: 5px;
+                padding-top: 10px;
+                border-top: 2px solid #34495e;
+            }
+            
+            .summary-section {
+                background: linear-gradient(135deg, #27ae60, #2ecc71);
+                color: white;
+                padding: 20px;
+                border-radius: 10px;
+                text-align: center;
+                margin: 20px 0;
+            }
+            
+            .summary-title {
+                font-size: 20px;
+                font-weight: bold;
+                margin-bottom: 15px;
+            }
+            
+            .summary-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 20px;
+            }
+            
+            .summary-item {
+                background: rgba(255, 255, 255, 0.2);
+                padding: 15px;
+                border-radius: 8px;
+            }
+            
+            .summary-value {
+                font-size: 24px;
+                font-weight: bold;
+                margin-bottom: 5px;
+            }
+            
+            .summary-label {
+                font-size: 12px;
+                opacity: 0.9;
+            }
+            
+            .footer {
+                margin-top: 30px;
+                text-align: center;
+                border-top: 2px solid #bdc3c7;
+                padding-top: 20px;
+            }
+            
+            .signature-section {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 40px;
+                margin-top: 30px;
+            }
+            
+            .signature-box {
+                text-align: center;
+                border-top: 1px solid #7f8c8d;
+                padding-top: 10px;
+            }
+            
+            .signature-label {
+                font-weight: bold;
+                color: #2c3e50;
+                margin-bottom: 40px;
+            }
+            
+            .signature-line {
+                border-bottom: 1px solid #7f8c8d;
+                height: 40px;
+                margin-bottom: 5px;
+            }
+            
+            .no-data {
+                text-align: center;
+                color: #7f8c8d;
+                font-style: italic;
+                padding: 20px;
+            }
+            
+            @media print {
+                body { margin: 0; }
+                .no-print { display: none; }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="logo">🏪 ToySoft POS</div>
+            <div class="title">CIERRE DIARIO</div>
+            <div class="date-time">📅 ${fechaFormateada} - 🕐 ${hora}</div>
+        </div>
+
+        <div class="section">
+            <div class="section-header">📋 Información del Cierre</div>
+            <div class="section-content">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">👤 Entrega:</span>
+                        <span class="info-value">${nombreCierre}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">👤 Recibe:</span>
+                        <span class="info-value">${nombreRecibe}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">💰 Base Caja:</span>
+                        <span class="info-value">$${montoBaseCaja.toLocaleString()}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">📝 Detalles:</span>
+                        <span class="info-value">${detalles || 'Sin detalles'}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-header">📊 Resumen General de Ventas</div>
+            <div class="section-content">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">💰 Total General:</span>
+                        <span class="info-value">$${ventas.total.toLocaleString()}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">💵 Efectivo:</span>
+                        <span class="info-value">$${ventas.efectivo.toLocaleString()}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">🏦 Transferencia:</span>
+                        <span class="info-value">$${ventas.transferencia.toLocaleString()}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">💳 Tarjeta:</span>
+                        <span class="info-value">$${ventas.tarjeta.toLocaleString()}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">📝 Crédito:</span>
+                        <span class="info-value">$${ventas.credito.toLocaleString()}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">🔄 Mixto:</span>
+                        <span class="info-value">$${ventas.mixto.toLocaleString()}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="totals-grid">
+            <div class="total-section rapidas">
+                <div class="total-title rapidas">⚡ Ventas Rápidas</div>
+                <div class="total-item">
+                    <span>💵 Efectivo:</span>
+                    <span>$${ventasRapidas.efectivo.toLocaleString()}</span>
+                </div>
+                <div class="total-item">
+                    <span>🏦 Transferencia:</span>
+                    <span>$${ventasRapidas.transferencia.toLocaleString()}</span>
+                </div>
+                <div class="total-item">
+                    <span>💳 Tarjeta:</span>
+                    <span>$${ventasRapidas.tarjeta.toLocaleString()}</span>
+                </div>
+                <div class="total-item">
+                    <span>📝 Crédito:</span>
+                    <span>$${ventasRapidas.credito.toLocaleString()}</span>
+                </div>
+                <div class="total-item">
+                    <span>🔄 Mixto:</span>
+                    <span>$${ventasRapidas.mixto.toLocaleString()}</span>
+                </div>
+                <div class="total-item">
+                    <span>📊 TOTAL RÁPIDAS:</span>
+                    <span>$${ventasRapidas.total.toLocaleString()}</span>
+                </div>
+            </div>
+
+            <div class="total-section mesas">
+                <div class="total-title mesas">🪑 Ventas de Mesas</div>
+                <div class="total-item">
+                    <span>💵 Efectivo:</span>
+                    <span>$${ventasMesas.efectivo.toLocaleString()}</span>
+                </div>
+                <div class="total-item">
+                    <span>🏦 Transferencia:</span>
+                    <span>$${ventasMesas.transferencia.toLocaleString()}</span>
+                </div>
+                <div class="total-item">
+                    <span>💳 Tarjeta:</span>
+                    <span>$${ventasMesas.tarjeta.toLocaleString()}</span>
+                </div>
+                <div class="total-item">
+                    <span>📝 Crédito:</span>
+                    <span>$${ventasMesas.credito.toLocaleString()}</span>
+                </div>
+                <div class="total-item">
+                    <span>🔄 Mixto:</span>
+                    <span>$${ventasMesas.mixto.toLocaleString()}</span>
+                </div>
+                <div class="total-item">
+                    <span>📊 TOTAL MESAS:</span>
+                    <span>$${ventasMesas.total.toLocaleString()}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-header">💸 Gastos del Día</div>
+            <div class="section-content">
+                ${gastos > 0 ? `
+                    <div class="info-item">
+                        <span class="info-label">💰 Total Gastos:</span>
+                        <span class="info-value">$${gastos.toLocaleString()}</span>
+                    </div>
+                ` : `
+                    <div class="no-data">No hay gastos registrados</div>
+                `}
+            </div>
+        </div>
+
+        <div class="summary-section">
+            <div class="summary-title">🎯 Resumen Final</div>
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <div class="summary-value">$${ventas.total.toLocaleString()}</div>
+                    <div class="summary-label">Total Ventas</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-value">$${gastos.toLocaleString()}</div>
+                    <div class="summary-label">Total Gastos</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-value">$${balance.toLocaleString()}</div>
+                    <div class="summary-label">Balance Final</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div class="signature-section">
+                <div class="signature-box">
+                    <div class="signature-label">Firma de Entrega</div>
+                    <div class="signature-line"></div>
+                    <div>${nombreCierre}</div>
+                </div>
+                <div class="signature-box">
+                    <div class="signature-label">Firma de Recibe</div>
+                    <div class="signature-line"></div>
+                    <div>${nombreRecibe}</div>
+                </div>
+            </div>
+            <div style="margin-top: 30px; font-size: 10px; color: #7f8c8d;">
+                Generado por ToySoft POS - ${new Date().toLocaleString('es-ES')}
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+
+    // Crear ventana de impresión
+    const ventanaImpresion = window.open('', '_blank', 'width=800,height=600');
+    ventanaImpresion.document.write(contenido);
+    ventanaImpresion.document.close();
+    
+    // Esperar a que se cargue el contenido y luego imprimir
+    ventanaImpresion.onload = function() {
+        setTimeout(() => {
+            ventanaImpresion.print();
+            ventanaImpresion.close();
+        }, 500);
+    };
 }
 
 // Función para mostrar historial de ventas

@@ -103,3 +103,4 @@ let PIN_EMPLEADO = '1234'; // Cambiar por el PIN deseado
 
 **Desarrollado por Emil Jiménez Ortiz**  
 *Sistema POS ToySoft - Versión con Control de Roles*
+

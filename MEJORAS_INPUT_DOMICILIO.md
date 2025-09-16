@@ -136,3 +136,4 @@ El input de domicilio ahora es:
 
 **Desarrollado para ToySoft POS**  
 *Optimizado para pantallas de 11" y tablets*
+
