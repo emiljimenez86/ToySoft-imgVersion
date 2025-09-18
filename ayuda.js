@@ -1156,7 +1156,9 @@ function mostrarAyudaEspecifica(tipo) {
                 <div class="modal-content bg-dark text-white">
                     <div class="modal-header">
                         <h5 class="modal-title">
-                            <span style="font-size: 1.3em;">🤖</span> ${ayuda.titulo}
+                            <img src="image/logo-ToySoft.png" alt="ToySoft" style="width: 32px; height: 32px; margin-right: 8px; vertical-align: middle;">
+                            <span style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-weight: 600; font-size: 1.2rem; color: #0dcaf0;">Toy Ayudas</span>
+                            <span style="color: #ffffff; font-size: 1rem; margin-left: 8px;">- ${ayuda.titulo}</span>
                         </h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
@@ -1196,10 +1198,51 @@ document.addEventListener('DOMContentLoaded', function() {
         const btnAyuda = document.createElement('button');
         btnAyuda.id = 'btnAyudaFlotante';
         btnAyuda.className = 'btn btn-info position-fixed';
-        btnAyuda.style.cssText = 'bottom: 20px; right: 20px; z-index: 1000; border-radius: 50%; width: 45px; height: 45px;';
-        btnAyuda.innerHTML = '<span style="font-size: 1.5em;">🤖</span>';
+        btnAyuda.style.cssText = `
+            bottom: 20px; 
+            right: 20px; 
+            z-index: 1000; 
+            border-radius: 30px; 
+            width: 140px; 
+            height: 50px; 
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #0dcaf0 0%, #0a58ca 100%);
+            border: none;
+            box-shadow: 0 8px 25px rgba(13, 202, 240, 0.4), 0 4px 12px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        `;
+        btnAyuda.innerHTML = `
+            <img src="image/logo-ToySoft.png" alt="ToySoft" style="width: 36px; height: 36px; margin-right: 10px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.3); filter: drop-shadow(0 3px 6px rgba(0,0,0,0.3)); object-fit: cover;">
+            <span style="font-family: 'Orbitron', 'Exo 2', 'Rajdhani', 'Roboto Mono', monospace; font-weight: 800; font-size: 0.95rem; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.4); letter-spacing: 0.3px; line-height: 1.1; display: block; text-align: center;">Toy de<br>Ayudas</span>
+        `;
         btnAyuda.title = 'Ayuda (F1)';
         btnAyuda.onclick = mostrarAyudaContextual;
+        
+        // Efectos hover modernos
+        btnAyuda.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px) scale(1.05)';
+            this.style.boxShadow = '0 12px 35px rgba(13, 202, 240, 0.6), 0 6px 16px rgba(0, 0, 0, 0.2)';
+            this.style.background = 'linear-gradient(135deg, #17a2b8 0%, #0c63e4 100%)';
+        });
+        
+        btnAyuda.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0) scale(1)';
+            this.style.boxShadow = '0 8px 25px rgba(13, 202, 240, 0.4), 0 4px 12px rgba(0, 0, 0, 0.15)';
+            this.style.background = 'linear-gradient(135deg, #0dcaf0 0%, #0a58ca 100%)';
+        });
+        
+        // Efecto de click
+        btnAyuda.addEventListener('mousedown', function() {
+            this.style.transform = 'translateY(1px) scale(0.98)';
+        });
+        
+        btnAyuda.addEventListener('mouseup', function() {
+            this.style.transform = 'translateY(-2px) scale(1.05)';
+        });
         
         document.body.appendChild(btnAyuda);
     }

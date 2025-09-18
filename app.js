@@ -30,11 +30,11 @@ function obtenerTodasLasVentas() {
         
         // Filtrar ventas válidas y deduplicar por ID
         const ventasValidas = [];
-        const idsVistos = new Set();
-        
+    const idsVistos = new Set();
+    
         for (const venta of todasLasVentas) {
             if (venta && venta.id && venta.total && !idsVistos.has(venta.id)) {
-                idsVistos.add(venta.id);
+            idsVistos.add(venta.id);
                 ventasValidas.push(venta);
             }
         }
@@ -225,6 +225,11 @@ function reiniciarSistemaCompleto() {
         console.log('=== REINICIANDO SISTEMA COMPLETO ===');
         // Marcar hora de cierre para que los siguientes cálculos ignoren ventas previas
         localStorage.setItem('ultimaHoraCierre', new Date().toISOString());
+        
+        // Reiniciar contadores de DOM/REC en almacenamiento para próximo turno
+        localStorage.setItem('contadorDomicilios', '0');
+        localStorage.setItem('contadorRecoger', '0');
+        localStorage.setItem('ultimaFechaContadores', new Date().toLocaleDateString());
         
         // 1. Limpiar ventas del día actual
         console.log('🧹 Limpiando ventas del día...');
@@ -503,6 +508,50 @@ function actualizarDatosCierreModal() {
         // Calcular balance final
         const balanceFinal = totalVentas - totalGastos;
         
+        // Mostrar últimos y próximos consecutivos DOM/REC en el modal
+        try {
+            const domMem = (typeof contadorDomicilios !== 'undefined' && Number.isFinite(contadorDomicilios)) ? contadorDomicilios : 0;
+            const recMem = (typeof contadorRecoger !== 'undefined' && Number.isFinite(contadorRecoger)) ? contadorRecoger : 0;
+            const domLS = parseInt(localStorage.getItem('contadorDomicilios')) || 0;
+            const recLS = parseInt(localStorage.getItem('contadorRecoger')) || 0;
+            // También revisar mesas activas residuales por si hay DOM-/REC- en memoria
+            let domFromMesas = 0, recFromMesas = 0;
+            try {
+                const mesasGuardadas = localStorage.getItem('mesasActivas');
+                if (mesasGuardadas) {
+                    const mesasArray = JSON.parse(mesasGuardadas);
+                    for (const [mesaId] of mesasArray) {
+                        if (typeof mesaId === 'string' && mesaId.startsWith('DOM-')) {
+                            const n = parseInt(mesaId.split('-')[1]) || 0;
+                            domFromMesas = Math.max(domFromMesas, n);
+                        } else if (typeof mesaId === 'string' && mesaId.startsWith('REC-')) {
+                            const n = parseInt(mesaId.split('-')[1]) || 0;
+                            recFromMesas = Math.max(recFromMesas, n);
+                        }
+                    }
+                }
+            } catch {}
+
+            const ultimoDom = Math.max(domMem, domLS, domFromMesas);
+            const ultimoRec = Math.max(recMem, recLS, recFromMesas);
+            if (document.getElementById('ultimoDom')) {
+                document.getElementById('ultimoDom').textContent = `D${ultimoDom}`;
+            }
+            if (document.getElementById('ultimoRec')) {
+                document.getElementById('ultimoRec').textContent = `R${ultimoRec}`;
+            }
+            if (document.getElementById('proximoDom')) {
+                const proximoDom = (ultimoDom || 0) + 1;
+                document.getElementById('proximoDom').textContent = `D${proximoDom}`;
+            }
+            if (document.getElementById('proximoRec')) {
+                const proximoRec = (ultimoRec || 0) + 1;
+                document.getElementById('proximoRec').textContent = `R${proximoRec}`;
+            }
+        } catch (e) {
+            console.warn('No se pudieron actualizar últimos consecutivos en el modal:', e);
+        }
+
         // Actualizar valores en el modal
         document.getElementById('totalVentasHoy').textContent = `$ ${totalVentas.toLocaleString()}`;
         document.getElementById('totalEfectivoHoy').textContent = `$ ${totalEfectivo.toLocaleString()}`;
@@ -1433,6 +1482,29 @@ function cargarDatos() {
             pedido.items = [];
           }
         });
+
+      // Si los contadores se reiniciaron por cierre, eliminar residuos DOM/REC
+      try {
+        const contadorDomLS = parseInt(localStorage.getItem('contadorDomicilios')) || 0;
+        const contadorRecLS = parseInt(localStorage.getItem('contadorRecoger')) || 0;
+        const ultimaHoraCierre = localStorage.getItem('ultimaHoraCierre');
+        const huboCierreReciente = !!ultimaHoraCierre;
+        if (huboCierreReciente && contadorDomLS === 0 && contadorRecLS === 0) {
+          let removidas = 0;
+          Array.from(mesasActivas.keys()).forEach((mesaId) => {
+            if (typeof mesaId === 'string' && (mesaId.startsWith('DOM-') || mesaId.startsWith('REC-'))) {
+              mesasActivas.delete(mesaId);
+              removidas++;
+            }
+          });
+          if (removidas > 0) {
+            console.log(`🧹 Eliminadas ${removidas} mesas DOM/REC residuales tras cierre`);
+            guardarMesas();
+          }
+        }
+      } catch (e) {
+        console.warn('No se pudo limpiar mesas DOM/REC residuales:', e);
+      }
       } catch (error) {
         console.error('Error al parsear mesas activas:', error);
         mesasActivas = new Map();
@@ -2739,7 +2811,12 @@ function mostrarAyudaVentaRapida(event) {
     
     const ayudaHTML = `
       <div class="alert alert-info border-info">
-        <h6><i class="fas fa-info-circle me-2"></i>Ayuda - Venta Rápida</h6>
+        <div class="d-flex align-items-center mb-2">
+          <img src="image/logo-ToySoft.png" alt="ToySoft Logo" class="me-2" style="width: 28px; height: 28px; border-radius: 50%; border: 2px solid rgba(13, 110, 253, 0.4); filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); object-fit: cover;">
+          <h6 class="mb-0" style="font-family: 'Orbitron', 'Exo 2', 'Rajdhani', 'Roboto Mono', monospace; font-weight: 800; font-size: 1.2rem; color: #0d6efd; letter-spacing: 0.3px; text-shadow: 0 2px 4px rgba(0,0,0,0.1); line-height: 1.1; text-align: center;">
+            Toy de<br>Ayudas
+          </h6>
+        </div>
         <ul class="mb-0">
           <li><strong>Venta Directa:</strong> Agrega productos listos para venta inmediata sin mesa</li>
           <li><strong>Botón "Todos":</strong> Muestra todos los productos disponibles</li>
@@ -4748,7 +4825,7 @@ function mostrarModalCierreDiario() {
         const gastos = JSON.parse(localStorage.getItem('gastos') || '[]');
         const gastosHoy = gastos.filter(g => {
             try {
-                const fechaGasto = new Date(g.fecha);
+            const fechaGasto = new Date(g.fecha);
                 return esMismaFechaLocal(fechaGasto, hoy);
             } catch (e) {
                 return false;
@@ -4807,17 +4884,17 @@ function guardarCierreDiario() {
         const nombreRecibe = document.getElementById('nombreRecibe')?.value?.trim() || '';
         const montoBaseCaja = parseFloat(document.getElementById('montoBaseCaja')?.value) || 0;
         const detalles = document.getElementById('detallesCierre')?.value?.trim() || '';
-        
+
         if (!nombreCierre) {
             alert('❌ Por favor, ingrese el nombre de quien realiza el cierre');
             return;
         }
-        
+
         if (!nombreRecibe) {
             alert('❌ Por favor, ingrese el nombre de quien recibe la caja');
             return;
         }
-        
+
         // 2. OBTENER VENTAS DEL DÍA
         const todasLasVentas = obtenerTodasLasVentas();
         const hoy = new Date();
@@ -4829,7 +4906,7 @@ function guardarCierreDiario() {
                 return false;
             }
         });
-        
+
         // 3. CALCULAR TOTALES SIMPLES
         const totalVentas = ventasHoy.reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
         const totalEfectivo = ventasHoy
@@ -4859,7 +4936,7 @@ function guardarCierreDiario() {
             }
         });
         const totalGastos = gastosHoy.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
-        
+
         // 5. CALCULAR BALANCE
         const balanceFinal = totalVentas - totalGastos;
         
@@ -4902,6 +4979,15 @@ function guardarCierreDiario() {
         
         if (reinicioExitoso) {
             console.log('✅ Sistema reiniciado correctamente');
+            // Forzar contadores DOM/REC a cero y persistir
+            try {
+                contadorDomicilios = 0;
+                contadorRecoger = 0;
+                ultimaFechaContadores = new Date().toLocaleDateString();
+                if (typeof guardarContadores === 'function') guardarContadores();
+            } catch (e) {
+                console.error('Error al guardar contadores tras reinicio:', e);
+            }
             // Forzar actualización de la interfaz
             setTimeout(() => {
                 try {
@@ -4927,8 +5013,8 @@ function guardarCierreDiario() {
         }
 
         // 10. CERRAR MODAL
-        const modal = bootstrap.Modal.getInstance(document.getElementById('modalCierreDiario'));
-        if (modal) modal.hide();
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalCierreDiario'));
+            if (modal) modal.hide();
         
         // 11. LIMPIAR OVERLAYS
         setTimeout(() => {
@@ -5346,16 +5432,13 @@ function reiniciarSistemaDespuesCierre() {
         return;
     }
     
-    // Reiniciar contadores específicos
+    // Reiniciar contadores específicos y globales
     localStorage.setItem('ultimaHoraCierre', new Date().toISOString());
-    localStorage.setItem('contadorDelivery', '1');
-    localStorage.setItem('contadorRecoger', '1');
-    
-    // Reiniciar contadores globales
+    // Reiniciar contadores en memoria
     if (typeof contadorDomicilios !== 'undefined') contadorDomicilios = 0;
     if (typeof contadorRecoger !== 'undefined') contadorRecoger = 0;
     if (typeof ultimaFechaContadores !== 'undefined') ultimaFechaContadores = new Date().toLocaleDateString();
-    
+    // Guardar contadores reiniciados en almacenamiento
     try {
         if (typeof guardarContadores === 'function') guardarContadores();
         if (typeof cargarDatos === 'function') cargarDatos();
@@ -5556,6 +5639,10 @@ function imprimirBalanceDiario(datosCierre = null) {
         // Obtener información del negocio
         const datosNegocio = JSON.parse(localStorage.getItem('datosNegocio'));
 
+        // Leer últimos consecutivos DOM/REC antes del reinicio
+        const ultimoDom = parseInt(localStorage.getItem('contadorDomicilios')) || 0;
+        const ultimoRec = parseInt(localStorage.getItem('contadorRecoger')) || 0;
+
         // Crear ventana de impresión
         let ventana;
         try {
@@ -5614,6 +5701,8 @@ function imprimirBalanceDiario(datosCierre = null) {
                         <div class="mb-1">Entrega: ${nombreCierre}</div>
                         <div class="mb-1">Recibe: ${nombreRecibe}</div>
                         <div class="mb-1">Base Caja: $ ${montoBaseCaja.toLocaleString()}</div>
+                        <div class="mb-1">Último DOMICILIO: D${ultimoDom}</div>
+                        <div class="mb-1">Último RECOGIDA: R${ultimoRec}</div>
                     </div>
                     
                     <div class="border-top">
@@ -9650,4 +9739,236 @@ function limpiarProductosYCategorias() {
 // Exportar funciones de limpieza
 window.limpiarLocalStorageCompleto = limpiarLocalStorageCompleto;
 window.limpiarProductosYCategorias = limpiarProductosYCategorias;
+
+// ========================================
+// SISTEMA DE AYUDA CON LOGO TOYSOFT
+// ========================================
+
+/**
+ * Muestra ayuda específica con logo de ToySoft
+ * @param {string} tipo - Tipo de ayuda a mostrar
+ */
+function mostrarAyudaEspecifica(tipo) {
+  console.log('❓ Mostrando ayuda específica:', tipo);
+  
+  // Crear modal de ayuda si no existe
+  let modalAyuda = document.getElementById('modalAyudaRobot');
+  if (!modalAyuda) {
+    modalAyuda = crearModalAyuda();
+  }
+  
+  // Obtener contenido de ayuda según el tipo
+  const contenidoAyuda = obtenerContenidoAyuda(tipo);
+  
+  // Actualizar contenido del modal
+  const modalBody = modalAyuda.querySelector('.modal-body');
+  modalBody.innerHTML = contenidoAyuda;
+  
+  // Mostrar modal
+  const modal = new bootstrap.Modal(modalAyuda);
+  modal.show();
+}
+
+/**
+ * Crea el modal de ayuda con el logo de ToySoft
+ */
+function crearModalAyuda() {
+  const modalHTML = `
+    <div class="modal fade" id="modalAyudaRobot" tabindex="-1" aria-labelledby="modalAyudaRobotLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header bg-primary text-white">
+            <div class="d-flex align-items-center">
+              <img src="image/logo-ToySoft.png" alt="ToySoft Logo" class="me-3" style="width: 40px; height: 40px;">
+              <h5 class="modal-title" id="modalAyudaRobotLabel">
+                <i class="fas fa-question-circle me-2"></i>Centro de Ayuda
+              </h5>
+            </div>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <!-- Contenido dinámico se inserta aquí -->
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+              <i class="fas fa-times me-2"></i>Cerrar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Insertar modal en el body
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  
+  return document.getElementById('modalAyudaRobot');
+}
+
+/**
+ * Obtiene el contenido de ayuda según el tipo
+ * @param {string} tipo - Tipo de ayuda
+ * @returns {string} HTML del contenido
+ */
+function obtenerContenidoAyuda(tipo) {
+  const ayudas = {
+    'cierre-caja-general': `
+      <div class="text-center mb-4">
+        <img src="image/logo-ToySoft.png" alt="ToySoft Logo" class="mb-3" style="width: 80px; height: 80px;">
+        <h6 class="text-primary">💰 Cierre de Caja General</h6>
+      </div>
+      <div class="row">
+        <div class="col-md-6">
+          <h6><i class="fas fa-calculator text-success me-2"></i>¿Qué hace?</h6>
+          <ul class="list-unstyled">
+            <li>• Calcula totales de ventas del día</li>
+            <li>• Suma ventas por método de pago</li>
+            <li>• Genera reporte de cierre</li>
+            <li>• Reinicia el sistema para el siguiente turno</li>
+          </ul>
+        </div>
+        <div class="col-md-6">
+          <h6><i class="fas fa-lightbulb text-warning me-2"></i>Consejos</h6>
+          <ul class="list-unstyled">
+            <li>• Verifica que todas las ventas estén registradas</li>
+            <li>• Confirma los totales antes de guardar</li>
+            <li>• Imprime el comprobante para archivo</li>
+            <li>• El sistema se reinicia automáticamente</li>
+          </ul>
+        </div>
+      </div>
+    `,
+    
+    'cierre-operativo': `
+      <div class="text-center mb-4">
+        <img src="image/logo-ToySoft.png" alt="ToySoft Logo" class="mb-3" style="width: 80px; height: 80px;">
+        <h6 class="text-primary">⚙️ Cierre Operativo</h6>
+      </div>
+      <div class="row">
+        <div class="col-md-6">
+          <h6><i class="fas fa-cogs text-info me-2"></i>Funciones</h6>
+          <ul class="list-unstyled">
+            <li>• Cierra órdenes pendientes</li>
+            <li>• Finaliza mesas activas</li>
+            <li>• Limpia órdenes de cocina</li>
+            <li>• Prepara sistema para cierre</li>
+          </ul>
+        </div>
+        <div class="col-md-6">
+          <h6><i class="fas fa-exclamation-triangle text-danger me-2"></i>Importante</h6>
+          <ul class="list-unstyled">
+            <li>• Solo usar al final del día</li>
+            <li>• Verificar que no hay órdenes pendientes</li>
+            <li>• Confirmar con el personal de cocina</li>
+            <li>• Hacer backup antes de proceder</li>
+          </ul>
+        </div>
+      </div>
+    `,
+    
+    'cotizaciones': `
+      <div class="text-center mb-4">
+        <img src="image/logo-ToySoft.png" alt="ToySoft Logo" class="mb-3" style="width: 80px; height: 80px;">
+        <h6 class="text-primary">📋 Sistema de Cotizaciones</h6>
+      </div>
+      <div class="row">
+        <div class="col-md-6">
+          <h6><i class="fas fa-file-invoice text-primary me-2"></i>Crear Cotización</h6>
+          <ul class="list-unstyled">
+            <li>• Agrega productos al carrito</li>
+            <li>• Configura precios y descuentos</li>
+            <li>• Ingresa datos del cliente</li>
+            <li>• Genera PDF para envío</li>
+          </ul>
+        </div>
+        <div class="col-md-6">
+          <h6><i class="fas fa-search text-success me-2"></i>Buscar Cotización</h6>
+          <ul class="list-unstyled">
+            <li>• Busca por número de cotización</li>
+            <li>• Filtra por fecha o cliente</li>
+            <li>• Visualiza detalles completos</li>
+            <li>• Reimprime si es necesario</li>
+          </ul>
+        </div>
+      </div>
+    `,
+    
+    'buscar-cotizacion': `
+      <div class="text-center mb-4">
+        <img src="image/logo-ToySoft.png" alt="ToySoft Logo" class="mb-3" style="width: 80px; height: 80px;">
+        <h6 class="text-primary">🔍 Búsqueda de Cotizaciones</h6>
+      </div>
+      <div class="alert alert-info">
+        <h6><i class="fas fa-info-circle me-2"></i>Métodos de Búsqueda</h6>
+        <ul class="mb-0">
+          <li><strong>Por número:</strong> Ingresa el ID de la cotización</li>
+          <li><strong>Por cliente:</strong> Busca por nombre o teléfono</li>
+          <li><strong>Por fecha:</strong> Filtra por rango de fechas</li>
+          <li><strong>Por estado:</strong> Pendiente, Aprobada, Rechazada</li>
+        </ul>
+      </div>
+    `,
+    
+    'imprimir-cotizacion': `
+      <div class="text-center mb-4">
+        <img src="image/logo-ToySoft.png" alt="ToySoft Logo" class="mb-3" style="width: 80px; height: 80px;">
+        <h6 class="text-primary">🖨️ Impresión de Cotizaciones</h6>
+      </div>
+      <div class="row">
+        <div class="col-md-6">
+          <h6><i class="fas fa-print text-primary me-2"></i>Configuración</h6>
+          <ul class="list-unstyled">
+            <li>• Verifica impresora conectada</li>
+            <li>• Selecciona formato A4</li>
+            <li>• Configura márgenes apropiados</li>
+            <li>• Revisa vista previa</li>
+          </ul>
+        </div>
+        <div class="col-md-6">
+          <h6><i class="fas fa-file-pdf text-danger me-2"></i>Exportar PDF</h6>
+          <ul class="list-unstyled">
+            <li>• Genera archivo PDF</li>
+            <li>• Guarda en carpeta local</li>
+            <li>• Envía por email</li>
+            <li>• Comparte por WhatsApp</li>
+          </ul>
+        </div>
+      </div>
+    `,
+    
+    'nueva-cotizacion': `
+      <div class="text-center mb-4">
+        <img src="image/logo-ToySoft.png" alt="ToySoft Logo" class="mb-3" style="width: 80px; height: 80px;">
+        <h6 class="text-primary">➕ Nueva Cotización</h6>
+      </div>
+      <div class="alert alert-success">
+        <h6><i class="fas fa-plus-circle me-2"></i>Pasos para Crear</h6>
+        <ol class="mb-0">
+          <li>Selecciona productos del catálogo</li>
+          <li>Configura cantidades y precios</li>
+          <li>Agrega descuentos si aplica</li>
+          <li>Ingresa datos del cliente</li>
+          <li>Revisa totales y detalles</li>
+          <li>Genera y guarda la cotización</li>
+        </ol>
+      </div>
+    `,
+    
+    'default': `
+      <div class="text-center mb-4">
+        <img src="image/logo-ToySoft.png" alt="ToySoft Logo" class="mb-3" style="width: 80px; height: 80px;">
+        <h6 class="text-primary">❓ Centro de Ayuda</h6>
+      </div>
+      <div class="alert alert-info">
+        <h6><i class="fas fa-question-circle me-2"></i>¿En qué puedo ayudarte?</h6>
+        <p class="mb-0">Soy tu asistente virtual y estoy aquí para ayudarte con cualquier duda sobre el sistema POS.</p>
+      </div>
+    `
+  };
+  
+  return ayudas[tipo] || ayudas['default'];
+}
+
+// Hacer función globalmente accesible
+window.mostrarAyudaEspecifica = mostrarAyudaEspecifica;
   

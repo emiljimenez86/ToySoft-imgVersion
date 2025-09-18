@@ -1555,6 +1555,99 @@ body, .container-fluid, .app-container, .card, .modal-content, .modal-header, .m
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+    padding: 12px 20px;
+    font-size: 1rem;
+    min-height: 48px;
+}
+
+/* Estilos modernos para botón de Domicilio */
+.btn-domicilio-moderno {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    border: none;
+    color: #fff;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    padding: 12px 20px;
+    font-size: 1rem;
+    min-height: 48px;
+}
+
+.btn-domicilio-moderno:hover {
+    background: linear-gradient(135deg, #218838, #1ea085);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+    color: #fff;
+}
+
+.btn-domicilio-moderno:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+/* Efecto de rayo para botón de Domicilio */
+.btn-domicilio-moderno::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transform: rotate(45deg);
+    transition: all 0.6s ease;
+    opacity: 0;
+}
+
+.btn-domicilio-moderno:hover::before {
+    opacity: 1;
+    transform: rotate(45deg) translate(50%, 50%);
+}
+
+/* Estilos modernos para botón de Recoger */
+.btn-recoger-moderno {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    border: none;
+    color: #fff;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    padding: 12px 20px;
+    font-size: 1rem;
+    min-height: 48px;
+}
+
+.btn-recoger-moderno:hover {
+    background: linear-gradient(135deg, #0056b3, #004085);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
+    color: #fff;
+}
+
+.btn-recoger-moderno:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+}
+
+/* Efecto de rayo para botón de Recoger */
+.btn-recoger-moderno::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transform: rotate(45deg);
+    transition: all 0.6s ease;
+    opacity: 0;
+}
+
+.btn-recoger-moderno:hover::before {
+    opacity: 1;
+    transform: rotate(45deg) translate(50%, 50%);
 }
 
 .btn-warning:hover {
