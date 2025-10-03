@@ -1280,15 +1280,6 @@ function enviarMensajeWhatsApp() {
   window.open(`https://wa.me/${numero}?text=${mensaje}`, '_blank');
 }
 
-// Función para extender el horario
-function extenderHorario() {
-    if (confirm('¿Desea extender el horario para permitir más clientes?')) {
-        const configuracion = JSON.parse(localStorage.getItem('configuracionCierre') || '{}');
-        configuracion.horarioExtendido = true;
-        localStorage.setItem('configuracionCierre', JSON.stringify(configuracion));
-        alert('Horario extendido exitosamente');
-    }
-}
 
 // Funciones para manejar el logo
 function previewLogo(event) {

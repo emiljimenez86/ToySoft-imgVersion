@@ -565,47 +565,6 @@
     </div>
   </div>
 
-  <!-- Modal de Configuración de Cierre -->
-  <div class="modal fade" id="modalConfiguracionCierre" tabindex="-1">
-    <div class="modal-dialog">
-      <div class="modal-content bg-dark text-white">
-        <div class="modal-header">
-          <h5 class="modal-title">Configurar Hora de Cierre</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" id="activarHoraCierre">
-              <label class="form-check-label" for="activarHoraCierre">
-                Activar hora de cierre automático
-              </label>
-            </div>
-            <small class="text-muted">Si desactiva esta opción, no habrá restricciones de horario</small>
-          </div>
-          <div id="configuracionHora" class="mb-3">
-            <label class="form-label">Hora de Cierre</label>
-            <div class="input-group">
-              <input type="number" id="horaCierre" class="form-control bg-dark text-white border-light" 
-                     min="1" max="12" value="11" placeholder="Hora (1-12)">
-              <span class="input-group-text bg-dark text-white border-light">:</span>
-              <input type="number" id="minutoCierre" class="form-control bg-dark text-white border-light" 
-                     min="0" max="59" value="30" placeholder="Minutos (0-59)">
-              <select id="periodoCierre" class="form-select bg-dark text-white border-light">
-                <option value="AM">AM</option>
-                <option value="PM" selected>PM</option>
-              </select>
-            </div>
-            <small class="text-muted">Ejemplo: 11:30 PM para cerrar a las 11:30 de la noche</small>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-primary" onclick="guardarConfiguracionCierre()">Guardar</button>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- Modal de Ayuda Contextual -->
   <div class="modal fade" id="modalAyuda" tabindex="-1">

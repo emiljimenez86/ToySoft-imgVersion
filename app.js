@@ -6448,49 +6448,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Función para mostrar el modal de configuración de cierre
-function mostrarModalConfiguracionCierre() {
-    const modal = new bootstrap.Modal(document.getElementById('modalConfiguracionCierre'));
-    
-    // Cargar la configuración actual
-    const configGuardada = JSON.parse(localStorage.getItem('configuracionCierre') || '{}');
-    
-    document.getElementById('horaCierre').value = configGuardada.horaCierre || 11;
-    document.getElementById('minutoCierre').value = configGuardada.minutoCierre || 30;
-    document.getElementById('periodoCierre').value = configGuardada.periodo || 'PM';
-    document.getElementById('activarHoraCierre').checked = configGuardada.activo || false;
-    
-    modal.show();
-}
-
-// Función para guardar la configuración de cierre
-function guardarConfiguracionCierre() {
-    const hora = parseInt(document.getElementById('horaCierre').value);
-    const minuto = parseInt(document.getElementById('minutoCierre').value);
-    const periodo = document.getElementById('periodoCierre').value;
-    const activo = document.getElementById('activarHoraCierre').checked;
-
-    if (hora < 1 || hora > 12) {
-        alert('Por favor, ingrese una hora válida (1-12)');
-        return;
-    }
-
-    if (minuto < 0 || minuto > 59) {
-        alert('Por favor, ingrese minutos válidos (0-59)');
-        return;
-    }
-
-    configurarHoraCierre(hora, minuto, periodo, activo);
-    
-    const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfiguracionCierre'));
-    modal.hide();
-
-    if (activo) {
-        alert(`Hora de cierre configurada: ${hora}:${minuto.toString().padStart(2, '0')} ${periodo}`);
-    } else {
-        alert('Configuración de hora de cierre desactivada. No habrá restricciones de horario.');
-    }
-}
 
 // Funciones para gestionar gastos
 function modificarGasto(id) {
