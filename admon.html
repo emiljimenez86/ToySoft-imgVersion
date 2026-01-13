@@ -19,6 +19,10 @@
         display: block !important;
         text-align: center !important;
       }
+      /* Asegurar que el contenido de administración esté centrado */
+      #contenidoAdministracion {
+        width: 100%;
+      }
     </style>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1a1a1a">
@@ -27,6 +31,55 @@
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 </head>
 <body>
+    <!-- Modal de PIN para Administración -->
+    <div class="modal fade" id="modalPinAdministracion" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title">
+                        <i class="fas fa-lock me-2"></i>Acceso a Administración
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-4">
+                        <img src="image/logo-ToySoft.png" alt="Logo" class="img-fluid mb-3" style="max-width: 100px;">
+                        <h4 class="text-info">Ingrese el PIN de Administración</h4>
+                    </div>
+                    <form id="formPinAdministracion" onsubmit="event.preventDefault(); verificarPinAdministracion();">
+                        <div class="mb-3">
+                            <label for="pinAdministracion" class="form-label">PIN</label>
+                            <input type="password" 
+                                   class="form-control form-control-lg text-center bg-dark text-white border-light" 
+                                   id="pinAdministracion" 
+                                   maxlength="4" 
+                                   pattern="[0-9]{4}" 
+                                   placeholder="0000"
+                                   required
+                                   autofocus
+                                   inputmode="numeric"
+                                   oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4);"
+                                   style="font-size: 1.5rem; letter-spacing: 0.5rem; font-weight: bold;">
+                            <div class="invalid-feedback" id="pinError" style="display: none;">
+                                PIN incorrecto. Por favor, intente nuevamente.
+                            </div>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-info btn-lg">
+                                <i class="fas fa-unlock me-2"></i>Ingresar
+                            </button>
+                        </div>
+                    </form>
+                    <div class="text-center mt-3">
+                        <a href="index.html" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-arrow-left me-1"></i>Volver al Inicio</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenido principal (oculto hasta validar PIN) -->
+    <div id="contenidoAdministracion" style="display: none;">
     <div class="container-fluid mt-4 px-2 px-md-4">
         <div class="row mb-4">
             <div class="col-12">
@@ -288,7 +341,7 @@
         </div>
 
         <!-- Gestión del Negocio -->
-        <div class="container mt-5 mb-4">
+        <div class="mt-5 mb-4">
             <div class="card bg-dark text-white">
                 <div class="card-header">
                     <h5 class="mb-0">Datos del Negocio</h5>
@@ -322,7 +375,7 @@
         </div>
 
         <!-- Configuración de EmailJS -->
-        <div class="container mt-5 mb-4">
+        <div class="mt-5 mb-4">
             <div class="card bg-dark text-white">
                 <div class="card-header">
                     <h5 class="mb-0">
@@ -636,6 +689,8 @@
             </div>
         </div>
     </div>
+    </div>
+    <!-- Fin del contenido principal -->
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

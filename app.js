@@ -2620,6 +2620,9 @@ function mostrarReciboVentaRapida(venta) {
   // Obtener el logo del negocio si existe
   const logoNegocio = localStorage.getItem('logoNegocio');
   
+  // Obtener datos del negocio
+  const datosNegocio = JSON.parse(localStorage.getItem('datosNegocio') || '{}');
+  
   ventanaRecibo.document.open();
   ventanaRecibo.document.write(`
     <!DOCTYPE html>
@@ -2694,6 +2697,14 @@ function mostrarReciboVentaRapida(venta) {
             max-width: 100%;
             max-height: 120px;
           }
+          .info-negocio {
+            text-align: center;
+            margin-bottom: 2mm;
+            font-size: 12px;
+          }
+          .info-negocio strong {
+            font-size: 14px;
+          }
           @media print {
             .botones-impresion {
               display: none;
@@ -2718,9 +2729,17 @@ function mostrarReciboVentaRapida(venta) {
           ${logoNegocio ? `<img src="${logoNegocio}" alt="Logo">` : ''}
         </div>
 
+        ${datosNegocio && Object.values(datosNegocio).some(valor => valor) ? `
+        <div class="info-negocio border-top">
+          ${datosNegocio.nombre ? `<div class="mb-1"><strong>${datosNegocio.nombre}</strong></div>` : ''}
+          ${datosNegocio.nit ? `<div class="mb-1">NIT/Cédula: ${datosNegocio.nit}</div>` : ''}
+          ${datosNegocio.direccion ? `<div class="mb-1">${datosNegocio.direccion}</div>` : ''}
+          ${datosNegocio.telefono ? `<div class="mb-1">Tel: ${datosNegocio.telefono}</div>` : ''}
+          ${datosNegocio.correo ? `<div class="mb-1">${datosNegocio.correo}</div>` : ''}
+        </div>
+        ` : ''}
+
         <div class="header text-center">
-          <h2 style="margin: 0; font-size: 14px;">RESTAURANTE</h2>
-          <div class="mb-1">VENTA RÁPIDA</div>
           <div class="mb-1">${new Date(venta.fecha).toLocaleString()}</div>
           <div class="mb-1">${venta.mesa === 'VENTA DIRECTA' ? 'Venta Directa' : `Mesa: ${venta.mesa}`}</div>
         </div>

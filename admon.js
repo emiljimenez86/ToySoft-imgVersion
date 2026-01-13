@@ -224,11 +224,87 @@ function mostrarBackupsAutomaticos() {
     }
 }
 
+// PIN de administración
+const PIN_ADMINISTRACION = '0011';
+
+// Función para verificar PIN de administración
+function verificarPinAdministracion() {
+    const pinInput = document.getElementById('pinAdministracion');
+    const pinError = document.getElementById('pinError');
+    const pinIngresado = pinInput.value.trim();
+    
+    // Limpiar mensaje de error anterior
+    pinError.style.display = 'none';
+    pinInput.classList.remove('is-invalid');
+    
+    if (pinIngresado === PIN_ADMINISTRACION) {
+        // PIN correcto - NO guardar acceso, siempre pedirá PIN al entrar
+        
+        // Ocultar modal y mostrar contenido
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalPinAdministracion'));
+        modal.hide();
+        
+        // Mostrar contenido de administración
+        const contenidoAdmin = document.getElementById('contenidoAdministracion');
+        contenidoAdmin.style.display = 'block';
+        
+        // Inicializar administración
+        inicializarAdministracion();
+        
+        console.log('✅ PIN de administración correcto');
+    } else {
+        // PIN incorrecto
+        pinInput.classList.add('is-invalid');
+        pinError.style.display = 'block';
+        pinInput.value = '';
+        pinInput.focus();
+        
+        // Agregar efecto de vibración (si está disponible)
+        if (navigator.vibrate) {
+            navigator.vibrate(200);
+        }
+        
+        console.log('❌ PIN de administración incorrecto');
+    }
+}
+
+// Función para verificar acceso - siempre pide PIN
+function verificarAccesoAdministracion() {
+    // Limpiar cualquier acceso previo guardado
+    localStorage.removeItem('accesoAdministracion');
+    localStorage.removeItem('accesoAdministracionTimestamp');
+    
+    // Siempre mostrar modal de PIN
+    const modal = new bootstrap.Modal(document.getElementById('modalPinAdministracion'), {
+        backdrop: 'static',
+        keyboard: false
+    });
+    modal.show();
+    
+    // Enfocar el input de PIN y agregar listener para Enter
+    setTimeout(() => {
+        const pinInput = document.getElementById('pinAdministracion');
+        if (pinInput) {
+            pinInput.focus();
+            
+            // Agregar listener para Enter
+            pinInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    verificarPinAdministracion();
+                }
+            });
+        }
+    }, 500);
+    
+    return false;
+}
+
 // Función de inicialización consolidada
 function inicializarAdministracion() {
   console.log('🚀 Iniciando administración...');
   
-  // Verificar acceso
+  // Verificar acceso básico
   verificarAcceso();
   
   // Cargar datos específicos de administración
@@ -250,7 +326,10 @@ function inicializarAdministracion() {
 }
 
 // Event listener único para DOMContentLoaded
-document.addEventListener('DOMContentLoaded', inicializarAdministracion);
+document.addEventListener('DOMContentLoaded', function() {
+    // Verificar acceso de administración primero
+    verificarAccesoAdministracion();
+});
 
 // Funciones para Categorías
 function agregarCategoria() {
@@ -1442,12 +1521,16 @@ function cargarDatosNegocio() {
     }
 }
 
-// Función para verificar acceso
+// Función para verificar acceso básico (sesión general)
 function verificarAcceso() {
-    // Implementa la lógica para verificar el acceso del usuario
-    // Esto puede incluir la validación de credenciales, la verificación de sesión, etc.
-    // Si el usuario no tiene acceso, se puede lanzar un error o redirigir a una página de error
-    console.log('Verificando acceso...');
+    // Verificar sesión general del sistema
+    const sesionActiva = localStorage.getItem('sesionActiva') === 'true';
+    if (!sesionActiva) {
+        console.log('No hay sesión activa, redirigiendo al login...');
+        window.location.href = 'index.html';
+        return;
+    }
+    console.log('Sesión activa verificada');
 }
 
 // ===== FUNCIONES DE EMAILJS =====
