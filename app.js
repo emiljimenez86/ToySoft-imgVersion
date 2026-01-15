@@ -8714,14 +8714,68 @@ function mostrarModalBalance() {
 function generarBalance() {
   try {
     const tipoBalance = document.getElementById('tipoBalance').value;
-    const fechaSeleccionada = new Date(document.getElementById('fechaBalance').value);
+    const fechaInput = document.getElementById('fechaBalance').value;
+    
+    // Validar que haya una fecha seleccionada
+    if (!fechaInput) {
+      console.warn('No se ha seleccionado una fecha');
+      return;
+    }
+    
+    // Parsear la fecha correctamente (el input date devuelve YYYY-MM-DD)
+    // Crear la fecha en hora local para evitar problemas de zona horaria
+    const [anio, mes, dia] = fechaInput.split('-').map(Number);
+    const fechaSeleccionada = new Date(anio, mes - 1, dia, 12, 0, 0, 0);
+    
+    if (isNaN(fechaSeleccionada.getTime())) {
+      console.error('Fecha inválida:', fechaInput);
+      return;
+    }
+    
     const ventas = JSON.parse(localStorage.getItem('historialVentas')) || [];
-    const gastos = JSON.parse(localStorage.getItem('historialGastos')) || [];
-console.log('[BALANCE] Fuente de gastos: historialGastos', gastos);
+    // Leer gastos de ambas fuentes y combinarlos (evitar duplicados)
+    const historialGastos = JSON.parse(localStorage.getItem('historialGastos')) || [];
+    const gastosDirectos = JSON.parse(localStorage.getItem('gastos')) || [];
+    
+    // Combinar ambos arrays, evitando duplicados por ID
+    const todosLosGastos = [...historialGastos];
+    gastosDirectos.forEach(g => {
+      if (!todosLosGastos.find(existing => existing.id === g.id)) {
+        todosLosGastos.push(g);
+      }
+    });
+    
+    const gastos = todosLosGastos;
+    console.log('[BALANCE] Gastos de historialGastos:', historialGastos.length);
+    console.log('[BALANCE] Gastos de gastos:', gastosDirectos.length);
+    console.log('[BALANCE] Total gastos combinados:', gastos.length);
+    console.log('[BALANCE] Primeros 3 gastos:', gastos.slice(0, 3).map(g => ({ id: g.id, fecha: g.fecha, descripcion: g.descripcion, monto: g.monto })));
     let ventasFiltradas = [];
     let gastosFiltrados = [];
     let inicioPeriodoStr = '', finPeriodoStr = '';
     switch (tipoBalance) {
+      case 'diario': {
+        // Balance diario: filtrar por el día específico seleccionado
+        // Usar esMismaFechaLocal para comparar solo año, mes y día (evita problemas de zona horaria)
+        // fechaSeleccionada ya está creada con hora 12:00 para evitar problemas de zona horaria
+        ventasFiltradas = ventas.filter(v => {
+          try {
+            return esMismaFechaLocal(v.fecha, fechaSeleccionada);
+          } catch (e) {
+            return false;
+          }
+        });
+        inicioPeriodoStr = soloFechaISO(fechaSeleccionada);
+        finPeriodoStr = soloFechaISO(fechaSeleccionada);
+        gastosFiltrados = gastos.filter(g => {
+          try {
+            return esMismaFechaLocal(g.fecha, fechaSeleccionada);
+          } catch (e) {
+            return false;
+          }
+        });
+        break;
+      }
       case 'semanal': {
         const inicioSemana = new Date(fechaSeleccionada);
         inicioSemana.setDate(fechaSeleccionada.getDate() - fechaSeleccionada.getDay());
@@ -8770,8 +8824,9 @@ console.log('[BALANCE] Fuente de gastos: historialGastos', gastos);
         break;
       }
     }
-    // Recalcular gastos usando objetos Date para mayor precisión
-    if (inicioPeriodoStr && finPeriodoStr) {
+    // Recalcular gastos usando objetos Date para mayor precisión (solo para casos no diarios)
+    // El caso diario ya usa esMismaFechaLocal que es más preciso
+    if (tipoBalance !== 'diario' && inicioPeriodoStr && finPeriodoStr) {
       const inicio = new Date(inicioPeriodoStr);
       const fin = new Date(finPeriodoStr);
       gastosFiltrados = gastos.filter(g => {
@@ -8783,8 +8838,20 @@ console.log('[BALANCE] Fuente de gastos: historialGastos', gastos);
     console.log('--- DEPURACIÓN BALANCE ---');
     console.log('Tipo de balance:', tipoBalance);
     console.log('Rango de fechas:', inicioPeriodoStr, 'a', finPeriodoStr);
-    console.log('Gastos originales:', gastos);
-    console.log('Gastos filtrados:', gastosFiltrados);
+    console.log('Total ventas en historial:', ventas.length);
+    console.log('Ventas filtradas:', ventasFiltradas.length);
+    if (tipoBalance === 'diario') {
+      console.log('Fecha seleccionada:', fechaSeleccionada);
+      console.log('Primeras 3 ventas del historial:', ventas.slice(0, 3).map(v => ({ fecha: v.fecha, total: v.total })));
+      console.log('Ventas filtradas (primeras 3):', ventasFiltradas.slice(0, 3).map(v => ({ fecha: v.fecha, total: v.total })));
+    }
+    console.log('Gastos originales:', gastos.length);
+    console.log('Gastos filtrados:', gastosFiltrados.length);
+    if (tipoBalance === 'diario') {
+      console.log('Fecha seleccionada para gastos:', fechaSeleccionada);
+      console.log('Primeros 3 gastos del historial:', gastos.slice(0, 3).map(g => ({ fecha: g.fecha, descripcion: g.descripcion, monto: g.monto })));
+      console.log('Gastos filtrados (primeros 3):', gastosFiltrados.slice(0, 3).map(g => ({ fecha: g.fecha, descripcion: g.descripcion, monto: g.monto })));
+    }
     // ... resto del código ...
 
     // Calcular totales por método de pago
@@ -8827,6 +8894,21 @@ console.log('[BALANCE] Fuente de gastos: historialGastos', gastos);
 // Actualizar total de ventas
 const totalVentas = ventasFiltradas.reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
 document.getElementById('totalVentas').textContent = `$ ${totalVentas.toLocaleString()}`;
+
+// Actualizar tabla de gastos
+const resumenGastos = document.getElementById('resumenGastos');
+resumenGastos.innerHTML = '';
+
+gastosFiltrados.forEach(gasto => {
+  const fila = document.createElement('tr');
+  const descripcion = gasto.descripcion || 'Sin descripción';
+  const categoria = gasto.categoria ? ` (${gasto.categoria})` : '';
+  fila.innerHTML = `
+    <td>${descripcion}${categoria}</td>
+    <td style="text-align:right;">$${(parseFloat(gasto.monto) || 0).toLocaleString()}</td>
+  `;
+  resumenGastos.appendChild(fila);
+});
 
 // Actualizar total de gastos
 const totalGastos = gastosFiltrados.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
@@ -8876,6 +8958,7 @@ function imprimirBalance() {
     // Obtener los datos de las tablas
     const resumenVentas = document.getElementById('resumenVentas').innerHTML;
     const totalVentas = document.getElementById('totalVentas').textContent;
+    const resumenGastos = document.getElementById('resumenGastos').innerHTML;
     const totalGastos = document.getElementById('totalGastos').textContent;
     const creditosPendientes = document.getElementById('creditosPendientes').innerHTML;
     const totalCreditos = document.getElementById('totalCreditos').textContent;
@@ -8890,6 +8973,9 @@ function imprimirBalance() {
     // Formatear la fecha según el tipo de balance
     let tituloPeriodo = '';
     switch (tipoBalance) {
+      case 'diario':
+        tituloPeriodo = `Día ${fechaSeleccionada.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
+        break;
       case 'semanal':
         const inicioSemana = new Date(fechaSeleccionada);
         inicioSemana.setDate(fechaSeleccionada.getDate() - fechaSeleccionada.getDay());
@@ -9000,6 +9086,7 @@ function imprimirBalance() {
             <div class="border-top">
               <div class="mb-1"><strong>Resumen de Gastos</strong></div>
               <table>
+                ${resumenGastos}
                 <tfoot>
                   <tr>
                     <th>Total Gastos</th>

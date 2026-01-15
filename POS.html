@@ -753,7 +753,7 @@
   </div>
 
   <!-- Modal de Cierre Operativo -->
-  <div class="modal fade" id="modalCierreOperativo" tabindex="-1" aria-labelledby="modalCierreOperativoLabel" aria-hidden="true">
+  <div class="modal fade" id="modalCierreOperativo" tabindex="-1" aria-labelledby="modalCierreOperativoLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog">
       <div class="modal-content bg-dark text-white">
         <div class="modal-header">
@@ -1322,6 +1322,7 @@
             <div class="col-md-6">
               <label for="tipoBalance" class="form-label">Tipo de Balance</label>
               <select class="form-select" id="tipoBalance" onchange="generarBalance()">
+                <option value="diario">Balance Diario</option>
                 <option value="semanal">Balance Semanal</option>
                 <option value="mensual">Balance Mensual</option>
                 <option value="anual">Balance Anual</option>
@@ -1372,10 +1373,18 @@
                     <table class="table table-sm">
                       <thead>
                         <tr>
+                          <th>Descripción</th>
+                          <th class="text-end">Monto</th>
+                        </tr>
+                      </thead>
+                      <tbody id="resumenGastos">
+                      </tbody>
+                      <tfoot>
+                        <tr>
                           <th>Total Gastos</th>
                           <th class="text-end" id="totalGastos">$ 0</th>
                         </tr>
-                      </thead>
+                      </tfoot>
                     </table>
                   </div>
                 </div>
@@ -2912,8 +2921,12 @@
         // Configurar eventos para cálculo automático de totales
         configurarCalculoAutomatico();
         
-        // Mostrar el modal
-        const modal = new bootstrap.Modal(document.getElementById('modalCierreOperativo'));
+        // Mostrar el modal con configuración para que no se cierre al tocar fuera
+        const modalElement = document.getElementById('modalCierreOperativo');
+        const modal = new bootstrap.Modal(modalElement, {
+          backdrop: 'static',  // No cerrar al tocar fuera del modal
+          keyboard: false       // No cerrar con la tecla ESC
+        });
         modal.show();
         
         console.log('Modal de cierre operativo mostrado correctamente');
