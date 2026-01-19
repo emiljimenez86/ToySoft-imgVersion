@@ -174,51 +174,202 @@ const ayudaContextual = {
             <div class="help-content">
                 <h4><i class="fas fa-boxes text-success"></i> Inventario - Control de Stock</h4>
                 
+                <div class="alert alert-warning">
+                    <strong>📋 Tipos de Productos:</strong>
+                    <ul class="mb-0 mt-2">
+                        <li><strong>Productos Principales:</strong> Se crean en Administración/POS y se sincronizan automáticamente</li>
+                        <li><strong>Componentes / Materia Prima:</strong> Se crean desde el botón "+Ingrediente/Insumo" y se asocian a productos principales</li>
+                    </ul>
+                </div>
+                
                 <div class="row">
                     <div class="col-md-6">
-                        <h5 class="text-warning">📦 Productos del POS</h5>
+                        <h5 class="text-warning">📦 Productos Principales</h5>
                         <ul>
+                            <li><strong>Origen:</strong> Se crean en Administración/POS</li>
+                            <li><strong>Sincronización:</strong> Aparecen automáticamente en "Productos del POS"</li>
                             <li><strong>Tarjetas Verdes:</strong> Productos ya en inventario</li>
                             <li><strong>Tarjetas Amarillas:</strong> Productos faltantes</li>
                             <li><strong>Agregar Individual:</strong> Un producto a la vez</li>
                             <li><strong>Agregar Masivo:</strong> Todos los faltantes de una vez</li>
+                            <li><strong>Descuento Automático:</strong> Se descuentan al vender</li>
                         </ul>
                         
-                        <h5 class="text-info">➕ Ingredientes/Insumos</h5>
+                        <h5 class="text-info">🔧 Componentes / Materia Prima</h5>
                         <ul>
-                            <li><strong>Crear Manualmente:</strong> Materias primas</li>
-                            <li><strong>Stock Mínimo:</strong> Alertas automáticas</li>
-                            <li><strong>Unidad de Medida:</strong> Kg, L, unidades, etc.</li>
-                            <li><strong>Proveedor:</strong> Información del proveedor</li>
+                            <li><strong>Creación:</strong> Botón "+Ingrediente/Insumo" (solo componentes)</li>
+                            <li><strong>Asociación:</strong> Se vinculan a un producto principal del POS</li>
+                            <li><strong>Ejemplo:</strong> Azúcar → Café Americano, Pan → Hamburguesa</li>
+                            <li><strong>Descuento Automático:</strong> Se descuentan cuando se vende el producto principal</li>
+                            <li><strong>Visualización:</strong> Aparecen en gris en la tabla, separados de productos principales</li>
+                            <li><strong>Cantidad por Unidad:</strong> Para gramos, litros, etc. (ej: 10g por café)</li>
                         </ul>
                     </div>
                     
                     <div class="col-md-6">
-                        <h5 class="text-success">🔄 Sincronización</h5>
+                        <h5 class="text-success">🔄 Sincronización y Descuentos</h5>
                         <ul>
-                            <li><strong>Auto-Descarga:</strong> Al vender productos</li>
+                            <li><strong>Productos Principales:</strong> Se descuentan directamente al vender</li>
+                            <li><strong>Componentes:</strong> Se descuentan automáticamente cuando se vende su producto principal</li>
+                            <li><strong>Unidades:</strong> Productos por unidad se descuentan 1:1</li>
+                            <li><strong>Gramos/Litros:</strong> Usan "Cantidad por Unidad" para calcular descuentos</li>
                             <li><strong>Verificación:</strong> Stock antes de agregar</li>
-                            <li><strong>Alertas:</strong> Stock insuficiente</li>
-                            <li><strong>Reportes:</strong> Movimientos diarios</li>
+                            <li><strong>Alertas:</strong> Stock insuficiente en tiempo real</li>
                         </ul>
                         
-                        <h5 class="text-primary">📊 Gestión de Stock</h5>
+                        <h5 class="text-primary">⚙️ Gestión</h5>
                         <ul>
-                            <li><strong>Filtros:</strong> Buscar por nombre o categoría</li>
-                            <li><strong>Editar:</strong> Modificar información</li>
+                            <li><strong>Filtros:</strong> Por categoría, estado, tipo (producto/componente)</li>
+                            <li><strong>Editar:</strong> Modificar productos y componentes</li>
+                            <li><strong>Ajustar Stock:</strong> Actualizar cantidades manualmente</li>
                             <li><strong>Eliminar:</strong> Quitar del inventario</li>
                             <li><strong>Exportar:</strong> Reportes en Excel</li>
+                            <li><strong>Imprimir Tirilla:</strong> Lista general con productos y componentes agrupados</li>
                         </ul>
                     </div>
+                </div>
+                
+                <div class="alert alert-success mt-3">
+                    <strong>💡 Flujo Recomendado:</strong>
+                    <ol class="mb-0 mt-2">
+                        <li><strong>Crear Productos:</strong> En Administración/POS (productos principales)</li>
+                        <li><strong>Sincronizar:</strong> Refrescar productos del POS en Inventario</li>
+                        <li><strong>Agregar al Inventario:</strong> Desde "Productos del POS"</li>
+                        <li><strong>Crear Componentes:</strong> Usar "+Ingrediente/Insumo" y asociarlos a productos principales</li>
+                        <li><strong>Configurar Stock:</strong> Establecer cantidades iniciales y límites</li>
+                    </ol>
                 </div>
                 
                 <div class="alert alert-info mt-3">
                     <strong>🔗 Integración con POS:</strong>
                     <ul class="mb-0 mt-2">
-                        <li>Los productos del POS se sincronizan automáticamente</li>
-                        <li>El stock se descuenta al procesar ventas</li>
+                        <li>Los productos del POS se sincronizan automáticamente como productos principales</li>
+                        <li>El stock se descuenta automáticamente al procesar ventas</li>
+                        <li>Los componentes se descuentan cuando se vende su producto principal asociado</li>
                         <li>Las alertas aparecen en tiempo real</li>
+                        <li>La tirilla muestra productos principales con sus componentes agrupados</li>
                     </ul>
+                </div>
+                
+                <div class="mt-4">
+                    <h5 class="text-primary mb-3"><i class="fas fa-mouse-pointer"></i> Guía de Botones y Funciones</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-success">🔘 Botones Principales (Barra Superior)</h6>
+                            <div class="card bg-dark border-success mb-3">
+                                <div class="card-body">
+                                    <ul class="mb-0">
+                                        <li><strong><i class="fas fa-plus text-success"></i> Ingrediente / Insumo:</strong><br>
+                                            <small>Crea un nuevo componente/materia prima. Se asociará a un producto principal del POS. Solo crea componentes, no productos principales.</small></li>
+                                        <li><strong><i class="fas fa-file-excel text-info"></i> Exportar a Excel:</strong><br>
+                                            <small>Genera un archivo Excel con todo el inventario actual, incluyendo productos principales y componentes, con sus stocks y categorías.</small></li>
+                                        <li><strong><i class="fas fa-print text-success"></i> Imprimir Tirilla Inventario:</strong><br>
+                                            <small>Genera una tirilla de impresión con todos los productos y componentes agrupados. Los componentes aparecen debajo de su producto principal asociado.</small></li>
+                                        <li><strong><i class="fas fa-refresh text-warning"></i> Refrescar Productos POS:</strong><br>
+                                            <small>Actualiza la lista de productos del POS. Úsalo después de crear nuevos productos en Administración para verlos en la sección "Productos del POS".</small></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6 class="text-info">🔘 Botones de Información y Navegación</h6>
+                            <div class="card bg-dark border-info mb-3">
+                                <div class="card-body">
+                                    <ul class="mb-0">
+                                        <li><strong><i class="fas fa-chart-line text-secondary"></i> Reporte Movimientos:</strong><br>
+                                            <small>Muestra un reporte detallado de todos los movimientos de inventario (entradas y salidas) en un rango de fechas. Permite exportar a Excel.</small></li>
+                                        <li><strong><i class="fas fa-info-circle text-info"></i> Info Integración:</strong><br>
+                                            <small>Muestra información detallada sobre cómo funciona la integración entre el POS y el Inventario, flujos de trabajo recomendados y configuraciones.</small></li>
+                                        <li><strong><i class="fas fa-arrow-left text-light"></i> Volver al POS:</strong><br>
+                                            <small>Regresa a la pantalla principal del Punto de Venta.</small></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <h6 class="text-warning">🔘 Filtros de Búsqueda</h6>
+                            <div class="card bg-dark border-warning mb-3">
+                                <div class="card-body">
+                                    <ul class="mb-0">
+                                        <li><strong>Buscar producto:</strong><br>
+                                            <small>Campo de texto para buscar productos por nombre o código. Busca en tiempo real mientras escribes.</small></li>
+                                        <li><strong>Filtro Categoría:</strong><br>
+                                            <small>Filtra productos por categoría. Selecciona una categoría específica o "Todas las categorías" para ver todo.</small></li>
+                                        <li><strong>Filtro Tipo:</strong><br>
+                                            <small>Filtra por tipo: "Productos Principales" o "Componentes / Materia Prima". Útil para separar visualmente.</small></li>
+                                        <li><strong>Filtro Estado:</strong><br>
+                                            <small>Filtra por estado de stock: "Stock Bajo", "Stock Normal" o "Stock Alto". Ayuda a identificar productos que necesitan reposición.</small></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6 class="text-danger">🔘 Botones de Acción en la Tabla</h6>
+                            <div class="card bg-dark border-danger mb-3">
+                                <div class="card-body">
+                                    <ul class="mb-0">
+                                        <li><strong><i class="fas fa-edit text-warning"></i> Editar (Amarillo):</strong><br>
+                                            <small>Abre el formulario para editar el producto o componente. Puedes modificar nombre, categoría, stocks, unidad de medida, y para componentes cambiar el producto principal asociado.</small></li>
+                                        <li><strong><i class="fas fa-boxes text-info"></i> Ajustar Stock (Azul):</strong><br>
+                                            <small>Permite ajustar manualmente el stock actual del producto. Útil para correcciones, inventarios físicos o ajustes de pérdidas/ganancias.</small></li>
+                                        <li><strong><i class="fas fa-trash text-danger"></i> Eliminar (Rojo):</strong><br>
+                                            <small>Elimina el producto o componente del inventario. Se solicita confirmación antes de eliminar. Ten cuidado, esta acción no se puede deshacer.</small></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <h6 class="text-primary">📋 Sección "Productos del POS"</h6>
+                            <div class="card bg-dark border-primary mb-3">
+                                <div class="card-body">
+                                    <p class="mb-2">Esta sección muestra todos los productos creados en Administración/POS:</p>
+                                    <ul class="mb-0">
+                                        <li><strong>Tarjetas Verdes:</strong> Productos que ya están en el inventario. Muestra el estado "En Inventario".</li>
+                                        <li><strong>Tarjetas Amarillas:</strong> Productos que aún no están en el inventario. Muestra el estado "Falta en Inventario".</li>
+                                        <li><strong>Botón "Agregar al Inventario":</strong> Solo aparece en productos faltantes. Agrega el producto al inventario con stock inicial en 0.</li>
+                                        <li><strong>Filtro "Solo Faltantes":</strong> Muestra únicamente los productos que aún no están en inventario, facilitando la gestión.</li>
+                                        <li><strong>Botón "Agregar Productos del POS":</strong> En el modal de información, permite agregar todos los productos faltantes de una vez.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6 class="text-success">🏷️ Indicadores Visuales en la Tabla</h6>
+                            <div class="card bg-dark border-success mb-3">
+                                <div class="card-body">
+                                    <ul class="mb-0">
+                                        <li><strong>Filas Grises:</strong> Indican componentes/materia prima. Se muestran separadas de los productos principales.</li>
+                                        <li><strong>Badge "Componente":</strong> Aparece en gris junto al estado, identificando componentes.</li>
+                                        <li><strong>Badge Rojo "Bajo":</strong> Stock actual está en o por debajo del stock mínimo. Necesita reposición urgente.</li>
+                                        <li><strong>Badge Amarillo "Normal":</strong> Stock está entre el mínimo y máximo. Estado saludable.</li>
+                                        <li><strong>Badge Verde "Alto":</strong> Stock está cerca o en el máximo. Buen nivel de inventario.</li>
+                                        <li><strong>"Componente de: [Producto]":</strong> Texto pequeño debajo del nombre del componente que muestra a qué producto principal pertenece.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning mt-3">
+                        <strong>💡 Consejos de Uso:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Usa los filtros para encontrar rápidamente productos específicos o identificar stock bajo</li>
+                            <li>Revisa regularmente el "Reporte Movimientos" para llevar un control detallado</li>
+                            <li>Exporta a Excel periódicamente para tener respaldos de tu inventario</li>
+                            <li>La tirilla de impresión es útil para inventarios físicos o entregas a proveedores</li>
+                            <li>Recuerda refrescar productos del POS después de crear nuevos productos en Administración</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         `

@@ -2081,12 +2081,17 @@ function confirmarAgregarProducto() {
         const mensaje = `Producto no disponible: ${disponibilidad.mensaje}`;
         console.warn(mensaje);
         
+        // Determinar el tipo de alerta según el stock
+        const esStockCero = disponibilidad.stockActual === 0;
+        const claseAlerta = esStockCero ? 'alert-danger' : 'alert-warning';
+        const tituloAlerta = esStockCero ? '🚫 Producto Sin Stock' : '⚠️ Producto No Disponible';
+        
         // Mostrar alerta al usuario
         const alerta = document.createElement('div');
-        alerta.className = 'alert alert-warning alert-dismissible fade show position-fixed';
+        alerta.className = `alert ${claseAlerta} alert-dismissible fade show position-fixed`;
         alerta.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
         alerta.innerHTML = `
-          <strong>⚠️ Producto No Disponible</strong>
+          <strong>${tituloAlerta}</strong>
           <p class="mb-0">${producto.nombre}</p>
           <p class="mb-0 small">${disponibilidad.mensaje}</p>
           <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
@@ -2102,6 +2107,29 @@ function confirmarAgregarProducto() {
         }, 5000);
         
         return; // No agregar el producto si no está disponible
+      }
+      
+      // Mostrar alerta informativa si el stock está en el mínimo (no bloquea la venta)
+      if (disponibilidad.stockEnMinimo) {
+        const alertaMinimo = document.createElement('div');
+        alertaMinimo.className = 'alert alert-warning alert-dismissible fade show position-fixed';
+        alertaMinimo.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+        alertaMinimo.innerHTML = `
+          <strong>⚠️ Stock en Mínimo</strong>
+          <p class="mb-0">${producto.nombre}</p>
+          <p class="mb-0 small">Stock actual: ${disponibilidad.stockActual} ${producto.unidadMedida || ''} (Mínimo: ${disponibilidad.stockMinimo})</p>
+          <p class="mb-0 small text-danger"><strong>¡Se está agotando! Considera reponer.</strong></p>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(alertaMinimo);
+        
+        // Auto-remover después de 7 segundos (un poco más que las otras alertas)
+        setTimeout(() => {
+          if (alertaMinimo.parentNode) {
+            alertaMinimo.remove();
+          }
+        }, 7000);
       }
     }
   } catch (error) {
@@ -2142,12 +2170,17 @@ function confirmarAgregarProducto() {
           const mensaje = `Stock insuficiente para agregar más unidades: ${disponibilidad.mensaje}`;
           console.warn(mensaje);
           
+          // Determinar el tipo de alerta según el stock
+          const esStockCero = disponibilidad.stockActual === 0;
+          const claseAlerta = esStockCero ? 'alert-danger' : 'alert-warning';
+          const tituloAlerta = esStockCero ? '🚫 Producto Sin Stock' : '⚠️ Stock Insuficiente';
+          
           // Mostrar alerta al usuario
           const alerta = document.createElement('div');
-          alerta.className = 'alert alert-warning alert-dismissible fade show position-fixed';
+          alerta.className = `alert ${claseAlerta} alert-dismissible fade show position-fixed`;
           alerta.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
           alerta.innerHTML = `
-            <strong>⚠️ Stock Insuficiente</strong>
+            <strong>${tituloAlerta}</strong>
             <p class="mb-0">${producto.nombre}</p>
             <p class="mb-0 small">${disponibilidad.mensaje}</p>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
@@ -2163,6 +2196,29 @@ function confirmarAgregarProducto() {
           }, 5000);
           
           return; // No agregar más unidades si no hay stock suficiente
+        }
+        
+        // Mostrar alerta informativa si el stock está en el mínimo (no bloquea la venta)
+        if (disponibilidad.stockEnMinimo) {
+          const alertaMinimo = document.createElement('div');
+          alertaMinimo.className = 'alert alert-warning alert-dismissible fade show position-fixed';
+          alertaMinimo.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+          alertaMinimo.innerHTML = `
+            <strong>⚠️ Stock en Mínimo</strong>
+            <p class="mb-0">${producto.nombre}</p>
+            <p class="mb-0 small">Stock actual: ${disponibilidad.stockActual} ${producto.unidadMedida || ''} (Mínimo: ${disponibilidad.stockMinimo})</p>
+            <p class="mb-0 small text-danger"><strong>¡Se está agotando! Considera reponer.</strong></p>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          `;
+          
+          document.body.appendChild(alertaMinimo);
+          
+          // Auto-remover después de 7 segundos
+          setTimeout(() => {
+            if (alertaMinimo.parentNode) {
+              alertaMinimo.remove();
+            }
+          }, 7000);
         }
       }
     } catch (error) {
@@ -2992,6 +3048,72 @@ function agregarProductoVentaRapida(productoId) {
   
   console.log('   - Producto encontrado:', producto);
   
+  // ========================================
+  // VERIFICACIÓN DE DISPONIBILIDAD EN INVENTARIO
+  // ========================================
+  try {
+    if (typeof verificarDisponibilidadProducto === 'function') {
+      // Buscar si ya existe en el pedido para calcular la cantidad total
+      const itemExistente = window.pedidoVentaRapida.items.find(item => item.id === productoId);
+      const cantidadTotal = itemExistente ? itemExistente.cantidad + 1 : 1;
+      
+      const disponibilidad = verificarDisponibilidadProducto(producto.nombre, cantidadTotal);
+      
+      if (!disponibilidad.disponible) {
+        const mensaje = `Producto no disponible: ${disponibilidad.mensaje}`;
+        console.warn(mensaje);
+        
+        // Mostrar alerta al usuario
+        const alerta = document.createElement('div');
+        alerta.className = 'alert alert-danger alert-dismissible fade show position-fixed';
+        alerta.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+        alerta.innerHTML = `
+          <strong>🚫 Producto Sin Stock</strong>
+          <p class="mb-0">${producto.nombre}</p>
+          <p class="mb-0 small">${disponibilidad.mensaje}</p>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(alerta);
+        
+        // Auto-remover después de 5 segundos
+        setTimeout(() => {
+          if (alerta.parentNode) {
+            alerta.remove();
+          }
+        }, 5000);
+        
+        return; // No agregar el producto si no está disponible
+      }
+      
+      // Mostrar alerta informativa si el stock está en el mínimo (no bloquea la venta)
+      if (disponibilidad.stockEnMinimo) {
+        const alertaMinimo = document.createElement('div');
+        alertaMinimo.className = 'alert alert-warning alert-dismissible fade show position-fixed';
+        alertaMinimo.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+        alertaMinimo.innerHTML = `
+          <strong>⚠️ Stock en Mínimo</strong>
+          <p class="mb-0">${producto.nombre}</p>
+          <p class="mb-0 small">Stock actual: ${disponibilidad.stockActual} ${producto.unidadMedida || ''} (Mínimo: ${disponibilidad.stockMinimo})</p>
+          <p class="mb-0 small text-danger"><strong>¡Se está agotando! Considera reponer.</strong></p>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(alertaMinimo);
+        
+        // Auto-remover después de 7 segundos
+        setTimeout(() => {
+          if (alertaMinimo.parentNode) {
+            alertaMinimo.remove();
+          }
+        }, 7000);
+      }
+    }
+  } catch (error) {
+    console.error('Error al verificar disponibilidad en venta rápida:', error);
+    // Continuar con la venta si hay error en la verificación
+  }
+  
   // Buscar si ya existe en el pedido
   const itemExistente = window.pedidoVentaRapida.items.find(item => item.id === productoId);
   
@@ -3260,6 +3382,40 @@ function confirmarVentaRapida() {
     alert('El monto recibido debe ser mayor o igual al total');
     return;
   }
+
+  // ========================================
+  // VALIDACIÓN FINAL DE STOCK ANTES DE PROCESAR
+  // ========================================
+  try {
+    if (typeof verificarDisponibilidadProducto === 'function') {
+      const productosSinStock = [];
+      
+      for (const item of window.datosVentaRapida.pedido.items) {
+        const disponibilidad = verificarDisponibilidadProducto(item.nombre, item.cantidad);
+        
+        if (!disponibilidad.disponible) {
+          productosSinStock.push({
+            nombre: item.nombre,
+            cantidadSolicitada: item.cantidad,
+            stockDisponible: disponibilidad.stockActual,
+            mensaje: disponibilidad.mensaje
+          });
+        }
+      }
+      
+      if (productosSinStock.length > 0) {
+        const mensaje = productosSinStock.map(p => 
+          `${p.nombre}: solicitado ${p.cantidadSolicitada}, disponible ${p.stockDisponible}`
+        ).join('\n');
+        
+        alert(`⚠️ No se puede procesar la venta. Los siguientes productos no tienen stock suficiente:\n\n${mensaje}\n\nPor favor, ajusta las cantidades o elimina estos productos de la orden.`);
+        return; // Bloquear el procesamiento de la venta
+      }
+    }
+  } catch (error) {
+    console.error('Error al validar stock antes de procesar venta rápida:', error);
+    // Continuar con la venta si hay error en la verificación (por seguridad)
+  }
   
   // Marcar todos los items como "listo" (no van a cocina)
   window.datosVentaRapida.pedido.items.forEach(item => {
@@ -3317,13 +3473,40 @@ function procesarVentaRapida(pedido, total, metodoPago = 'efectivo', montoRecibi
 
   // Actualizar inventario si está disponible
   try {
-    if (typeof actualizarInventarioVenta === 'function') {
-      pedido.items.forEach(item => {
-        actualizarInventarioVenta(item.nombre, item.cantidad);
-      });
+    if (typeof actualizarInventarioDesdeVenta === 'function') {
+      // Preparar los items para la actualización del inventario
+      const itemsParaInventario = pedido.items.map(item => ({
+        nombre: item.nombre,
+        cantidad: item.cantidad,
+        ventaId: venta.id,
+        mesa: venta.mesa || 'VENTA DIRECTA'
+      }));
+      
+      // Actualizar inventario
+      const resultadoInventario = actualizarInventarioDesdeVenta(itemsParaInventario);
+      
+      if (resultadoInventario && resultadoInventario.success) {
+        console.log('Inventario actualizado exitosamente desde venta rápida:', resultadoInventario);
+        
+        // Mostrar notificación si hay productos con stock bajo
+        if (resultadoInventario.productosStockBajo && resultadoInventario.productosStockBajo.length > 0) {
+          const productosBajo = resultadoInventario.productosStockBajo.map(p => p.nombre).join(', ');
+          console.warn(`Productos con stock bajo después de la venta: ${productosBajo}`);
+        }
+        
+        // Mostrar notificación si hay productos no encontrados en inventario
+        if (resultadoInventario.productosNoEncontrados && resultadoInventario.productosNoEncontrados.length > 0) {
+          const productosNoEncontrados = resultadoInventario.productosNoEncontrados.join(', ');
+          console.warn(`Productos no encontrados en inventario: ${productosNoEncontrados}`);
+        }
+      } else if (resultadoInventario) {
+        console.error('Error al actualizar inventario desde venta rápida:', resultadoInventario.message);
+      }
+    } else {
+      console.log('Función de actualización de inventario no disponible');
     }
   } catch (error) {
-    console.error('Error al actualizar inventario:', error);
+    console.error('Error al actualizar inventario desde venta rápida:', error);
   }
 
   // Solo limpiar mesa si no es venta directa
@@ -4290,6 +4473,40 @@ function procesarPago() {
   if (!pedido || !pedido.items || pedido.items.length === 0) {
     alert('No hay productos en la orden');
     return;
+  }
+
+  // ========================================
+  // VALIDACIÓN FINAL DE STOCK ANTES DE PROCESAR
+  // ========================================
+  try {
+    if (typeof verificarDisponibilidadProducto === 'function') {
+      const productosSinStock = [];
+      
+      for (const item of pedido.items) {
+        const disponibilidad = verificarDisponibilidadProducto(item.nombre, item.cantidad);
+        
+        if (!disponibilidad.disponible) {
+          productosSinStock.push({
+            nombre: item.nombre,
+            cantidadSolicitada: item.cantidad,
+            stockDisponible: disponibilidad.stockActual,
+            mensaje: disponibilidad.mensaje
+          });
+        }
+      }
+      
+      if (productosSinStock.length > 0) {
+        const mensaje = productosSinStock.map(p => 
+          `${p.nombre}: solicitado ${p.cantidadSolicitada}, disponible ${p.stockDisponible}`
+        ).join('\n');
+        
+        alert(`⚠️ No se puede procesar la venta. Los siguientes productos no tienen stock suficiente:\n\n${mensaje}\n\nPor favor, ajusta las cantidades o elimina estos productos de la orden.`);
+        return; // Bloquear el procesamiento de la venta
+      }
+    }
+  } catch (error) {
+    console.error('Error al validar stock antes de procesar venta:', error);
+    // Continuar con la venta si hay error en la verificación (por seguridad)
   }
 
   // Validar que haya cliente seleccionado para crédito

@@ -28,14 +28,14 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <h1>Gestión de Inventario</h1>
                     <div class="d-flex gap-2">
-                        <button class="btn btn-success" onclick="mostrarModalProducto()">
+                        <button class="btn btn-success" onclick="mostrarModalProducto(null, true)">
                             <i class="fas fa-plus"></i> Ingrediente / Insumo
                         </button>
                         <button class="btn btn-info" onclick="exportarInventarioExcel()">
                             <i class="fas fa-file-excel"></i> Exportar a Excel
                         </button>
-                        <button class="btn btn-warning" onclick="sincronizarProductosPOS()">
-                            <i class="fas fa-sync-alt"></i> Sincronizar con POS
+                        <button class="btn btn-success" onclick="imprimirTirillaInventario()">
+                            <i class="fas fa-print"></i> Imprimir Tirilla Inventario
                         </button>
                         <button class="btn btn-outline-warning" onclick="cargarProductosPOS()">
                             <i class="fas fa-refresh"></i> Refrescar Productos POS
@@ -67,6 +67,13 @@
                             <div class="col-md-4">
                                 <select class="form-select bg-dark text-white border-light" id="filtroCategoria">
                                     <option value="">Todas las categorías</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <select class="form-select bg-dark text-white border-light" id="filtroTipo">
+                                    <option value="">Todos los tipos</option>
+                                    <option value="producto">Productos Principales</option>
+                                    <option value="componente">Componentes / Materia Prima</option>
                                 </select>
                             </div>
                             <div class="col-md-3">
@@ -134,6 +141,24 @@
                             <input type="text" class="form-control bg-dark text-white border-light" 
                                    id="nombreProducto" required>
                         </div>
+                        <div class="mb-3" id="tipoProductoContainer">
+                            <label class="form-label">Tipo</label>
+                            <select class="form-select bg-dark text-white border-light" 
+                                    id="tipoProducto" required onchange="toggleCamposComponente()">
+                                <option value="producto">Producto Principal</option>
+                                <option value="componente">Componente / Materia Prima</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="productoPrincipalContainer" style="display: none;">
+                            <label class="form-label">Producto Principal (del POS)</label>
+                            <select class="form-select bg-dark text-white border-light" 
+                                    id="productoPrincipal" onchange="cargarCategoriaDesdeProducto()">
+                                <option value="">Seleccione un producto</option>
+                            </select>
+                            <small class="form-text text-muted">
+                                Seleccione el producto del POS al que pertenece este componente
+                            </small>
+                        </div>
                         <div class="mb-3">
                             <label class="form-label">Categoría</label>
                             <select class="form-select bg-dark text-white border-light" 
@@ -159,13 +184,26 @@
                         <div class="mb-3">
                             <label class="form-label">Unidad de Medida</label>
                             <select class="form-select bg-dark text-white border-light" 
-                                    id="unidadMedida" required>
+                                    id="unidadMedida" required onchange="toggleCantidadPorUnidad()">
                                 <option value="unidad">Unidad</option>
                                 <option value="kg">Kilogramo</option>
                                 <option value="g">Gramo</option>
                                 <option value="l">Litro</option>
                                 <option value="ml">Mililitro</option>
                             </select>
+                        </div>
+                        <div class="mb-3" id="cantidadPorUnidadContainer" style="display: none;">
+                            <label class="form-label">
+                                Cantidad por Unidad Vendida 
+                                <small class="text-muted" id="unidadMedidaLabel"></small>
+                            </label>
+                            <input type="number" class="form-control bg-dark text-white border-light" 
+                                   id="cantidadPorUnidad" min="0" step="0.01" 
+                                   placeholder="Ej: 10">
+                            <small class="form-text text-muted">
+                                Indica cuánto se descuenta del inventario por cada unidad vendida. 
+                                Ejemplo: Si cada café usa 10 gramos, ingresa 10.
+                            </small>
                         </div>
                     </form>
                 </div>
