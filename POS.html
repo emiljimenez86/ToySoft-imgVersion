@@ -1252,6 +1252,7 @@
             <label for="pinAcceso" class="form-label">Ingrese el PIN de 4 dígitos</label>
             <input type="password" class="form-control bg-dark text-white border-light" id="pinAcceso" 
                    maxlength="4" pattern="[0-9]*" inputmode="numeric" 
+                   onkeydown="if(event.key==='Enter'){ event.preventDefault(); verificarPinAcceso(); }"
                    onkeypress="return event.charCode >= 48 && event.charCode <= 57">
           </div>
           <div class="mb-3">

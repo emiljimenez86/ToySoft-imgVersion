@@ -178,7 +178,7 @@ const ayudaContextual = {
                     <strong>📋 Tipos de Productos:</strong>
                     <ul class="mb-0 mt-2">
                         <li><strong>Productos Principales:</strong> Se crean en Administración/POS y se sincronizan automáticamente</li>
-                        <li><strong>Componentes / Materia Prima:</strong> Se crean desde el botón "+Ingrediente/Insumo" y se asocian a productos principales</li>
+                        <li><strong>Componentes / Materia Prima:</strong> Se crean desde el botón "+Ingrediente/Insumo" y se asocian a uno o varios productos del POS (un mismo componente puede usarse en muchos productos)</li>
                     </ul>
                 </div>
                 
@@ -198,10 +198,10 @@ const ayudaContextual = {
                         <h5 class="text-info">🔧 Componentes / Materia Prima</h5>
                         <ul>
                             <li><strong>Creación:</strong> Botón "+Ingrediente/Insumo" (solo componentes)</li>
-                            <li><strong>Asociación:</strong> Se vinculan a un producto principal del POS</li>
-                            <li><strong>Ejemplo:</strong> Azúcar → Café Americano, Pan → Hamburguesa</li>
-                            <li><strong>Descuento Automático:</strong> Se descuentan cuando se vende el producto principal</li>
-                            <li><strong>Visualización:</strong> Aparecen en gris en la tabla, separados de productos principales</li>
+                            <li><strong>Asociación:</strong> Elige los productos del POS que llevan este componente (selección múltiple: Ctrl o Cmd + clic)</li>
+                            <li><strong>Ejemplo:</strong> Empaques J1 → Café, Té, Jugo (un solo ítem en inventario; se descuenta al vender cualquiera)</li>
+                            <li><strong>Descuento Automático:</strong> Se descuentan cuando se vende cualquiera de los productos que lo llevan</li>
+                            <li><strong>Visualización:</strong> Aparecen en gris en la tabla; debajo del nombre se muestra "Usado en: Producto A, Producto B..."</li>
                             <li><strong>Cantidad por Unidad:</strong> Para gramos, litros, etc. (ej: 10g por café)</li>
                         </ul>
                     </div>
@@ -210,7 +210,7 @@ const ayudaContextual = {
                         <h5 class="text-success">🔄 Sincronización y Descuentos</h5>
                         <ul>
                             <li><strong>Productos Principales:</strong> Se descuentan directamente al vender</li>
-                            <li><strong>Componentes:</strong> Se descuentan automáticamente cuando se vende su producto principal</li>
+                            <li><strong>Componentes:</strong> Se descuentan automáticamente cuando se vende cualquiera de los productos asociados</li>
                             <li><strong>Unidades:</strong> Productos por unidad se descuentan 1:1</li>
                             <li><strong>Gramos/Litros:</strong> Usan "Cantidad por Unidad" para calcular descuentos</li>
                             <li><strong>Verificación:</strong> Stock antes de agregar</li>
@@ -235,7 +235,7 @@ const ayudaContextual = {
                         <li><strong>Crear Productos:</strong> En Administración/POS (productos principales)</li>
                         <li><strong>Sincronizar:</strong> Refrescar productos del POS en Inventario</li>
                         <li><strong>Agregar al Inventario:</strong> Desde "Productos del POS"</li>
-                        <li><strong>Crear Componentes:</strong> Usar "+Ingrediente/Insumo" y asociarlos a productos principales</li>
+                        <li><strong>Crear Componentes:</strong> Usar "+Ingrediente/Insumo" y elegir los productos del POS que los llevan (puedes seleccionar varios)</li>
                         <li><strong>Configurar Stock:</strong> Establecer cantidades iniciales y límites</li>
                     </ol>
                 </div>
@@ -245,9 +245,9 @@ const ayudaContextual = {
                     <ul class="mb-0 mt-2">
                         <li>Los productos del POS se sincronizan automáticamente como productos principales</li>
                         <li>El stock se descuenta automáticamente al procesar ventas</li>
-                        <li>Los componentes se descuentan cuando se vende su producto principal asociado</li>
+                        <li>Los componentes se descuentan cuando se vende cualquiera de los productos que los llevan</li>
                         <li>Las alertas aparecen en tiempo real</li>
-                        <li>La tirilla muestra productos principales con sus componentes agrupados</li>
+                        <li>La tirilla muestra productos principales con sus componentes agrupados (un componente compartido puede aparecer bajo varios productos)</li>
                     </ul>
                 </div>
                 
@@ -261,11 +261,11 @@ const ayudaContextual = {
                                 <div class="card-body">
                                     <ul class="mb-0">
                                         <li><strong><i class="fas fa-plus text-success"></i> Ingrediente / Insumo:</strong><br>
-                                            <small>Crea un nuevo componente/materia prima. Se asociará a un producto principal del POS. Solo crea componentes, no productos principales.</small></li>
+                                            <small>Crea un nuevo componente/materia prima. Elige los productos del POS que lo llevan (selección múltiple con Ctrl o Cmd). Un mismo componente puede usarse en varios productos con un solo stock.</small></li>
                                         <li><strong><i class="fas fa-file-excel text-info"></i> Exportar a Excel:</strong><br>
                                             <small>Genera un archivo Excel con todo el inventario actual, incluyendo productos principales y componentes, con sus stocks y categorías.</small></li>
                                         <li><strong><i class="fas fa-print text-success"></i> Imprimir Tirilla Inventario:</strong><br>
-                                            <small>Genera una tirilla de impresión con todos los productos y componentes agrupados. Los componentes aparecen debajo de su producto principal asociado.</small></li>
+                                            <small>Genera una tirilla de impresión con todos los productos y componentes agrupados. Los componentes aparecen debajo de cada producto que los utiliza.</small></li>
                                         <li><strong><i class="fas fa-refresh text-warning"></i> Refrescar Productos POS:</strong><br>
                                             <small>Actualiza la lista de productos del POS. Úsalo después de crear nuevos productos en Administración para verlos en la sección "Productos del POS".</small></li>
                                     </ul>
@@ -315,7 +315,7 @@ const ayudaContextual = {
                                 <div class="card-body">
                                     <ul class="mb-0">
                                         <li><strong><i class="fas fa-edit text-warning"></i> Editar (Amarillo):</strong><br>
-                                            <small>Abre el formulario para editar el producto o componente. Puedes modificar nombre, categoría, stocks, unidad de medida, y para componentes cambiar el producto principal asociado.</small></li>
+                                            <small>Abre el formulario para editar el producto o componente. Puedes modificar nombre, categoría, stocks, unidad de medida, y para componentes cambiar los productos del POS que lo llevan (selección múltiple).</small></li>
                                         <li><strong><i class="fas fa-boxes text-info"></i> Ajustar Stock (Azul):</strong><br>
                                             <small>Permite ajustar manualmente el stock actual del producto. Útil para correcciones, inventarios físicos o ajustes de pérdidas/ganancias.</small></li>
                                         <li><strong><i class="fas fa-trash text-danger"></i> Eliminar (Rojo):</strong><br>
@@ -353,7 +353,7 @@ const ayudaContextual = {
                                         <li><strong>Badge Rojo "Bajo":</strong> Stock actual está en o por debajo del stock mínimo. Necesita reposición urgente.</li>
                                         <li><strong>Badge Amarillo "Normal":</strong> Stock está entre el mínimo y máximo. Estado saludable.</li>
                                         <li><strong>Badge Verde "Alto":</strong> Stock está cerca o en el máximo. Buen nivel de inventario.</li>
-                                        <li><strong>"Componente de: [Producto]":</strong> Texto pequeño debajo del nombre del componente que muestra a qué producto principal pertenece.</li>
+                                        <li><strong>"Usado en: [Producto A, Producto B, ...]":</strong> Texto debajo del nombre del componente que indica en qué productos del POS se utiliza (puede ser uno o varios).</li>
                                     </ul>
                                 </div>
                             </div>

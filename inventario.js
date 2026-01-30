@@ -19,6 +19,11 @@ function cargarInventario() {
                         producto.tipo = 'producto';
                         necesitaGuardar = true;
                     }
+                    // Migrar componente antiguo: productoPrincipal (string) -> productosPrincipales (array)
+                    if (producto.tipo === 'componente' && producto.productoPrincipal && !(producto.productosPrincipales && producto.productosPrincipales.length)) {
+                        producto.productosPrincipales = [producto.productoPrincipal];
+                        necesitaGuardar = true;
+                    }
                 });
                 if (necesitaGuardar) {
                     guardarInventario();
@@ -35,6 +40,11 @@ function cargarInventario() {
             inventario.forEach(producto => {
                 if (!producto.tipo) {
                     producto.tipo = 'producto';
+                    necesitaGuardar = true;
+                }
+                // Migrar componente antiguo: productoPrincipal (string) -> productosPrincipales (array)
+                if (producto.tipo === 'componente' && producto.productoPrincipal && !(producto.productosPrincipales && producto.productosPrincipales.length)) {
+                    producto.productosPrincipales = [producto.productoPrincipal];
                     necesitaGuardar = true;
                 }
             });
@@ -64,6 +74,23 @@ function guardarInventario() {
         console.error('Error al guardar el inventario:', error);
         alert('Error al guardar el inventario');
     }
+}
+
+// Helper: obtiene la lista de productos principales de un componente (soporta formato antiguo y nuevo)
+function getProductosPrincipalesDeComponente(componente) {
+    if (componente.productosPrincipales && Array.isArray(componente.productosPrincipales) && componente.productosPrincipales.length > 0) {
+        return componente.productosPrincipales;
+    }
+    if (componente.productoPrincipal) {
+        return [componente.productoPrincipal];
+    }
+    return [];
+}
+
+// Helper: indica si un componente aplica a un producto vendido (por nombre)
+function componenteAplicaAProducto(componente, nombreProducto) {
+    const nombres = getProductosPrincipalesDeComponente(componente);
+    return nombres.some(n => (n || '').toLowerCase() === (nombreProducto || '').toLowerCase());
 }
 
 // Función para mostrar el inventario
@@ -118,7 +145,7 @@ function mostrarInventario() {
             <td>${producto.codigo}</td>
             <td>
                 ${producto.nombre}
-                ${producto.productoPrincipal ? `<br><small class="text-muted">Componente de: ${producto.productoPrincipal}</small>` : ''}
+                ${(getProductosPrincipalesDeComponente(producto).length ? `<br><small class="text-muted">Usado en: ${getProductosPrincipalesDeComponente(producto).join(', ')}</small>` : '')}
             </td>
             <td>${producto.categoria}</td>
             <td>${producto.stockActual} ${producto.unidadMedida}</td>
@@ -221,10 +248,16 @@ function mostrarModalProducto(codigo = null, soloComponente = false) {
             // En modo edición, siempre mostrar el selector de tipo para permitir cambios
             tipoProductoContainer.style.display = 'block';
             
-            // Cargar producto principal si es componente
-            if (tipo === 'componente' && productoSeleccionado.productoPrincipal) {
+            // Cargar productos principales si es componente (multi-select)
+            if (tipo === 'componente') {
                 cargarProductosPOSEnSelector();
-                document.getElementById('productoPrincipal').value = productoSeleccionado.productoPrincipal;
+                const nombres = getProductosPrincipalesDeComponente(productoSeleccionado);
+                const sel = document.getElementById('productoPrincipal');
+                if (sel && sel.multiple) {
+                    Array.from(sel.options).forEach(opt => {
+                        opt.selected = nombres.some(n => (n || '').toLowerCase() === (opt.value || '').toLowerCase());
+                    });
+                }
             }
             
             // Mostrar/ocultar campos según tipo
@@ -300,23 +333,25 @@ function toggleCamposComponente() {
     
     if (tipoProducto === 'componente') {
         productoPrincipalContainer.style.display = 'block';
-        productoPrincipalSelect.required = true;
-        // Cargar productos del POS en el selector
+        // Cargar productos del POS en el selector (multi-select; validación en guardarProducto)
         cargarProductosPOSEnSelector();
     } else {
         productoPrincipalContainer.style.display = 'none';
-        productoPrincipalSelect.required = false;
         productoPrincipalSelect.value = '';
     }
 }
 
-// Función para cargar productos del POS en el selector
+// Función para cargar productos del POS en el selector (multi-select)
 function cargarProductosPOSEnSelector() {
     const productosPOS = JSON.parse(localStorage.getItem('productos') || '[]');
     const selector = document.getElementById('productoPrincipal');
+    if (!selector) return;
     
-    // Limpiar opciones existentes (excepto la primera)
-    selector.innerHTML = '<option value="">Seleccione un producto</option>';
+    // Guardar selección actual para restaurarla (al editar)
+    const seleccionPrev = selector.multiple ? Array.from(selector.selectedOptions).map(o => o.value) : [];
+    
+    // Limpiar opciones existentes
+    selector.innerHTML = '';
     
     // Agrupar por categoría
     const productosPorCategoria = {};
@@ -340,15 +375,24 @@ function cargarProductosPOSEnSelector() {
         });
         selector.appendChild(optgroup);
     });
+    
+    // Restaurar selección (ej. al abrir edición)
+    if (seleccionPrev.length) {
+        Array.from(selector.options).forEach(opt => {
+            opt.selected = seleccionPrev.includes(opt.value);
+        });
+    }
 }
 
-// Función para cargar categoría desde producto seleccionado
+// Función para cargar categoría desde primer producto seleccionado (multi-select)
 function cargarCategoriaDesdeProducto() {
-    const productoPrincipal = document.getElementById('productoPrincipal').value;
-    if (!productoPrincipal) return;
+    const selector = document.getElementById('productoPrincipal');
+    if (!selector || !selector.multiple) return;
+    const primerSeleccionado = selector.selectedOptions[0]?.value;
+    if (!primerSeleccionado) return;
     
     const productosPOS = JSON.parse(localStorage.getItem('productos') || '[]');
-    const producto = productosPOS.find(p => p.nombre === productoPrincipal);
+    const producto = productosPOS.find(p => p.nombre === primerSeleccionado);
     
     if (producto && producto.categoria) {
         document.getElementById('categoriaProducto').value = producto.categoria;
@@ -366,12 +410,15 @@ function generarCodigo() {
 function guardarProducto() {
     const form = document.getElementById('formProducto');
     const tipoProducto = document.getElementById('tipoProducto').value;
-    const productoPrincipal = document.getElementById('productoPrincipal').value;
+    const selectorProductos = document.getElementById('productoPrincipal');
+    const productosSeleccionados = selectorProductos && selectorProductos.multiple
+        ? Array.from(selectorProductos.selectedOptions).map(o => o.value).filter(Boolean)
+        : (selectorProductos?.value ? [selectorProductos.value] : []);
     
-    // Validar que si es componente, tenga producto principal
-    if (tipoProducto === 'componente' && !productoPrincipal) {
-        alert('Por favor, seleccione el producto principal al que pertenece este componente.');
-        document.getElementById('productoPrincipal').focus();
+    // Validar que si es componente, tenga al menos un producto seleccionado
+    if (tipoProducto === 'componente' && productosSeleccionados.length === 0) {
+        alert('Por favor, seleccione al menos un producto del POS que lleve este componente.');
+        if (selectorProductos) selectorProductos.focus();
         return;
     }
     
@@ -388,7 +435,7 @@ function guardarProducto() {
         nombre: document.getElementById('nombreProducto').value,
         categoria: document.getElementById('categoriaProducto').value,
         tipo: tipoProducto, // 'producto' o 'componente'
-        productoPrincipal: tipoProducto === 'componente' ? productoPrincipal : null, // Nombre del producto principal si es componente
+        productosPrincipales: tipoProducto === 'componente' ? productosSeleccionados : null, // Productos del POS que llevan este componente
         stockActual: parseFloat(document.getElementById('stockActual').value),
         stockMinimo: parseFloat(document.getElementById('stockMinimo').value),
         stockMaximo: parseFloat(document.getElementById('stockMaximo').value),
@@ -560,7 +607,7 @@ function mostrarInventarioFiltrado(productos) {
             <td>${producto.codigo}</td>
             <td>
                 ${producto.nombre}
-                ${producto.productoPrincipal ? `<br><small class="text-muted">Componente de: ${producto.productoPrincipal}</small>` : ''}
+                ${(getProductosPrincipalesDeComponente(producto).length ? `<br><small class="text-muted">Usado en: ${getProductosPrincipalesDeComponente(producto).join(', ')}</small>` : '')}
             </td>
             <td>${producto.categoria}</td>
             <td>${producto.stockActual} ${producto.unidadMedida}</td>
@@ -700,9 +747,7 @@ function actualizarInventarioDesdeVenta(itemsVenta) {
                 // Si es un producto principal, buscar y descontar sus componentes
                 if (!productoInventario.tipo || productoInventario.tipo === 'producto') {
                     const componentesDelProducto = inventario.filter(c => 
-                        c.tipo === 'componente' && 
-                        c.productoPrincipal && 
-                        c.productoPrincipal.toLowerCase() === itemVenta.nombre.toLowerCase()
+                        c.tipo === 'componente' && componenteAplicaAProducto(c, itemVenta.nombre)
                     );
                     
                     componentesDelProducto.forEach(componente => {
@@ -1281,10 +1326,10 @@ function mostrarInfoIntegracion() {
                                                     <h6 class="card-title text-warning"><i class="fas fa-blender"></i> Para Componentes / Materia Prima</h6>
                                                     <ol class="small mb-0 ps-3">
                                                         <li>Haz clic en el botón <strong>"+ Ingrediente / Insumo"</strong> (solo crea componentes).</li>
-                                                        <li>Selecciona el <strong>Producto Principal</strong> del POS al que pertenece.</li>
+                                                        <li>Elige los <strong>productos del POS</strong> que llevan este componente (Ctrl o Cmd + clic para seleccionar varios).</li>
                                                         <li>Rellena los datos (nombre, categoría, stock, unidad de medida, etc.).</li>
                                                         <li>Si es gramo/litro/ml, configura <strong>"Cantidad por Unidad"</strong> (ej: 10g por café).</li>
-                                                        <li>Los componentes se descuentan automáticamente cuando se vende su producto principal.</li>
+                                                        <li>Los componentes se descuentan automáticamente cuando se vende cualquiera de los productos que lo llevan.</li>
                                                         <li>Aparecen en gris en la tabla, separados de los productos principales.</li>
                                                     </ol>
                                                 </div>
@@ -1303,8 +1348,8 @@ function mostrarInfoIntegracion() {
                                 <div class="alert alert-primary bg-dark border-primary">
                                     <ul class="mb-0">
                                         <li><strong>Flujo de Productos Principales:</strong> Crea los productos en Administración/POS y luego añádelos al inventario desde la sección "Productos del POS".</li>
-                                        <li><strong>Flujo de Componentes:</strong> Usa el botón "+ Ingrediente / Insumo" para crear componentes y asociarlos a productos principales.</li>
-                                        <li><strong>Descuentos Automáticos:</strong> Los productos principales se descuentan al vender. Los componentes se descuentan cuando se vende su producto principal asociado.</li>
+                                        <li><strong>Flujo de Componentes:</strong> Usa el botón "+ Ingrediente / Insumo" para crear componentes y elegir los productos del POS que los llevan (selección múltiple). Un mismo componente puede usarse en varios productos.</li>
+                                        <li><strong>Descuentos Automáticos:</strong> Los productos principales se descuentan al vender. Los componentes se descuentan cuando se vende cualquiera de los productos asociados.</li>
                                         <li>Asegúrate de que los nombres de los productos en el POS coincidan exactamente con los del inventario.</li>
                                         <li>Configura stock mínimo y máximo para cada producto para recibir alertas.</li>
                                         <li>Para productos en gramos/litros, configura "Cantidad por Unidad" para calcular correctamente los descuentos.</li>
@@ -1711,10 +1756,7 @@ function imprimirTirillaInventario() {
             `;
             
             // Buscar componentes asociados a este producto
-            const componentesDelProducto = componentes.filter(c => 
-                c.productoPrincipal && 
-                c.productoPrincipal.toLowerCase() === producto.nombre.toLowerCase()
-            );
+            const componentesDelProducto = componentes.filter(c => componenteAplicaAProducto(c, producto.nombre));
             
             // Agregar componentes del producto principal
             if (componentesDelProducto.length > 0) {
@@ -1738,8 +1780,8 @@ function imprimirTirillaInventario() {
             totalItems++;
         });
         
-        // Agregar componentes sin producto principal asociado (por si acaso)
-        const componentesSinProducto = componentes.filter(c => !c.productoPrincipal);
+        // Agregar componentes sin productos principales asociados (por si acaso)
+        const componentesSinProducto = componentes.filter(c => getProductosPrincipalesDeComponente(c).length === 0);
         if (componentesSinProducto.length > 0) {
             if (productosPrincipales.length > 0) {
                 productosHTML += '<div class="separador"></div>';
@@ -1747,7 +1789,7 @@ function imprimirTirillaInventario() {
             componentesSinProducto.forEach((componente, index) => {
                 productosHTML += `
                     <div class="producto-item componente-item">
-                        <div class="producto-nombre componente-nombre">${componente.nombre} (Sin producto principal)</div>
+                        <div class="producto-nombre componente-nombre">${componente.nombre} (Sin productos asociados)</div>
                         <div class="stock-info">
                             <span class="stock-label">Stock Actual:</span>
                             <span class="stock-value">${componente.stockActual} ${componente.unidadMedida}</span>

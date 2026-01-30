@@ -199,11 +199,19 @@
   <script>
     // VERSIÓN SÚPER SIMPLE - Solo lo esencial
     
-    // Función simple para obtener ventas
+    // Función simple para obtener ventas (sin duplicados: mesa/domicilio/recoger están en ventas e historialVentas)
     function obtenerVentas() {
         const ventas = JSON.parse(localStorage.getItem('ventas')) || [];
         const historialVentas = JSON.parse(localStorage.getItem('historialVentas')) || [];
-        const todasLasVentas = [...ventas, ...historialVentas];
+        const idsVistos = new Set();
+        const todasLasVentas = [];
+        for (const v of [...historialVentas, ...ventas]) {
+            if (!v || (!v.id && !v.fecha)) continue;
+            const idUnico = v.id != null ? String(v.id) : (v.fecha + '|' + (v.mesa || '') + '|' + (v.total || ''));
+            if (idsVistos.has(idUnico)) continue;
+            idsVistos.add(idUnico);
+            todasLasVentas.push(v);
+        }
         
         // Ordenar por fecha - más reciente primero
         return todasLasVentas.sort((a, b) => {

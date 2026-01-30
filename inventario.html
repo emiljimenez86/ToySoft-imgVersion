@@ -150,13 +150,13 @@
                             </select>
                         </div>
                         <div class="mb-3" id="productoPrincipalContainer" style="display: none;">
-                            <label class="form-label">Producto Principal (del POS)</label>
+                            <label class="form-label">Productos del POS que llevan este componente</label>
                             <select class="form-select bg-dark text-white border-light" 
-                                    id="productoPrincipal" onchange="cargarCategoriaDesdeProducto()">
-                                <option value="">Seleccione un producto</option>
+                                    id="productoPrincipal" multiple size="6" onchange="cargarCategoriaDesdeProducto()">
+                                <!-- Las opciones se cargan por JS -->
                             </select>
                             <small class="form-text text-muted">
-                                Seleccione el producto del POS al que pertenece este componente
+                                Mantenga Ctrl (o Cmd) para elegir varios. Seleccione todos los productos que usan este componente.
                             </small>
                         </div>
                         <div class="mb-3">
