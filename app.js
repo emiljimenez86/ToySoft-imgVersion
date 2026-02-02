@@ -9154,6 +9154,37 @@ creditosFiltrados.forEach(credito => {
     const totalCreditos = creditosFiltrados.reduce((sum, c) => sum + (parseFloat(c.total) || 0), 0);
     document.getElementById('totalCreditos').textContent = `$ ${totalCreditos.toLocaleString()}`;
 
+    // Ventas por producto (mismo periodo, no modifica el balance)
+    const cuerpoVentasPorProducto = document.getElementById('cuerpoVentasPorProducto');
+    if (cuerpoVentasPorProducto) {
+      const porProducto = {};
+      ventasFiltradas.forEach(venta => {
+        (venta.items || []).forEach(item => {
+          const clave = item.id != null ? String(item.id) : (item.nombre || 'sin nombre');
+          porProducto[clave] = (porProducto[clave] || 0) + (item.cantidad || 0);
+        });
+      });
+      const productos = JSON.parse(localStorage.getItem('productos') || '[]');
+      const idANombre = {};
+      productos.forEach(p => { idANombre[String(p.id)] = p.nombre || ''; });
+      cuerpoVentasPorProducto.innerHTML = '';
+      const entradas = Object.entries(porProducto).sort((a, b) => b[1] - a[1]);
+      entradas.forEach(([clave, cantidad]) => {
+        const nombre = idANombre[clave] || (isNaN(Number(clave)) ? clave : '');
+        const fila = document.createElement('tr');
+        fila.innerHTML = `
+          <td>${nombre || clave}</td>
+          <td class="text-end">${cantidad.toLocaleString()}</td>
+        `;
+        cuerpoVentasPorProducto.appendChild(fila);
+      });
+      if (entradas.length === 0) {
+        const fila = document.createElement('tr');
+        fila.innerHTML = '<td colspan="2" class="text-muted text-center">No hay ventas por producto en este periodo</td>';
+        cuerpoVentasPorProducto.appendChild(fila);
+      }
+    }
+
   } catch (error) {
     console.error('Error al generar balance:', error);
     alert('Error al generar el balance');
