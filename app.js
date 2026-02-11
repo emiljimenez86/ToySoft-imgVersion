@@ -13,6 +13,40 @@ let historialVentas = []; // Almacena el historial de ventas
 let historialCocina = []; // Almacena el historial de órdenes de cocina
 let ultimaFechaContadores = null; // Fecha del último contador
 
+// Memoria de nombres de domiciliarios (autocompletado)
+const STORAGE_DOMICILIARIOS = 'nombresDomiciliarios';
+const MAX_DOMICILIARIOS = 50;
+function obtenerNombresDomiciliarios() {
+  try {
+    const s = localStorage.getItem(STORAGE_DOMICILIARIOS);
+    return s ? JSON.parse(s) : [];
+  } catch (e) {
+    return [];
+  }
+}
+function guardarNombreDomiciliario(nombre) {
+  const n = (nombre || '').trim();
+  if (!n) return;
+  let lista = obtenerNombresDomiciliarios();
+  lista = lista.filter(x => x.toLowerCase() !== n.toLowerCase());
+  lista.unshift(n);
+  lista = lista.slice(0, MAX_DOMICILIARIOS);
+  localStorage.setItem(STORAGE_DOMICILIARIOS, JSON.stringify(lista));
+  actualizarDatalistDomiciliarios();
+}
+function actualizarDatalistDomiciliarios() {
+  const input = document.getElementById('nombreDomiciliario');
+  const datalist = document.getElementById('listaDomiciliarios');
+  if (!input || !datalist) return;
+  datalist.innerHTML = '';
+  const nombres = obtenerNombresDomiciliarios();
+  nombres.forEach(nombre => {
+    const opt = document.createElement('option');
+    opt.value = nombre;
+    datalist.appendChild(opt);
+  });
+}
+
 // Función simplificada para obtener todas las ventas del día
 function obtenerTodasLasVentas() {
     try {
@@ -88,6 +122,22 @@ function esMismaFechaLocal(fechaA, fechaB = new Date()) {
     } catch (e) {
         return false;
     }
+}
+
+// Fecha "de hoy" para cierre y ventas del día. Si está activa la opción
+// "Operar después de medianoche", el día laboral termina a la hora configurada
+// (ej: 4 AM), así que entre 00:00 y 3:59 se sigue considerando "ayer".
+function getFechaHoyParaCierre() {
+    const activo = localStorage.getItem('operarDespuesMedianoche') === 'true';
+    if (!activo) return new Date();
+    const ahora = new Date();
+    const horaFin = parseInt(localStorage.getItem('horaFinDiaLaboral') || '4', 10);
+    const hora = ahora.getHours();
+    if (hora < horaFin) {
+        const ayer = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() - 1, 12, 0, 0);
+        return ayer;
+    }
+    return new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 12, 0, 0);
 }
 
 // Normaliza el historial de ventas: asegura fecha ISO, método/tipo coherentes
@@ -235,24 +285,21 @@ function reiniciarSistemaCompleto() {
         console.log('🧹 Limpiando ventas del día...');
         localStorage.setItem('ventas', '[]');
         
-        // Limpiar historial de ventas del día actual
-        console.log('📊 Limpiando historial de ventas del día...');
-        const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
-        const hoy = new Date();
-        const historialFiltrado = historialVentas.filter(venta => {
-            try {
-                const fechaVenta = new Date(venta.fecha);
-                return !esMismaFechaLocal(fechaVenta, hoy);
-            } catch (e) {
-                return true; // Mantener si hay error en fecha
-            }
-        });
-        localStorage.setItem('historialVentas', JSON.stringify(historialFiltrado));
+        // Importante: NO limpiar el historial de ventas del día actual.
+        // Antes se filtraban y eliminaban las ventas del día de hoy de "historialVentas",
+        // lo que hacía que luego el Balance (por fecha) y "Ventas por producto"
+        // se quedaran sin información después de un cierre administrativo.
+        //
+        // Ahora se conserva todo el historial para que:
+        // - El balance pueda consultar cualquier día por fecha.
+        // - La sección "Ventas por producto" siga funcionando incluso después de cerrar.
+        console.log('📊 Manteniendo historial de ventas para reportes por fecha...');
+        const hoy = getFechaHoyParaCierre();
         
         // 2. Limpiar domicilios del día actual
         console.log('🚚 Limpiando domicilios del día...');
         const domicilios = JSON.parse(localStorage.getItem('domicilios') || '[]');
-        const hoyStr = hoy.toISOString().slice(0, 10);
+        const hoyStr = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + String(hoy.getDate()).padStart(2, '0');
         const domiciliosFiltrados = domicilios.filter(domicilio => {
             try {
                 const fechaDomicilio = new Date(domicilio.fecha).toISOString().slice(0, 10);
@@ -409,7 +456,11 @@ function limpiarInterfazVentas() {
             descuento.value = '0';
         }
         
-        // Limpiar campos de valor domicilio
+        // Limpiar campos de domicilio
+        const nombreDomiciliario = document.getElementById('nombreDomiciliario');
+        if (nombreDomiciliario) {
+            nombreDomiciliario.value = '';
+        }
         const valorDomicilio = document.getElementById('valorDomicilio');
         if (valorDomicilio) {
             valorDomicilio.value = '0';
@@ -457,7 +508,7 @@ function actualizarDatosCierreModal() {
         
         // Obtener ventas
         const todasLasVentas = obtenerTodasLasVentas();
-        const hoy = new Date();
+        const hoy = getFechaHoyParaCierre();
         
         // Filtrar ventas según el rango seleccionado
         const ventasHoy = todasLasVentas.filter(v => {
@@ -492,16 +543,27 @@ function actualizarDatosCierreModal() {
         const totalCredito = calculos.totalCredito;
         const totalMixto = calculos.totalMixto;
         
+        // Domicilios y por domiciliario
+        const totalesDomiciliariosModal = {};
+        const totalDomiciliosModal = ventasHoy.reduce((sum, v) => {
+            const valorDom = parseFloat(v.valorDomicilio) || 0;
+            if (valorDom > 0) {
+                const nombre = (v.nombreDomiciliario || v.domiciliario || 'SIN NOMBRE').toString().trim() || 'SIN NOMBRE';
+                totalesDomiciliariosModal[nombre] = (totalesDomiciliariosModal[nombre] || 0) + valorDom;
+            }
+            return sum + valorDom;
+        }, 0);
+        
         // Obtener gastos del día
         const gastos = JSON.parse(localStorage.getItem('gastos')) || [];
+        const hoyStrModal = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + String(hoy.getDate()).padStart(2, '0');
         const gastosHoy = gastos.filter(g => {
             const fechaGasto = new Date(g.fecha);
             if (ultimaHoraCierre) {
                 return fechaGasto > ultimaHoraCierre;
             }
             const fechaGastoStr = fechaGasto.toISOString().slice(0, 10);
-            const hoyStr = hoy.toISOString().slice(0, 10);
-            return fechaGastoStr === hoyStr;
+            return fechaGastoStr === hoyStrModal;
         });
         const totalGastos = gastosHoy.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
         
@@ -559,6 +621,14 @@ function actualizarDatosCierreModal() {
         if(document.getElementById('totalTarjetaHoy')) document.getElementById('totalTarjetaHoy').textContent = `$ ${totalTarjeta.toLocaleString()}`;
         if(document.getElementById('totalCreditoHoy')) document.getElementById('totalCreditoHoy').textContent = `$ ${totalCredito.toLocaleString()}`;
         if(document.getElementById('totalMixtoHoy')) document.getElementById('totalMixtoHoy').textContent = `$ ${totalMixto.toLocaleString()}`;
+        if (document.getElementById('totalDomiciliosHoy')) {
+            document.getElementById('totalDomiciliosHoy').textContent = `$ ${totalDomiciliosModal.toLocaleString()}`;
+        }
+        const listaDomCierre = document.getElementById('listaDomiciliariosCierre');
+        if (listaDomCierre) {
+            listaDomCierre.innerHTML = Object.keys(totalesDomiciliariosModal).length === 0 ? '' :
+                Object.entries(totalesDomiciliariosModal).map(([nombre, monto]) => `${nombre}: $ ${monto.toLocaleString()}`).join('<br>');
+        }
         document.getElementById('totalGastosHoy').textContent = `$ ${totalGastos.toLocaleString()}`;
         document.getElementById('balanceFinal').textContent = `$ ${balanceFinal.toLocaleString()}`;
         
@@ -901,7 +971,7 @@ let recordatoriosActivos = [];
 let notificacionesActivas = [];
 
 // Variables globales para el PIN y roles
-let PIN_ADMIN = '4321'; // PIN de administrador
+let PIN_ADMIN = '7894'; // PIN de administrador
 let PIN_EMPLEADO = '1234'; // PIN de empleado
 let PIN_ACCESO = PIN_ADMIN; // PIN por defecto (mantener compatibilidad)
 let accionPendiente = null;
@@ -1684,7 +1754,7 @@ function actualizarMesasActivas() {
       boton.className = `mesa-btn mesa-domicilio ${mesa === mesaSeleccionada ? 'mesa-seleccionada' : ''}`;
       boton.innerHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-          <i class="fas fa-motorcycle" style="margin-top: -10px; margin-bottom: 5px;"></i>
+          <i class="fas fa-motorcycle" style="margin-bottom: 12px; margin-top: -6px;"></i>
           <span class="mesa-numero" style="font-size: 1.5rem;">D${parseInt(numeroDomicilio)}</span>
         </div>
       `;
@@ -1693,7 +1763,7 @@ function actualizarMesasActivas() {
       boton.className = `mesa-btn mesa-recoger ${mesa === mesaSeleccionada ? 'mesa-seleccionada' : ''}`;
       boton.innerHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-          <i class="fas fa-shopping-bag" style="margin-top: -10px; margin-bottom: 5px;"></i>
+          <i class="fas fa-shopping-bag" style="margin-bottom: 12px; margin-top: -6px;"></i>
           <span class="mesa-numero" style="font-size: 1.5rem;">R${parseInt(numeroRecoger)}</span>
         </div>
       `;
@@ -1701,6 +1771,7 @@ function actualizarMesasActivas() {
       boton.className = `mesa-btn mesa-activa ${mesa === mesaSeleccionada ? 'mesa-seleccionada' : ''}`;
       boton.innerHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <span style="font-size: 1rem; opacity: 0.95; margin-bottom: 8px; margin-top: -4px;">Mesa</span>
           <span class="mesa-numero" style="font-size: 1.5rem;">${mesa}</span>
         </div>
       `;
@@ -2033,6 +2104,22 @@ function agregarProducto(id) {
   document.getElementById('productoPrecio').textContent = formatearPrecio(producto.precio);
   document.getElementById('cantidadProducto').value = '1';
   document.getElementById('detallesProducto').value = '';
+
+  // Mostrar u ocultar salsas según el producto
+  const salsasContainer = document.getElementById('salsasProductoContainer');
+  const salsasCheckboxes = document.getElementById('salsasProductoCheckboxes');
+  if (salsasContainer && salsasCheckboxes) {
+    if (producto.llevaSalsas && Array.isArray(producto.salsas) && producto.salsas.length > 0) {
+      salsasContainer.style.display = 'block';
+      const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      salsasCheckboxes.innerHTML = producto.salsas.map((nombre) =>
+        `<label class="form-check form-check-inline mb-0"><input class="form-check-input" type="checkbox" name="salsaProducto" value="${esc(nombre)}"> <span class="form-check-label">${esc(nombre)}</span></label>`
+      ).join('');
+    } else {
+      salsasContainer.style.display = 'none';
+      salsasCheckboxes.innerHTML = '';
+    }
+  }
   
   // Calcular y mostrar el total inicial
   actualizarTotalModal();
@@ -2068,7 +2155,12 @@ function confirmarAgregarProducto() {
 
   const producto = window.productoSeleccionado;
   const cantidad = parseInt(document.getElementById('cantidadProducto').value) || 1;
-  const detalles = document.getElementById('detallesProducto').value.trim();
+  let detalles = document.getElementById('detallesProducto').value.trim();
+  const salsasChecks = document.querySelectorAll('#salsasProductoCheckboxes input[name="salsaProducto"]:checked');
+  const salsasSeleccionadas = Array.from(salsasChecks).map(c => c.value);
+  if (salsasSeleccionadas.length) {
+    detalles = (detalles ? detalles + '; ' : '') + 'Salsas: ' + salsasSeleccionadas.join(', ');
+  }
 
   // ========================================
   // VERIFICACIÓN DE DISPONIBILIDAD EN INVENTARIO
@@ -2533,10 +2625,14 @@ function actualizarTotal(mesa) {
   const propina = parseFloat(document.getElementById('propina').value) || 0;
   const descuento = parseFloat(document.getElementById('descuento').value) || 0;
   const valorDomicilio = mesa.startsWith('DOM-') ? (parseFloat(document.getElementById('valorDomicilio').value) || 0) : 0;
+  const nombreDomiciliario = mesa.startsWith('DOM-')
+    ? (document.getElementById('nombreDomiciliario')?.value || '').trim()
+    : '';
   
   pedido.propina = propina;
   pedido.descuento = descuento;
   pedido.valorDomicilio = valorDomicilio;
+  pedido.nombreDomiciliario = nombreDomiciliario;
   
   const propinaMonto = Math.round((subtotal * propina) / 100);
   const total = Math.round(subtotal + propinaMonto - descuento + valorDomicilio);
@@ -2829,7 +2925,7 @@ function mostrarReciboVentaRapida(venta) {
           <div class="mb-1">Subtotal: <span class="text-right">$ ${formatearNumero(venta.subtotal)}</span></div>
           <div class="mb-1">Propina (${venta.propina}%): <span class="text-right">$ ${formatearNumero((venta.subtotal * venta.propina) / 100)}</span></div>
           <div class="mb-1">Descuento: <span class="text-right">$ ${formatearNumero(venta.descuento)}</span></div>
-          ${venta.valorDomicilio > 0 ? `<div class="mb-1">Domicilio: <span class="text-right">$ ${formatearNumero(venta.valorDomicilio)}</span></div>` : ''}
+          ${venta.valorDomicilio > 0 ? `<div class="mb-1">Domicilio: <span class="text-right">$ ${formatearNumero(venta.valorDomicilio)}</span></div>${(venta.nombreDomiciliario || '').trim() ? `<div class="mb-1">Domiciliario: ${venta.nombreDomiciliario}</div>` : ''}` : ''}
           <div class="mb-1 total-row"><strong>Total: $ ${formatearNumero(venta.total)}</strong></div>
         </div>
         
@@ -3313,8 +3409,13 @@ function mostrarModalVentaRapida(pedido, total, subtotal, propina, descuento, va
   
   // Limpiar campos
   document.getElementById('montoRecibidoVentaRapida').value = '';
-  document.getElementById('cambioVentaRapida').textContent = 'Cambio: $0';
-  
+  const cambioEl = document.getElementById('cambioVentaRapida');
+  cambioEl.textContent = 'Cambio: $0';
+  cambioEl.classList.remove('text-danger');
+  cambioEl.classList.add('text-success');
+  cambioEl.style.fontWeight = 'bold';
+  cambioEl.style.fontSize = '1.2em';
+
   // Debug: verificar datos antes de guardar
   console.log('🔍 DEBUG MOSTRAR MODAL VENTA RÁPIDA:');
   console.log('   - Pedido recibido:', pedido);
@@ -3351,13 +3452,18 @@ function calcularCambioVentaRapida() {
   const montoRecibido = parseFloat(document.getElementById('montoRecibidoVentaRapida').value) || 0;
   const total = window.datosVentaRapida ? window.datosVentaRapida.total : 0;
   const cambio = montoRecibido - total;
+  const el = document.getElementById('cambioVentaRapida');
   
-  document.getElementById('cambioVentaRapida').textContent = `Cambio: ${formatearPrecio(Math.max(0, cambio))}`;
-  
+  el.textContent = `Cambio: ${formatearPrecio(Math.max(0, cambio))}`;
+  el.style.fontWeight = 'bold';
+  el.style.fontSize = '1.2em';
+
   if (cambio < 0) {
-    document.getElementById('cambioVentaRapida').classList.add('text-danger');
+    el.classList.remove('text-success');
+    el.classList.add('text-danger');
   } else {
-    document.getElementById('cambioVentaRapida').classList.remove('text-danger');
+    el.classList.remove('text-danger');
+    el.classList.add('text-success');
   }
 }
 
@@ -3449,6 +3555,7 @@ function procesarVentaRapida(pedido, total, metodoPago = 'efectivo', montoRecibi
     propina: parseFloat(document.getElementById('propina')?.value) || 0,
     descuento: parseFloat(document.getElementById('descuento')?.value) || 0,
     valorDomicilio: parseFloat(document.getElementById('valorDomicilio')?.value) || 0,
+    nombreDomiciliario: (document.getElementById('nombreDomiciliario')?.value || '').trim(),
     total: total,
     metodoPago: metodoPago,
     montoRecibido: montoRecibido,
@@ -3464,7 +3571,8 @@ function procesarVentaRapida(pedido, total, metodoPago = 'efectivo', montoRecibi
   let historial = JSON.parse(localStorage.getItem('historialVentas') || '[]');
   historial.push(venta);
   localStorage.setItem('historialVentas', JSON.stringify(historial));
-  
+  if (venta.nombreDomiciliario) guardarNombreDomiciliario(venta.nombreDomiciliario);
+
   // Debug: verificar que se guardó correctamente
   console.log('🔍 DEBUG VENTA RÁPIDA:');
   console.log('   - Venta creada:', venta);
@@ -4546,6 +4654,9 @@ function procesarPago() {
     propinaMonto: propinaMonto,
     descuento: descuento,
     valorDomicilio: valorDomicilio,
+    nombreDomiciliario: (mesaSeleccionada.startsWith('DOM-')
+      ? (document.getElementById('nombreDomiciliario')?.value || '').trim()
+      : ''),
     total: total,
     metodoPago: metodoPago,
     montoRecibido: metodoPago === 'efectivo' || metodoPago === 'mixto' ? parseFloat(document.getElementById('montoRecibido').value) : 0,
@@ -4577,7 +4688,8 @@ function procesarPago() {
   // Guardar en historial de ventas (unificado)
   historialActual.push(factura);
   localStorage.setItem('historialVentas', JSON.stringify(historialActual));
-  
+  if (factura.nombreDomiciliario) guardarNombreDomiciliario(factura.nombreDomiciliario);
+
   // Debug: verificar que se guardó correctamente
   console.log('🔍 DEBUG VENTA DE MESA:');
   console.log('   - Factura creada:', factura);
@@ -4706,7 +4818,7 @@ function procesarPago() {
       <div class="mb-1">Subtotal: <span class="text-right">$ ${formatearNumero(subtotal)}</span></div>
       <div class="mb-1">Propina (${propina}%): <span class="text-right">$ ${formatearNumero(propinaMonto)}</span></div>
       <div class="mb-1">Descuento: <span class="text-right">$ ${formatearNumero(descuento)}</span></div>
-      ${valorDomicilio > 0 ? `<div class="mb-1">Domicilio: <span class="text-right">$ ${formatearNumero(valorDomicilio)}</span></div>` : ''}
+      ${valorDomicilio > 0 ? `<div class="mb-1">Domicilio: <span class="text-right">$ ${formatearNumero(valorDomicilio)}</span></div>${(factura.nombreDomiciliario || '').trim() ? `<div class="mb-1">Domiciliario: ${factura.nombreDomiciliario}</div>` : ''}` : ''}
       <div class="mb-1 total-row"><strong>Total: $ ${formatearNumero(total)}</strong></div>
     </div>
     
@@ -5025,12 +5137,22 @@ function mostrarModalCierreDiario() {
         
         // Obtener todas las ventas del día
         const todasLasVentas = obtenerTodasLasVentas();
-        const hoy = new Date();
+        const hoy = getFechaHoyParaCierre();
+        const ultimaHoraCierreStr = localStorage.getItem('ultimaHoraCierre');
+        const ultimaHoraCierre = ultimaHoraCierreStr ? new Date(ultimaHoraCierreStr) : null;
         
-        // Filtrar solo ventas de hoy
+        // Filtrar ventas según último cierre (por turno) o por día si no hay cierre previo
         const ventasHoy = todasLasVentas.filter(v => {
             try {
                 const fechaVenta = new Date(v.fecha);
+                
+                if (ultimaHoraCierre) {
+                    const despuesDeCierre = fechaVenta.getTime() >= ultimaHoraCierre.getTime();
+                    const mismoDia = esMismaFechaLocal(fechaVenta, hoy);
+                    return despuesDeCierre && mismoDia;
+                }
+                
+                // Si no hay marca de cierre, usar todo el día actual
                 return esMismaFechaLocal(fechaVenta, hoy);
             } catch (e) {
                 return false;
@@ -5041,6 +5163,15 @@ function mostrarModalCierreDiario() {
         
         // Calcular totales simples
         const totalVentas = ventasHoy.reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
+        const totalesDomiciliariosAbrir = {};
+        const totalDomicilios = ventasHoy.reduce((sum, v) => {
+            const valorDom = parseFloat(v.valorDomicilio) || 0;
+            if (valorDom > 0) {
+                const nombre = (v.nombreDomiciliario || v.domiciliario || 'SIN NOMBRE').toString().trim() || 'SIN NOMBRE';
+                totalesDomiciliariosAbrir[nombre] = (totalesDomiciliariosAbrir[nombre] || 0) + valorDom;
+            }
+            return sum + valorDom;
+        }, 0);
         const totalEfectivo = ventasHoy
             .filter(v => v.metodoPago === 'efectivo')
             .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
@@ -5057,11 +5188,16 @@ function mostrarModalCierreDiario() {
             .filter(v => v.metodoPago === 'mixto')
             .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
         
-        // Obtener gastos del día
+        // Obtener gastos del día (también respetando último cierre si existe)
         const gastos = JSON.parse(localStorage.getItem('gastos') || '[]');
         const gastosHoy = gastos.filter(g => {
             try {
-            const fechaGasto = new Date(g.fecha);
+                const fechaGasto = new Date(g.fecha);
+                
+                if (ultimaHoraCierre) {
+                    return fechaGasto > ultimaHoraCierre;
+                }
+                
                 return esMismaFechaLocal(fechaGasto, hoy);
             } catch (e) {
                 return false;
@@ -5074,6 +5210,14 @@ function mostrarModalCierreDiario() {
         
         // Actualizar valores en el modal
         document.getElementById('totalVentasHoy').textContent = `$ ${totalVentas.toLocaleString()}`;
+        if (document.getElementById('totalDomiciliosHoy')) {
+            document.getElementById('totalDomiciliosHoy').textContent = `$ ${totalDomicilios.toLocaleString()}`;
+        }
+        const listaDomAbrir = document.getElementById('listaDomiciliariosCierre');
+        if (listaDomAbrir) {
+            listaDomAbrir.innerHTML = Object.keys(totalesDomiciliariosAbrir).length === 0 ? '' :
+                Object.entries(totalesDomiciliariosAbrir).map(([nombre, monto]) => `${nombre}: $ ${monto.toLocaleString()}`).join('<br>');
+        }
         document.getElementById('totalEfectivoHoy').textContent = `$ ${totalEfectivo.toLocaleString()}`;
         document.getElementById('totalTransferenciaHoy').textContent = `$ ${totalTransferencia.toLocaleString()}`;
         if(document.getElementById('totalTarjetaHoy')) document.getElementById('totalTarjetaHoy').textContent = `$ ${totalTarjeta.toLocaleString()}`;
@@ -5131,12 +5275,19 @@ function guardarCierreDiario() {
             return;
         }
 
-        // 2. OBTENER VENTAS DEL DÍA
+        // 2. OBTENER VENTAS DESDE ÚLTIMO CIERRE (solo lo del turno del trabajador que entrega)
         const todasLasVentas = obtenerTodasLasVentas();
-        const hoy = new Date();
+        const hoy = getFechaHoyParaCierre();
+        const ultimaHoraCierreStr = localStorage.getItem('ultimaHoraCierre');
+        const ultimaHoraCierre = ultimaHoraCierreStr ? new Date(ultimaHoraCierreStr) : null;
         const ventasHoy = todasLasVentas.filter(v => {
             try {
                 const fechaVenta = new Date(v.fecha);
+                if (ultimaHoraCierre) {
+                    const despuesDeCierre = fechaVenta.getTime() >= ultimaHoraCierre.getTime();
+                    const mismoDia = esMismaFechaLocal(fechaVenta, hoy);
+                    return despuesDeCierre && mismoDia;
+                }
                 return esMismaFechaLocal(fechaVenta, hoy);
             } catch (e) {
                 return false;
@@ -5176,6 +5327,17 @@ function guardarCierreDiario() {
         // 5. CALCULAR BALANCE
         const balanceFinal = totalVentas - totalGastos;
         
+        // Domicilios y por domiciliario (para impresión)
+        const totalesDomiciliariosCierre = {};
+        const totalDomiciliosCierre = ventasHoy.reduce((sum, v) => {
+            const valorDom = parseFloat(v.valorDomicilio) || 0;
+            if (valorDom > 0) {
+                const nombre = (v.nombreDomiciliario || v.domiciliario || 'SIN NOMBRE').toString().trim() || 'SIN NOMBRE';
+                totalesDomiciliariosCierre[nombre] = (totalesDomiciliariosCierre[nombre] || 0) + valorDom;
+            }
+            return sum + valorDom;
+        }, 0);
+        
         // 6. CREAR OBJETO DE CIERRE
         const cierre = {
             id: Date.now(),
@@ -5190,6 +5352,8 @@ function guardarCierreDiario() {
                 credito: totalCredito,
                 mixto: totalMixto
             },
+            totalDomicilios: totalDomiciliosCierre,
+            totalesDomiciliarios: totalesDomiciliariosCierre,
             gastos: totalGastos,
             balance: balanceFinal,
             nombreCierre: nombreCierre,
@@ -5595,7 +5759,7 @@ function debugVentasDetallado() {
     console.log(`📊 Ventas rápidas: ${historialVentas.length}`);
     
     // Verificar fechas
-    const hoy = new Date();
+    const hoy = getFechaHoyParaCierre();
     console.log(`\n📅 Fecha de hoy (local): ${hoy.toLocaleDateString('es-ES')}`);
     
     // Filtrar ventas de hoy
@@ -5628,8 +5792,8 @@ function obtenerVentasDelDia() {
     const ventas = JSON.parse(localStorage.getItem('ventas') || '[]');
     
     // Filtrar solo ventas activas de hoy (NO historial)
-    const hoy = new Date();
-    const hoyStr = hoy.toISOString().slice(0, 10);
+    const hoy = getFechaHoyParaCierre();
+    const hoyStr = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + String(hoy.getDate()).padStart(2, '0');
     
     const ventasHoy = ventas.filter(v => {
         try {
@@ -5767,7 +5931,8 @@ function imprimirBalanceDiario(datosCierre = null) {
         const todasLasVentas = obtenerTodasLasVentas();
         console.log('Ventas obtenidas:', todasLasVentas.length);
         
-        const hoy = new Date();
+        const hoy = getFechaHoyParaCierre();
+        const hoyStr = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + String(hoy.getDate()).padStart(2, '0');
         console.log('Fecha de hoy (local):', hoy.toLocaleDateString('es-ES'));
         
         const ventasHoy = todasLasVentas.filter(v => {
@@ -5846,6 +6011,20 @@ function imprimirBalanceDiario(datosCierre = null) {
             return fechaGastoStr === hoyStr;
         });
         const totalGastos = gastosHoy.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
+
+        // Calcular total de domicilios del día y por domiciliario
+        const totalesDomiciliarios = {};
+        const totalDomicilios = ventasHoy.reduce((sum, v) => {
+            const valorDom = parseFloat(v.valorDomicilio) || 0;
+            if (valorDom > 0) {
+                const nombre = (v.nombreDomiciliario || v.domiciliario || 'SIN NOMBRE').toString().trim() || 'SIN NOMBRE';
+                if (!totalesDomiciliarios[nombre]) {
+                    totalesDomiciliarios[nombre] = 0;
+                }
+                totalesDomiciliarios[nombre] += valorDom;
+            }
+            return sum + valorDom;
+        }, 0);
 
         // Calcular balance final
         const balanceFinal = totalVentas - totalGastos;
@@ -5949,6 +6128,13 @@ function imprimirBalanceDiario(datosCierre = null) {
                         <div class="mb-1">- Tarjeta: $ ${totalTarjeta.toLocaleString()}</div>
                         <div class="mb-1">- Crédito: $ ${totalCredito.toLocaleString()}</div>
                         <div class="mb-1">- Mixto: $ ${totalMixto.toLocaleString()}</div>
+                        <div class="mb-1">- Domicilios: $ ${totalDomicilios.toLocaleString()}</div>
+                        ${Object.keys(totalesDomiciliarios).length > 0 ? `
+                        <div class="mb-1"><strong>Domiciliarios:</strong></div>
+                        ${Object.entries(totalesDomiciliarios).map(([nombre, monto]) => `
+                            <div class="mb-1">- ${nombre}: $ ${monto.toLocaleString()}</div>
+                        `).join('')}
+                        ` : ''}
                     </div>
                     
                     ${totalVentasRapidas > 0 ? `
@@ -6036,7 +6222,7 @@ function imprimirBalanceDiarioMejorado(cierre) {
     const hora = fecha.toLocaleTimeString('es-ES');
     
     // Extraer datos del cierre
-    const { ventas, ventasRapidas, ventasMesas, gastos, balance, nombreCierre, nombreRecibe, montoBaseCaja, detalles } = cierre;
+    const { ventas, ventasRapidas, ventasMesas, gastos, balance, nombreCierre, nombreRecibe, montoBaseCaja, detalles, totalDomicilios = 0, totalesDomiciliarios = {} } = cierre;
     
     const contenido = `
     <!DOCTYPE html>
@@ -6333,9 +6519,28 @@ function imprimirBalanceDiarioMejorado(cierre) {
                         <span class="info-label">🔄 Mixto:</span>
                         <span class="info-value">$${ventas.mixto.toLocaleString()}</span>
                     </div>
+                    <div class="info-item">
+                        <span class="info-label">🚚 Domicilios:</span>
+                        <span class="info-value">$${(totalDomicilios || 0).toLocaleString()}</span>
+                    </div>
                 </div>
             </div>
         </div>
+        ${Object.keys(totalesDomiciliarios || {}).length > 0 ? `
+        <div class="section">
+            <div class="section-header">🚚 Domiciliarios</div>
+            <div class="section-content">
+                <div class="info-grid">
+                    ${Object.entries(totalesDomiciliarios).map(([nombre, monto]) => `
+                    <div class="info-item">
+                        <span class="info-label">${nombre}:</span>
+                        <span class="info-value">$${monto.toLocaleString()}</span>
+                    </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+        ` : ''}
 
         <div class="totals-grid">
             <div class="total-section rapidas">
@@ -6636,6 +6841,27 @@ document.addEventListener('DOMContentLoaded', () => {
   // Cargar datos primero (esto ya incluye inicializarDatosPrueba y mostrarProductos)
   cargarDatos();
   
+  // Inicializar lista de domiciliarios para autocompletado
+  if (obtenerNombresDomiciliarios().length === 0) {
+    try {
+      const historial = JSON.parse(localStorage.getItem('historialVentas') || '[]');
+      const unicos = new Set();
+      historial.forEach(v => {
+        const n = (v.nombreDomiciliario || v.domiciliario || '').trim();
+        if (n) unicos.add(n);
+      });
+      unicos.forEach(n => guardarNombreDomiciliario(n));
+    } catch (e) { /* ignorar */ }
+  }
+  actualizarDatalistDomiciliarios();
+  const inputDomiciliario = document.getElementById('nombreDomiciliario');
+  if (inputDomiciliario) {
+    inputDomiciliario.addEventListener('blur', function() {
+      const n = (this.value || '').trim();
+      if (n) guardarNombreDomiciliario(n);
+    });
+  }
+
   // Inicializar WhatsApp Web
   inicializarWhatsApp();
   
@@ -6942,7 +7168,7 @@ function mostrarVistaPreviaRecibo() {
       <div class="mb-1"><strong>Subtotal:</strong> <span style="float:right;">${formatearNumero(subtotal)}</span></div>
       ${propina > 0 ? `<div class="mb-1"><strong>Propina (${propina}%):</strong> <span style="float:right;">${formatearNumero(propinaMonto)}</span></div>` : ''}
       ${descuento > 0 ? `<div class="mb-1"><strong>Descuento:</strong> <span style="float:right;">-${formatearNumero(descuento)}</span></div>` : ''}
-      ${valorDomicilio > 0 ? `<div class="mb-1"><strong>Domicilio:</strong> <span style="float:right;">${formatearNumero(valorDomicilio)}</span></div>` : ''}
+      ${valorDomicilio > 0 ? `<div class="mb-1"><strong>Domicilio:</strong> <span style="float:right;">${formatearNumero(valorDomicilio)}</span></div>${(pedido.nombreDomiciliario || '').trim() ? `<div class="mb-1"><strong>Domiciliario:</strong> ${pedido.nombreDomiciliario}</div>` : ''}` : ''}
       <div class="mb-1 total-row"><strong>TOTAL:</strong> <span style="float:right;">${formatearNumero(total)}</span></div>
     </div>
     
@@ -7172,7 +7398,7 @@ function generarReciboPreliminar() {
       <div class="mb-1">Subtotal: <span class="text-right">$ ${formatearNumero(subtotal)}</span></div>
       <div class="mb-1">Propina (${propina}%): <span class="text-right">$ ${formatearNumero(propinaMonto)}</span></div>
       <div class="mb-1">Descuento: <span class="text-right">$ ${formatearNumero(descuento)}</span></div>
-      ${valorDomicilio > 0 ? `<div class="mb-1">Domicilio: <span class="text-right">$ ${formatearNumero(valorDomicilio)}</span></div>` : ''}
+      ${valorDomicilio > 0 ? `<div class="mb-1">Domicilio: <span class="text-right">$ ${formatearNumero(valorDomicilio)}</span></div>${(pedido.nombreDomiciliario || '').trim() ? `<div class="mb-1">Domiciliario: ${pedido.nombreDomiciliario}</div>` : ''}` : ''}
       <div class="mb-1 total-row"><strong>Total: $ ${formatearNumero(total)}</strong></div>
     </div>
     
@@ -8918,7 +9144,14 @@ guardarCotizacion = function() {
 function mostrarModalBalance() {
   try {
     const modal = new bootstrap.Modal(document.getElementById('modalBalance'));
-    document.getElementById('fechaBalance').valueAsDate = new Date();
+    const fechaBalanceEl = document.getElementById('fechaBalance');
+    if (fechaBalanceEl) {
+      const hoy = new Date();
+      const y = hoy.getFullYear();
+      const m = String(hoy.getMonth() + 1).padStart(2, '0');
+      const d = String(hoy.getDate()).padStart(2, '0');
+      fechaBalanceEl.value = `${y}-${m}-${d}`;
+    }
     generarBalance();
     modal.show();
   } catch (error) {
@@ -9112,6 +9345,31 @@ function generarBalance() {
 const totalVentas = ventasFiltradas.reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
 document.getElementById('totalVentas').textContent = `$ ${totalVentas.toLocaleString()}`;
 
+// Domicilios y domiciliarios
+const totalesDomiciliariosBalance = {};
+const totalDomiciliosBalance = ventasFiltradas.reduce((sum, v) => {
+  const valorDom = parseFloat(v.valorDomicilio) || 0;
+  if (valorDom > 0) {
+    const nombre = (v.nombreDomiciliario || v.domiciliario || 'SIN NOMBRE').toString().trim() || 'SIN NOMBRE';
+    totalesDomiciliariosBalance[nombre] = (totalesDomiciliariosBalance[nombre] || 0) + valorDom;
+  }
+  return sum + valorDom;
+}, 0);
+const resumenDomiciliarios = document.getElementById('resumenDomiciliarios');
+if (resumenDomiciliarios) {
+  resumenDomiciliarios.innerHTML = '';
+  Object.entries(totalesDomiciliariosBalance).forEach(([nombre, monto]) => {
+    const fila = document.createElement('tr');
+    fila.innerHTML = `
+      <td>${nombre}</td>
+      <td style="text-align:right;">$${monto.toLocaleString()}</td>
+    `;
+    resumenDomiciliarios.appendChild(fila);
+  });
+}
+const elTotalDom = document.getElementById('totalDomiciliosBalance');
+if (elTotalDom) elTotalDom.textContent = `$ ${totalDomiciliosBalance.toLocaleString()}`;
+
 // Actualizar tabla de gastos
 const resumenGastos = document.getElementById('resumenGastos');
 resumenGastos.innerHTML = '';
@@ -9206,6 +9464,10 @@ function imprimirBalance() {
     // Obtener los datos de las tablas
     const resumenVentas = document.getElementById('resumenVentas').innerHTML;
     const totalVentas = document.getElementById('totalVentas').textContent;
+    const resumenDomiciliarios = document.getElementById('resumenDomiciliarios');
+    const totalDomiciliosBalance = document.getElementById('totalDomiciliosBalance');
+    const resumenDomiciliariosHTML = resumenDomiciliarios ? resumenDomiciliarios.innerHTML : '';
+    const totalDomiciliosTexto = totalDomiciliosBalance ? totalDomiciliosBalance.textContent : '$ 0';
     const resumenGastos = document.getElementById('resumenGastos').innerHTML;
     const totalGastos = document.getElementById('totalGastos').textContent;
     const creditosPendientes = document.getElementById('creditosPendientes').innerHTML;
@@ -9326,6 +9588,19 @@ function imprimirBalance() {
                   <tr>
                     <th>Total Ventas</th>
                     <th style="text-align:right;">${totalVentas}</th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <div class="border-top">
+              <div class="mb-1"><strong>Domicilios y Domiciliarios</strong></div>
+              <table>
+                ${resumenDomiciliariosHTML}
+                <tfoot>
+                  <tr>
+                    <th>Total Domicilios</th>
+                    <th style="text-align:right;">${totalDomiciliosTexto}</th>
                   </tr>
                 </tfoot>
               </table>

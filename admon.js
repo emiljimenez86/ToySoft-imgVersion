@@ -320,9 +320,34 @@ function inicializarAdministracion() {
   }, 100);
   
   cargarDatosNegocio();
+  cargarConfigHorarioOperacion();
   
   // Iniciar backup automático
   iniciarBackupAutomatico();
+}
+
+// Configuración: operar después de medianoche
+function cargarConfigHorarioOperacion() {
+  const activo = localStorage.getItem('operarDespuesMedianoche') === 'true';
+  const hora = localStorage.getItem('horaFinDiaLaboral') || '4';
+  const chk = document.getElementById('operarDespuesMedianoche');
+  const input = document.getElementById('horaFinDiaLaboral');
+  if (chk) chk.checked = activo;
+  if (input) input.value = hora;
+}
+
+function guardarConfigHorarioOperacion() {
+  const chk = document.getElementById('operarDespuesMedianoche');
+  const input = document.getElementById('horaFinDiaLaboral');
+  const activo = chk && chk.checked;
+  let hora = 4;
+  if (input) {
+    const v = parseInt(input.value, 10);
+    if (!isNaN(v) && v >= 0 && v <= 23) hora = v;
+  }
+  localStorage.setItem('operarDespuesMedianoche', activo ? 'true' : 'false');
+  localStorage.setItem('horaFinDiaLaboral', String(hora));
+  alert(activo ? 'Configuración guardada. El día laboral terminará a las ' + hora + ':00.' : 'Configuración guardada. El día cambiará a las 12:00 (medianoche).');
 }
 
 // Event listener único para DOMContentLoaded
@@ -406,12 +431,18 @@ function agregarProducto() {
         return;
     }
 
+    const llevaSalsas = document.getElementById('llevaSalsasProducto') && document.getElementById('llevaSalsasProducto').checked;
+    const salsasTexto = document.getElementById('salsasProducto') ? document.getElementById('salsasProducto').value : '';
+    const salsas = llevaSalsas ? salsasTexto.split(/\r?\n/).map(s => s.trim()).filter(Boolean) : [];
+
     const producto = {
         id: Date.now(),
         nombre: nombre,
         precio: precio,
         categoria: categoria,
-        imagen: imagen
+        imagen: imagen,
+        llevaSalsas: !!llevaSalsas,
+        salsas: salsas
     };
 
     window.productos.push(producto);
@@ -425,6 +456,9 @@ function agregarProducto() {
     document.getElementById('imagenProducto').value = '';
     document.getElementById('previewImagen').src = '';
     document.getElementById('previewImagen').style.display = 'none';
+    if (document.getElementById('llevaSalsasProducto')) document.getElementById('llevaSalsasProducto').checked = false;
+    if (document.getElementById('salsasProducto')) document.getElementById('salsasProducto').value = '';
+    if (document.getElementById('contenedorSalsasProducto')) document.getElementById('contenedorSalsasProducto').style.display = 'none';
     console.log('Producto agregado:', producto);
 }
 
@@ -763,6 +797,16 @@ function modificarProducto(id) {
         previewImagen.style.display = 'none';
     }
 
+    const llevaSalsasChk = document.getElementById('llevaSalsasProductoModificar');
+    const contenedorSalsas = document.getElementById('contenedorSalsasProductoModificar');
+    const salsasTxt = document.getElementById('salsasProductoModificar');
+    if (llevaSalsasChk) {
+        llevaSalsasChk.checked = !!producto.llevaSalsas;
+        if (contenedorSalsas) contenedorSalsas.style.display = producto.llevaSalsas ? 'block' : 'none';
+        if (salsasTxt && Array.isArray(producto.salsas)) salsasTxt.value = producto.salsas.join('\n');
+        else if (salsasTxt) salsasTxt.value = '';
+    }
+
     modal.show();
 }
 
@@ -811,12 +855,18 @@ function guardarModificacionProducto() {
         return;
     }
 
+    const llevaSalsas = document.getElementById('llevaSalsasProductoModificar') && document.getElementById('llevaSalsasProductoModificar').checked;
+    const salsasTexto = document.getElementById('salsasProductoModificar') ? document.getElementById('salsasProductoModificar').value : '';
+    const salsas = llevaSalsas ? salsasTexto.split(/\r?\n/).map(s => s.trim()).filter(Boolean) : [];
+
     const producto = window.productos.find(p => p.id === id);
     if (producto) {
         producto.nombre = nombre;
         producto.precio = precio;
         producto.categoria = categoria;
         producto.imagen = imagen;
+        producto.llevaSalsas = !!llevaSalsas;
+        producto.salsas = salsas;
         localStorage.setItem('productos', JSON.stringify(window.productos));
         cargarProductos();
         

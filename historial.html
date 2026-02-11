@@ -224,12 +224,13 @@
     // Función simple para obtener cocina
     function obtenerCocina() {
         const ordenes = JSON.parse(localStorage.getItem('historialCocina')) || [];
-        
-        // Ordenar por fecha - más reciente primero
-        return ordenes.sort((a, b) => {
+        // Ordenar: más recientes arriba (por fecha o por id si la fecha falla)
+        return ordenes.slice().sort((a, b) => {
             const fechaA = new Date(a.fecha);
             const fechaB = new Date(b.fecha);
-            return fechaB - fechaA; // Más reciente primero
+            if (!isNaN(fechaA) && !isNaN(fechaB)) return fechaB - fechaA;
+            // Fallback: id suele ser Date.now() al crear la orden
+            return (b.id || 0) - (a.id || 0);
         });
     }
 
@@ -248,12 +249,13 @@
     // Función para obtener cierres operativos
     function obtenerCierresOperativo() {
         const cierres = JSON.parse(localStorage.getItem('historialCierresOperativos')) || [];
-        
-        // Ordenar por fecha - más reciente primero
-        return cierres.sort((a, b) => {
+        // Ordenar por fecha: más recientes arriba (descendente)
+        return cierres.slice().sort((a, b) => {
             const fechaA = new Date(a.fecha);
             const fechaB = new Date(b.fecha);
-            return fechaB - fechaA; // Más reciente primero
+            if (isNaN(fechaA)) return 1;
+            if (isNaN(fechaB)) return -1;
+            return fechaB - fechaA;
         });
     }
 
@@ -375,6 +377,7 @@
                     <div class="mb-1">Cliente: ${venta.cliente || 'N/A'}</div>
                     <div class="mb-1">Teléfono: ${venta.telefono || 'N/A'}</div>
                     <div class="mb-1">Dirección: ${venta.direccion || 'N/A'}</div>
+                    ${(venta.nombreDomiciliario || '').trim() ? `<div class="mb-1">Domiciliario: ${venta.nombreDomiciliario}</div>` : ''}
                     ${venta.horaRecoger ? `<div class="mb-1">Hora de recoger: ${venta.horaRecoger}</div>` : ''}
                 </div>
             `;
@@ -530,7 +533,7 @@
                     <div class="mb-1">Subtotal: <span class="text-right">$ ${formatearNumero(subtotal)}</span></div>
                     ${propina > 0 ? `<div class="mb-1">Propina (${propina}%): <span class="text-right">$ ${formatearNumero(propinaMonto)}</span></div>` : ''}
                     ${descuento > 0 ? `<div class="mb-1">Descuento: <span class="text-right">$ ${formatearNumero(descuento)}</span></div>` : ''}
-                    ${valorDomicilio > 0 ? `<div class="mb-1">Domicilio: <span class="text-right">$ ${formatearNumero(valorDomicilio)}</span></div>` : ''}
+                    ${valorDomicilio > 0 ? `<div class="mb-1">Domicilio: <span class="text-right">$ ${formatearNumero(valorDomicilio)}</span></div>${(venta.nombreDomiciliario || '').trim() ? `<div class="mb-1">Domiciliario: ${venta.nombreDomiciliario}</div>` : ''}` : ''}
                     <div class="mb-1 total-row"><strong>Total: $ ${formatearNumero(total)}</strong></div>
                 </div>
                 
@@ -572,8 +575,8 @@
                 <td>${venta.metodoPago || 'N/A'}</td>
                 <td>${venta.tipo || 'Normal'}</td>
                 <td>
-                    <button class="btn btn-sm btn-outline-light" onclick="reimprimirFactura('${venta.id}')">
-                <i class="fas fa-print"></i> Reimprimir
+                    <button class="btn btn-sm btn-outline-light" onclick="reimprimirFactura('${venta.id}')" title="Ver e imprimir el recibo final">
+                <i class="fas fa-receipt"></i> Ver recibo
               </button>
             </td>
           `;
@@ -848,7 +851,7 @@
         // Solicitar PIN de administrador
         const pin = prompt('Ingresa el PIN de administrador para acceder al cierre administrativo:');
         
-        if (pin !== '4321') {
+        if (pin !== '7894') {
             alert('PIN incorrecto. Solo los administradores pueden acceder a esta información.');
             return;
         }

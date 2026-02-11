@@ -1546,6 +1546,14 @@ body, .container-fluid, .app-container, .card, .modal-content, .modal-header, .m
     }
 }
 
+/* Botones Eliminar Pedido, Enviar a Cocina, Generar Recibo - más gordos */
+.btn-accion-orden {
+    padding: 14px 24px !important;
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+    min-height: 52px;
+}
+
 /* Estilos para el botón de venta rápida */
 .btn-warning {
     background: linear-gradient(135deg, #ffc107, #ff8c00);
@@ -1560,7 +1568,36 @@ body, .container-fluid, .app-container, .card, .modal-content, .modal-header, .m
     min-height: 48px;
 }
 
-/* Estilos modernos para botón de Domicilio */
+/* Luz que pulsa cada 5 segundos en botones de Mesas Activas */
+@keyframes luzCadaSegundo {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+@keyframes bordeLuzSegundo {
+  0%, 100% { outline-color: transparent; outline-width: 2px; }
+  50% { outline-color: rgba(255, 255, 255, 0.65); outline-width: 2px; }
+}
+
+.btn-luz-segundo {
+  position: relative;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  animation: bordeLuzSegundo 5s ease-in-out infinite;
+}
+
+.btn-luz-segundo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.35), transparent 65%);
+  opacity: 0;
+  animation: luzCadaSegundo 5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Estilos modernos para botón de Domicilio (mismo efecto que Nueva Mesa / Venta Rápida) */
 .btn-domicilio-moderno {
     background: linear-gradient(135deg, #28a745, #20c997);
     border: none;
@@ -1572,18 +1609,19 @@ body, .container-fluid, .app-container, .card, .modal-content, .modal-header, .m
     padding: 12px 20px;
     font-size: 1rem;
     min-height: 48px;
+    box-shadow: 0 6px 12px rgba(40, 167, 69, 0.25);
 }
 
 .btn-domicilio-moderno:hover {
     background: linear-gradient(135deg, #218838, #1ea085);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 16px rgba(40, 167, 69, 0.35);
     color: #fff;
 }
 
 .btn-domicilio-moderno:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+    transform: translateY(1px);
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.25);
 }
 
 /* Efecto de rayo para botón de Domicilio */
@@ -1605,7 +1643,7 @@ body, .container-fluid, .app-container, .card, .modal-content, .modal-header, .m
     transform: rotate(45deg) translate(50%, 50%);
 }
 
-/* Estilos modernos para botón de Recoger */
+/* Estilos modernos para botón de Recoger (mismo efecto que Nueva Mesa / Venta Rápida) */
 .btn-recoger-moderno {
     background: linear-gradient(135deg, #007bff, #0056b3);
     border: none;
@@ -1617,18 +1655,19 @@ body, .container-fluid, .app-container, .card, .modal-content, .modal-header, .m
     padding: 12px 20px;
     font-size: 1rem;
     min-height: 48px;
+    box-shadow: 0 6px 12px rgba(0, 123, 255, 0.25);
 }
 
 .btn-recoger-moderno:hover {
     background: linear-gradient(135deg, #0056b3, #004085);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 16px rgba(0, 123, 255, 0.35);
     color: #fff;
 }
 
 .btn-recoger-moderno:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+    transform: translateY(1px);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.25);
 }
 
 /* Efecto de rayo para botón de Recoger */
