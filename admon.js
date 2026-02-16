@@ -435,10 +435,14 @@ function agregarProducto() {
     const salsasTexto = document.getElementById('salsasProducto') ? document.getElementById('salsasProducto').value : '';
     const salsas = llevaSalsas ? salsasTexto.split(/\r?\n/).map(s => s.trim()).filter(Boolean) : [];
 
+    const costo = document.getElementById('costoProducto').value.trim();
+    const costoNumero = costo ? parseFloat(costo) : null;
+
     const producto = {
         id: Date.now(),
         nombre: nombre,
         precio: precio,
+        costo: costoNumero, // Costo opcional
         categoria: categoria,
         imagen: imagen,
         llevaSalsas: !!llevaSalsas,
@@ -452,6 +456,7 @@ function agregarProducto() {
     // Limpiar campos
     document.getElementById('nombreProducto').value = '';
     document.getElementById('precioProducto').value = '';
+    document.getElementById('costoProducto').value = '';
     document.getElementById('categoriaProducto').value = '';
     document.getElementById('imagenProducto').value = '';
     document.getElementById('previewImagen').src = '';
@@ -484,6 +489,54 @@ if (document.getElementById('imagenProducto')) {
         } else {
             document.getElementById('previewImagen').src = '';
             document.getElementById('previewImagen').style.display = 'none';
+        }
+    });
+}
+
+// Botón para pegar URL de imagen desde portapapeles
+if (document.getElementById('btnPegarImagen')) {
+    document.getElementById('btnPegarImagen').addEventListener('click', async function() {
+        const imagenInput = document.getElementById('imagenProducto');
+        if (imagenInput) {
+            try {
+                // Intentar leer del portapapeles
+                const text = await navigator.clipboard.readText();
+                if (text && (text.startsWith('http://') || text.startsWith('https://'))) {
+                    imagenInput.value = text;
+                    imagenInput.dispatchEvent(new Event('input')); // Disparar evento para actualizar preview
+                } else {
+                    alert('El portapapeles no contiene una URL válida. Por favor, copia primero la URL de la imagen.');
+                }
+            } catch (err) {
+                // Si falla, intentar método alternativo
+                imagenInput.focus();
+                imagenInput.select();
+                alert('Por favor, presiona Ctrl+V (o Cmd+V en Mac) para pegar la URL, o usa el método manual.');
+            }
+        }
+    });
+}
+
+// Botón para pegar URL de imagen desde portapapeles (modal modificar)
+if (document.getElementById('btnPegarImagenModificar')) {
+    document.getElementById('btnPegarImagenModificar').addEventListener('click', async function() {
+        const imagenInput = document.getElementById('imagenProductoModificar');
+        if (imagenInput) {
+            try {
+                // Intentar leer del portapapeles
+                const text = await navigator.clipboard.readText();
+                if (text && (text.startsWith('http://') || text.startsWith('https://'))) {
+                    imagenInput.value = text;
+                    imagenInput.dispatchEvent(new Event('input')); // Disparar evento para actualizar preview
+                } else {
+                    alert('El portapapeles no contiene una URL válida. Por favor, copia primero la URL de la imagen.');
+                }
+            } catch (err) {
+                // Si falla, intentar método alternativo
+                imagenInput.focus();
+                imagenInput.select();
+                alert('Por favor, presiona Ctrl+V (o Cmd+V en Mac) para pegar la URL, o usa el método manual.');
+            }
         }
     });
 }
@@ -788,6 +841,10 @@ function modificarProducto(id) {
     idInput.value = id;
     nombreInput.value = producto.nombre;
     precioInput.value = producto.precio;
+    const costoInput = document.getElementById('costoProductoModificar');
+    if (costoInput) {
+        costoInput.value = producto.costo || '';
+    }
     imagenInput.value = producto.imagen || '';
     if (producto.imagen) {
         previewImagen.src = producto.imagen;
@@ -843,12 +900,14 @@ function guardarModificacionProducto() {
     const precioInput = document.getElementById('precioProductoModificar');
     const categoriaSelect = document.getElementById('categoriaProductoModificar');
     const imagenInput = document.getElementById('imagenProductoModificar');
+    const costoInput = document.getElementById('costoProductoModificar');
 
     const id = parseInt(idInput.value);
     const nombre = nombreInput.value.trim();
     const precio = parseFloat(precioInput.value);
     const categoria = categoriaSelect.value;
     const imagen = imagenInput.value.trim();
+    const costo = costoInput && costoInput.value.trim() ? parseFloat(costoInput.value) : null;
 
     if (!nombre || isNaN(precio) || !categoria) {
         alert('Por favor complete todos los campos');
@@ -863,6 +922,7 @@ function guardarModificacionProducto() {
     if (producto) {
         producto.nombre = nombre;
         producto.precio = precio;
+        producto.costo = costo; // Costo opcional
         producto.categoria = categoria;
         producto.imagen = imagen;
         producto.llevaSalsas = !!llevaSalsas;

@@ -1515,11 +1515,52 @@
               </div>
             </div>
           </div>
+
+          <!-- Utilidad por Productos -->
+          <div class="card mt-3">
+            <div class="card-header">
+              <h6 class="mb-0"><i class="fas fa-chart-line text-success"></i> Utilidad por Productos</h6>
+              <small class="text-muted">Solo productos con costo definido</small>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>Producto</th>
+                      <th class="text-end">Cantidad</th>
+                      <th class="text-end">Precio Venta</th>
+                      <th class="text-end">Costo</th>
+                      <th class="text-end">Utilidad Unitaria</th>
+                      <th class="text-end">Utilidad Total</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cuerpoUtilidad">
+                    <tr>
+                      <td colspan="6" class="text-muted text-center">Seleccione un período para ver la utilidad</td>
+                    </tr>
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <th colspan="5">Total Utilidad</th>
+                      <th class="text-end text-success" id="totalUtilidad">$ 0</th>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+          <button type="button" class="btn btn-success" onclick="imprimirTirillaUtilidad()">
+            <i class="fas fa-print"></i> Imprimir Tirilla Utilidad
+          </button>
+          <button type="button" class="btn btn-info" onclick="exportarUtilidadExcel()">
+            <i class="fas fa-file-excel"></i> Exportar Utilidad
+          </button>
           <button type="button" class="btn btn-primary" onclick="imprimirBalance()">
-            <i class="fas fa-print"></i> Imprimir
+            <i class="fas fa-print"></i> Imprimir Balance
           </button>
         </div>
       </div>

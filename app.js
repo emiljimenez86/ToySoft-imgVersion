@@ -9443,10 +9443,121 @@ creditosFiltrados.forEach(credito => {
       }
     }
 
+    // Calcular utilidad por período
+    calcularUtilidadPorPeriodo(ventasFiltradas);
+
   } catch (error) {
     console.error('Error al generar balance:', error);
     alert('Error al generar el balance');
   }
+}
+
+// Función para calcular utilidad por período
+function calcularUtilidadPorPeriodo(ventasFiltradas) {
+  try {
+    const productos = JSON.parse(localStorage.getItem('productos') || '[]');
+    
+    // Crear mapa de productos por id y nombre para búsqueda rápida
+    const productosMap = {};
+    productos.forEach(p => {
+      productosMap[String(p.id)] = p;
+      productosMap[p.nombre.toLowerCase().trim()] = p;
+    });
+
+    // Calcular utilidad por producto
+    const utilidadPorProducto = {};
+    let totalUtilidad = 0;
+
+    ventasFiltradas.forEach(venta => {
+      const items = venta.items || venta.productos || [];
+      items.forEach(item => {
+        const productoId = item.id != null ? String(item.id) : null;
+        const productoNombre = (item.nombre || '').toLowerCase().trim();
+        const cantidad = item.cantidad || 0;
+        const precioVenta = parseFloat(item.precio) || 0;
+
+        // Buscar producto por id o nombre
+        let producto = null;
+        if (productoId && productosMap[productoId]) {
+          producto = productosMap[productoId];
+        } else if (productoNombre && productosMap[productoNombre]) {
+          producto = productosMap[productoNombre];
+        }
+
+        // Solo calcular si el producto tiene costo definido
+        if (producto && producto.costo != null && producto.costo !== undefined) {
+          const costo = parseFloat(producto.costo) || 0;
+          const utilidadUnitaria = precioVenta - costo;
+          const utilidadTotal = utilidadUnitaria * cantidad;
+
+          const clave = productoId || productoNombre;
+          if (!utilidadPorProducto[clave]) {
+            utilidadPorProducto[clave] = {
+              nombre: producto.nombre,
+              cantidadVendida: 0,
+              precioVenta: precioVenta,
+              costo: costo,
+              utilidadUnitaria: utilidadUnitaria,
+              utilidadTotal: 0
+            };
+          }
+
+          utilidadPorProducto[clave].cantidadVendida += cantidad;
+          utilidadPorProducto[clave].utilidadTotal += utilidadTotal;
+          totalUtilidad += utilidadTotal;
+        }
+      });
+    });
+
+    // Mostrar utilidad en el balance
+    mostrarUtilidadEnBalance(utilidadPorProducto, totalUtilidad);
+
+  } catch (error) {
+    console.error('Error al calcular utilidad:', error);
+  }
+}
+
+// Función para mostrar utilidad en el balance
+function mostrarUtilidadEnBalance(utilidadPorProducto, totalUtilidad) {
+  const cuerpoUtilidadFinal = document.getElementById('cuerpoUtilidad');
+  const totalUtilidadElement = document.getElementById('totalUtilidad');
+  
+  if (cuerpoUtilidadFinal) {
+    cuerpoUtilidadFinal.innerHTML = '';
+    
+    const productosConUtilidad = Object.values(utilidadPorProducto).sort((a, b) => b.utilidadTotal - a.utilidadTotal);
+    
+    if (productosConUtilidad.length === 0) {
+      const fila = document.createElement('tr');
+      fila.innerHTML = '<td colspan="6" class="text-muted text-center">No hay productos con costo definido en este período</td>';
+      cuerpoUtilidadFinal.appendChild(fila);
+    } else {
+      productosConUtilidad.forEach(producto => {
+        const fila = document.createElement('tr');
+        fila.innerHTML = `
+          <td>${producto.nombre}</td>
+          <td class="text-end">${producto.cantidadVendida.toLocaleString()}</td>
+          <td class="text-end">$ ${producto.precioVenta.toLocaleString()}</td>
+          <td class="text-end">$ ${producto.costo.toLocaleString()}</td>
+          <td class="text-end text-success">$ ${producto.utilidadUnitaria.toLocaleString()}</td>
+          <td class="text-end text-success"><strong>$ ${producto.utilidadTotal.toLocaleString()}</strong></td>
+        `;
+        cuerpoUtilidadFinal.appendChild(fila);
+      });
+    }
+  }
+
+  if (totalUtilidadElement) {
+    totalUtilidadElement.textContent = `$ ${totalUtilidad.toLocaleString()}`;
+  }
+  
+  // Guardar datos de utilidad para impresión y exportación
+  window.utilidadActual = {
+    productos: utilidadPorProducto,
+    total: totalUtilidad,
+    tipoPeriodo: document.getElementById('tipoBalance')?.value || 'diario',
+    fecha: document.getElementById('fechaBalance')?.value || new Date().toISOString().split('T')[0]
+  };
 }
 
 // Función para imprimir el balance
@@ -10557,4 +10668,256 @@ function obtenerContenidoAyuda(tipo) {
 
 // Hacer función globalmente accesible
 window.mostrarAyudaEspecifica = mostrarAyudaEspecifica;
+
+// ========================================
+// FUNCIONES DE UTILIDAD
+// ========================================
+
+// Función para imprimir tirilla de utilidad
+function imprimirTirillaUtilidad() {
+  try {
+    if (!window.utilidadActual || !window.utilidadActual.productos) {
+      alert('Por favor, genere primero el balance para calcular la utilidad');
+      return;
+    }
+
+    const { productos, total, tipoPeriodo, fecha } = window.utilidadActual;
+    const productosConUtilidad = Object.values(productos).sort((a, b) => b.utilidadTotal - a.utilidadTotal);
+
+    if (productosConUtilidad.length === 0) {
+      alert('No hay productos con costo definido para imprimir');
+      return;
+    }
+
+    const ventana = window.open('', 'ImpresionTirillaUtilidad', 'width=400,height=600,scrollbars=yes');
+    
+    if (!ventana) {
+      alert('Por favor, permite las ventanas emergentes para este sitio');
+      return;
+    }
+
+    const fechaImpresion = new Date().toLocaleDateString('es-ES');
+    const horaImpresion = new Date().toLocaleTimeString('es-ES');
+    
+    let tituloPeriodo = '';
+    switch(tipoPeriodo) {
+      case 'diario':
+        tituloPeriodo = `Día ${new Date(fecha).toLocaleDateString('es-ES')}`;
+        break;
+      case 'semanal':
+        tituloPeriodo = 'Semana Actual';
+        break;
+      case 'mensual':
+        tituloPeriodo = `Mes de ${new Date(fecha).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}`;
+        break;
+      case 'anual':
+        tituloPeriodo = `Año ${new Date(fecha).getFullYear()}`;
+        break;
+      default:
+        tituloPeriodo = 'Período Seleccionado';
+    }
+
+    let productosHTML = '';
+    productosConUtilidad.forEach((producto, index) => {
+      productosHTML += `
+        <div class="producto-item">
+          <div class="producto-nombre">${producto.nombre}</div>
+          <div class="utilidad-info">
+            <div>Cantidad: ${producto.cantidadVendida}</div>
+            <div>Precio Venta: $${producto.precioVenta.toLocaleString()}</div>
+            <div>Costo: $${producto.costo.toLocaleString()}</div>
+            <div>Utilidad Unitaria: $${producto.utilidadUnitaria.toLocaleString()}</div>
+            <div class="utilidad-total">Utilidad Total: $${producto.utilidadTotal.toLocaleString()}</div>
+          </div>
+        </div>
+      `;
+      if (index < productosConUtilidad.length - 1) {
+        productosHTML += '<div class="separador"></div>';
+      }
+    });
+
+    ventana.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Tirilla Utilidad</title>
+          <meta charset="UTF-8">
+          <style>
+            body { 
+              font-family: monospace;
+              font-size: 14px;
+              width: 57mm;
+              margin: 0;
+              padding: 1mm;
+            }
+            .text-center { text-align: center; }
+            .text-right { text-align: right; }
+            .mb-1 { margin-bottom: 0.5mm; }
+            .mt-1 { margin-top: 0.5mm; }
+            .header {
+              border-bottom: 1px dashed #000;
+              padding-bottom: 1mm;
+              margin-bottom: 1mm;
+              text-align: center;
+            }
+            .producto-item {
+              margin-bottom: 2mm;
+              padding-bottom: 1mm;
+            }
+            .producto-nombre {
+              font-size: 14px;
+              font-weight: bold;
+              margin-bottom: 0.5mm;
+              word-wrap: break-word;
+            }
+            .utilidad-info {
+              font-size: 12px;
+              margin-left: 2mm;
+            }
+            .utilidad-total {
+              font-weight: bold;
+              color: #006400;
+              margin-top: 1mm;
+            }
+            .separador {
+              border-top: 1px dashed #ccc;
+              margin: 1mm 0;
+            }
+            .total-section {
+              border-top: 2px solid #000;
+              margin-top: 2mm;
+              padding-top: 2mm;
+              text-align: center;
+              font-weight: bold;
+              font-size: 16px;
+            }
+            .fecha-hora {
+              font-size: 11px;
+              color: #666;
+              margin-bottom: 1mm;
+            }
+            .botones-impresion {
+              position: fixed;
+              top: 10px;
+              right: 10px;
+              z-index: 1000;
+            }
+            @media print { 
+              .botones-impresion { display: none; } 
+              @page { margin: 0; size: 57mm auto; } 
+              body { width: 57mm; } 
+            }
+          </style>
+        </head>
+        <body>
+          <div class="botones-impresion">
+            <button onclick="window.print()">Imprimir</button>
+          </div>
+          <div class="header">
+            <div class="mb-1"><strong>REPORTE DE UTILIDAD</strong></div>
+            <div class="fecha-hora">${tituloPeriodo}</div>
+            <div class="fecha-hora">${fechaImpresion} ${horaImpresion}</div>
+          </div>
+          ${productosHTML}
+          <div class="total-section">
+            TOTAL UTILIDAD: $${total.toLocaleString()}
+          </div>
+        </body>
+      </html>
+    `);
+    
+    ventana.document.close();
+  } catch (error) {
+    console.error('Error al imprimir tirilla de utilidad:', error);
+    alert('Error al generar la tirilla de utilidad: ' + error.message);
+  }
+}
+
+// Función para exportar utilidad a Excel
+function exportarUtilidadExcel() {
+  try {
+    if (typeof XLSX === 'undefined') {
+      alert('La funcionalidad de exportación a Excel no está disponible. Por favor, instale la librería XLSX.');
+      return;
+    }
+
+    if (!window.utilidadActual || !window.utilidadActual.productos) {
+      alert('Por favor, genere primero el balance para calcular la utilidad');
+      return;
+    }
+
+    const { productos, total, tipoPeriodo, fecha } = window.utilidadActual;
+    const productosConUtilidad = Object.values(productos).sort((a, b) => b.utilidadTotal - a.utilidadTotal);
+
+    if (productosConUtilidad.length === 0) {
+      alert('No hay productos con costo definido para exportar');
+      return;
+    }
+
+    const wb = XLSX.utils.book_new();
+    
+    let tituloPeriodo = '';
+    switch(tipoPeriodo) {
+      case 'diario':
+        tituloPeriodo = `Día ${new Date(fecha).toLocaleDateString('es-ES')}`;
+        break;
+      case 'semanal':
+        tituloPeriodo = 'Semana Actual';
+        break;
+      case 'mensual':
+        tituloPeriodo = `Mes de ${new Date(fecha).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}`;
+        break;
+      case 'anual':
+        tituloPeriodo = `Año ${new Date(fecha).getFullYear()}`;
+        break;
+      default:
+        tituloPeriodo = 'Período Seleccionado';
+    }
+
+    const datos = productosConUtilidad.map(producto => ({
+      'Producto': producto.nombre,
+      'Cantidad Vendida': producto.cantidadVendida,
+      'Precio Venta': producto.precioVenta,
+      'Costo': producto.costo,
+      'Utilidad Unitaria': producto.utilidadUnitaria,
+      'Utilidad Total': producto.utilidadTotal
+    }));
+
+    // Agregar fila de total
+    datos.push({
+      'Producto': 'TOTAL',
+      'Cantidad Vendida': '',
+      'Precio Venta': '',
+      'Costo': '',
+      'Utilidad Unitaria': '',
+      'Utilidad Total': total
+    });
+
+    const ws = XLSX.utils.json_to_sheet(datos);
+
+    const anchos = [
+      { wch: 30 }, // Producto
+      { wch: 15 }, // Cantidad Vendida
+      { wch: 15 }, // Precio Venta
+      { wch: 15 }, // Costo
+      { wch: 18 }, // Utilidad Unitaria
+      { wch: 18 }  // Utilidad Total
+    ];
+    ws['!cols'] = anchos;
+
+    XLSX.utils.book_append_sheet(wb, ws, `Utilidad ${tituloPeriodo}`);
+
+    const fechaArchivo = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `Utilidad_${tituloPeriodo.replace(/[^a-zA-Z0-9]/g, '_')}_${fechaArchivo}.xlsx`);
+    
+    alert('Archivo Excel de utilidad generado exitosamente');
+  } catch (error) {
+    console.error('Error al exportar utilidad a Excel:', error);
+    alert('Error al generar el archivo Excel: ' + error.message);
+  }
+}
+
+// Hacer funciones globalmente accesibles
+window.imprimirTirillaUtilidad = imprimirTirillaUtilidad;
+window.exportarUtilidadExcel = exportarUtilidadExcel;
   

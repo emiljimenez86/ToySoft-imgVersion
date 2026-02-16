@@ -224,12 +224,29 @@
                         <div class="col-12 col-md-6">
                             <input type="text" id="nombreProducto" class="form-control" placeholder="Escribir el nombre del nuevo producto">
                             <input type="number" id="precioProducto" class="form-control mt-2" placeholder="Escribir el precio en numeros sin puntos Ejemplo: 12800">
+                            <input type="number" id="costoProducto" class="form-control mt-2" placeholder="Costo del producto (opcional) Ejemplo: 8000" step="0.01">
+                            <small class="text-muted d-block mt-1">
+                                <i class="fas fa-info-circle"></i> El costo es opcional y se usa para calcular la utilidad
+                            </small>
                             <select id="categoriaProducto" class="form-select mt-2">
                                 <option value="">Seleccionar categoría</option>
                             </select>
                             <div class="mt-2">
-                                <label for="imagenProducto" class="form-label">Imagen del producto</label>
-                                <input type="text" class="form-control" id="imagenProducto" placeholder="Pega la URL de la imagen">
+                                <label for="imagenProducto" class="form-label">
+                                    Imagen del producto
+                                    <button type="button" class="btn btn-sm btn-outline-info ms-2" data-bs-toggle="modal" data-bs-target="#modalAyudaImagen" title="Ayuda para obtener URL de imagen">
+                                        <i class="fas fa-question-circle"></i> Ayuda
+                                    </button>
+                                </label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="imagenProducto" placeholder="Pega la URL de la imagen">
+                                    <button class="btn btn-outline-secondary" type="button" id="btnPegarImagen" title="Pegar URL desde portapapeles">
+                                        <i class="fas fa-paste"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted d-block mt-1">
+                                    <i class="fas fa-info-circle"></i> En Android: Mantén presionada la imagen → "Abrir imagen" → Copia la URL de la barra de direcciones
+                                </small>
                                 <div class="mt-2">
                                     <img id="previewImagen" src="" alt="Vista previa" style="max-width: 120px; max-height: 120px; display: none; border-radius: 8px; border: 1px solid #ccc;" />
                                 </div>
@@ -674,17 +691,33 @@
     <input type="number" class="form-control" id="precioProductoModificar" required>
 </div>
 <div class="mb-3">
+    <label for="costoProductoModificar" class="form-label">Costo del producto (opcional)</label>
+    <input type="number" class="form-control" id="costoProductoModificar" placeholder="Ejemplo: 8000" step="0.01">
+    <small class="text-muted">Se usa para calcular la utilidad</small>
+</div>
+<div class="mb-3">
     <label for="categoriaProductoModificar" class="form-label">Categoría</label>
     <select class="form-select" id="categoriaProductoModificar" required>
         <option value="">Seleccionar categoría</option>
     </select>
 </div>
 <div class="mb-3">
-    <label for="imagenProductoModificar" class="form-label">Imagen del producto</label>
+    <label for="imagenProductoModificar" class="form-label">
+        Imagen del producto
+        <button type="button" class="btn btn-sm btn-outline-info ms-2" data-bs-toggle="modal" data-bs-target="#modalAyudaImagen" title="Ayuda para obtener URL de imagen">
+            <i class="fas fa-question-circle"></i> Ayuda
+        </button>
+    </label>
     <div class="input-group">
         <input type="text" class="form-control" id="imagenProductoModificar" placeholder="Pega la URL de la imagen o selecciona un archivo">
+        <button class="btn btn-outline-secondary" type="button" id="btnPegarImagenModificar" title="Pegar URL desde portapapeles">
+            <i class="fas fa-paste"></i>
+        </button>
         <input type="file" class="form-control" id="examinarImagenModificar" accept="image/*" style="max-width: 180px;">
     </div>
+    <small class="text-muted d-block mt-1">
+        <i class="fas fa-info-circle"></i> En Android: Mantén presionada la imagen → "Abrir imagen" → Copia la URL de la barra de direcciones
+    </small>
     <div class="mt-2">
         <img id="previewImagenModificar" src="" alt="Vista previa" style="max-width: 120px; max-height: 120px; display: none; border-radius: 8px; border: 1px solid #ccc;" />
     </div>
@@ -736,6 +769,93 @@
             </div>
         </div>
     </div>
+    </div>
+
+    <!-- Modal de Ayuda para Obtener URL de Imagen -->
+    <div class="modal fade" id="modalAyudaImagen" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-image me-2"></i>¿Cómo obtener la URL de una imagen?
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="accordion" id="accordionAyudaImagen">
+                        <!-- Android -->
+                        <div class="accordion-item bg-dark border-secondary">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button bg-dark text-white collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAndroid">
+                                    <i class="fab fa-android me-2"></i><strong>En Android</strong>
+                                </button>
+                            </h2>
+                            <div id="collapseAndroid" class="accordion-collapse collapse show" data-bs-parent="#accordionAyudaImagen">
+                                <div class="accordion-body bg-dark text-white">
+                                    <ol class="mb-0">
+                                        <li class="mb-2">Abre <strong>Google Imágenes</strong> en tu navegador</li>
+                                        <li class="mb-2">Busca la imagen que deseas usar</li>
+                                        <li class="mb-2"><strong>Mantén presionada la imagen</strong> hasta que aparezca un menú</li>
+                                        <li class="mb-2">Selecciona <strong>"Abrir imagen"</strong> o <strong>"Ver imagen"</strong></li>
+                                        <li class="mb-2">La imagen se abrirá sola en una nueva pestaña</li>
+                                        <li class="mb-2">Copia la <strong>URL completa</strong> de la barra de direcciones del navegador</li>
+                                        <li class="mb-2">Pega la URL en el campo "Imagen del producto"</li>
+                                    </ol>
+                                    <div class="alert alert-info mt-3 mb-0">
+                                        <i class="fas fa-lightbulb me-2"></i><strong>Consejo:</strong> También puedes usar el botón <i class="fas fa-paste"></i> <strong>Pegar</strong> junto al campo para pegar directamente desde el portapapeles.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Windows -->
+                        <div class="accordion-item bg-dark border-secondary">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button bg-dark text-white collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseWindows">
+                                    <i class="fab fa-windows me-2"></i><strong>En Windows</strong>
+                                </button>
+                            </h2>
+                            <div id="collapseWindows" class="accordion-collapse collapse" data-bs-parent="#accordionAyudaImagen">
+                                <div class="accordion-body bg-dark text-white">
+                                    <ol class="mb-0">
+                                        <li class="mb-2">Abre <strong>Google Imágenes</strong> en tu navegador</li>
+                                        <li class="mb-2">Busca la imagen que deseas usar</li>
+                                        <li class="mb-2"><strong>Haz clic derecho</strong> sobre la imagen</li>
+                                        <li class="mb-2">Selecciona <strong>"Copiar dirección de la imagen"</strong> o <strong>"Copy image address"</strong></li>
+                                        <li class="mb-2">Pega la URL en el campo "Imagen del producto"</li>
+                                    </ol>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Alternativa: Compartir -->
+                        <div class="accordion-item bg-dark border-secondary">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button bg-dark text-white collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAlternativa">
+                                    <i class="fas fa-share-alt me-2"></i><strong>Método Alternativo (Android)</strong>
+                                </button>
+                            </h2>
+                            <div id="collapseAlternativa" class="accordion-collapse collapse" data-bs-parent="#accordionAyudaImagen">
+                                <div class="accordion-body bg-dark text-white">
+                                    <ol class="mb-0">
+                                        <li class="mb-2">Mantén presionada la imagen en Google Imágenes</li>
+                                        <li class="mb-2">Selecciona <strong>"Compartir"</strong> o <strong>"Share"</strong></li>
+                                        <li class="mb-2">Elige <strong>"Copiar enlace"</strong> o <strong>"Copy link"</strong></li>
+                                        <li class="mb-2">Abre el enlace copiado en una nueva pestaña</li>
+                                        <li class="mb-2">Mantén presionada la imagen nuevamente y selecciona <strong>"Abrir imagen"</strong></li>
+                                        <li class="mb-2">Copia la URL de la barra de direcciones</li>
+                                    </ol>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert alert-warning mt-3 mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i><strong>Importante:</strong> Asegúrate de copiar la URL completa que termine en la extensión de la imagen (como .jpg, .png, .webp, etc.)
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
     </div>
     <!-- Fin del contenido principal -->
 
