@@ -185,6 +185,9 @@
                   <button class="btn btn-warning" onclick="enviarACocina()">
                     <i class="fas fa-utensils"></i> Enviar a Cocina
                   </button>
+                  <button class="btn btn-info" onclick="mostrarModalCambioMesa()">
+                    <i class="fas fa-exchange-alt"></i> Cambio de Mesa
+                  </button>
                   <button class="btn btn-success" onclick="mostrarModalPago()">
                     <i class="fas fa-cash-register"></i> Generar Recibo
                   </button>
@@ -257,6 +260,41 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
           <button type="button" class="btn btn-primary" onclick="procesarPago()">Confirmar Pago</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Cambio de Mesa -->
+  <div class="modal fade" id="modalCambioMesa" tabindex="-1" aria-labelledby="modalCambioMesaLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content bg-dark text-white">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalCambioMesaLabel">
+            <i class="fas fa-exchange-alt"></i> Cambio de Mesa
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> Se imprimirá un nuevo ticket de cocina con la información del cambio.
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Mesa Origen (Mesa Actual)</label>
+            <input type="text" id="mesaOrigen" class="form-control bg-dark text-white border-light" readonly>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Mesa Destino (Nueva Mesa)</label>
+            <input type="text" id="mesaDestino" class="form-control bg-dark text-white border-light" 
+                   placeholder="Ingrese el número de la nueva mesa" required>
+            <small class="form-text text-muted">Ingrese el número de la mesa a la que se moverá el pedido</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" onclick="procesarCambioMesa()">
+            <i class="fas fa-check"></i> Confirmar Cambio
+          </button>
         </div>
       </div>
     </div>

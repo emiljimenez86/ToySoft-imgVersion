@@ -2737,6 +2737,187 @@ function mostrarConfirmacionEnviadoACocina(cantidadProductos) {
   }, 4000);
 }
 
+// Función para mostrar el modal de cambio de mesa
+function mostrarModalCambioMesa() {
+  if (!mesaSeleccionada || !mesasActivas.has(mesaSeleccionada)) {
+    alert('Por favor, seleccione una mesa con productos');
+    return;
+  }
+
+  const pedido = mesasActivas.get(mesaSeleccionada);
+  if (!pedido || !pedido.items || pedido.items.length === 0) {
+    alert('No hay productos para cambiar de mesa');
+    return;
+  }
+
+  // Verificar que no sea un pedido de domicilio o recoger
+  if (mesaSeleccionada.startsWith('DOM-') || mesaSeleccionada.startsWith('REC-')) {
+    alert('No se puede cambiar de mesa en pedidos de domicilio o recoger');
+    return;
+  }
+
+  // Llenar el campo de mesa origen
+  document.getElementById('mesaOrigen').value = mesaSeleccionada;
+  document.getElementById('mesaDestino').value = '';
+
+  // Mostrar el modal
+  const modal = new bootstrap.Modal(document.getElementById('modalCambioMesa'));
+  modal.show();
+
+  // Enfocar el campo de mesa destino
+  setTimeout(() => {
+    document.getElementById('mesaDestino').focus();
+  }, 500);
+}
+
+// Función para procesar el cambio de mesa
+function procesarCambioMesa() {
+  const mesaOrigen = document.getElementById('mesaOrigen').value.trim();
+  const mesaDestino = document.getElementById('mesaDestino').value.trim();
+
+  // Validaciones
+  if (!mesaOrigen) {
+    alert('Error: No se pudo determinar la mesa origen');
+    return;
+  }
+
+  if (!mesaDestino) {
+    alert('Por favor, ingrese el número de la mesa destino');
+    document.getElementById('mesaDestino').focus();
+    return;
+  }
+
+  if (mesaOrigen === mesaDestino) {
+    alert('La mesa destino debe ser diferente a la mesa origen');
+    document.getElementById('mesaDestino').focus();
+    return;
+  }
+
+  // Verificar que la mesa origen tenga un pedido
+  if (!mesasActivas.has(mesaOrigen)) {
+    alert('Error: No se encontró el pedido en la mesa origen');
+    return;
+  }
+
+  // Verificar que la mesa destino no tenga un pedido activo (o permitir fusionar)
+  const pedidoOrigen = mesasActivas.get(mesaOrigen);
+  
+  if (!pedidoOrigen || !pedidoOrigen.items || pedidoOrigen.items.length === 0) {
+    alert('Error: No hay productos en la mesa origen');
+    return;
+  }
+
+  // Obtener la fecha y hora del cambio
+  const fechaCambio = new Date().toLocaleString();
+
+  // Guardar información del cambio en el pedido
+  pedidoOrigen.cambioMesa = {
+    origen: mesaOrigen,
+    destino: mesaDestino,
+    fecha: fechaCambio
+  };
+
+  // Si la mesa destino ya tiene un pedido, fusionar los items
+  if (mesasActivas.has(mesaDestino)) {
+    const pedidoDestino = mesasActivas.get(mesaDestino);
+    // Fusionar items
+    pedidoDestino.items = [...(pedidoDestino.items || []), ...pedidoOrigen.items];
+    // Mantener información del cambio
+    pedidoDestino.cambioMesa = pedidoOrigen.cambioMesa;
+    // Actualizar ronda si es necesario
+    if (pedidoDestino.items.some(item => item.estado === 'en_cocina')) {
+      pedidoDestino.ronda = (pedidoDestino.ronda || 1) + 1;
+    }
+    // Actualizar otros campos si es necesario
+    if (pedidoOrigen.cliente && !pedidoDestino.cliente) {
+      pedidoDestino.cliente = pedidoOrigen.cliente;
+      pedidoDestino.telefono = pedidoOrigen.telefono;
+      pedidoDestino.direccion = pedidoOrigen.direccion;
+    }
+  } else {
+    // Mover el pedido completo a la nueva mesa
+    mesasActivas.set(mesaDestino, pedidoOrigen);
+  }
+
+  // Eliminar el pedido de la mesa origen
+  mesasActivas.delete(mesaOrigen);
+
+  // Actualizar ordenesCocina si hay productos en cocina
+  if (ordenesCocina.has(mesaOrigen)) {
+    const productosEnCocina = ordenesCocina.get(mesaOrigen);
+    ordenesCocina.delete(mesaOrigen);
+    ordenesCocina.set(mesaDestino, productosEnCocina);
+  }
+
+  // Actualizar historial de cocina para productos que ya estaban en cocina
+  const productosEnCocina = pedidoOrigen.items.filter(item => item.estado === 'en_cocina');
+  if (productosEnCocina.length > 0) {
+    // Crear un nuevo ticket de cocina con la información del cambio
+    const ordenCocinaCambio = {
+      id: Date.now(),
+      fecha: fechaCambio,
+      mesa: mesaDestino,
+      items: productosEnCocina,
+      cliente: pedidoOrigen.cliente || null,
+      telefono: pedidoOrigen.telefono || null,
+      direccion: pedidoOrigen.direccion || null,
+      horaRecoger: pedidoOrigen.horaRecoger || null,
+      ronda: pedidoOrigen.ronda || 1,
+      cambioMesa: {
+        origen: mesaOrigen,
+        destino: mesaDestino,
+        fecha: fechaCambio
+      }
+    };
+    
+    historialCocina.push(ordenCocinaCambio);
+    guardarHistorialCocina();
+  }
+
+  // Guardar cambios
+  guardarMesas();
+
+  // Cambiar la mesa seleccionada a la nueva mesa
+  mesaSeleccionada = mesaDestino;
+  seleccionarMesa(mesaDestino);
+
+  // Cerrar el modal
+  bootstrap.Modal.getInstance(document.getElementById('modalCambioMesa')).hide();
+
+  // Imprimir nuevo ticket de cocina con la información del cambio
+  if (productosEnCocina.length > 0) {
+    imprimirTicketCocina(mesaDestino, productosEnCocina);
+  }
+
+  // Mostrar confirmación
+  const confirmacion = document.createElement('div');
+  confirmacion.className = 'alert alert-info alert-dismissible fade show position-fixed';
+  confirmacion.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px; animation: slideInRight 0.5s ease;';
+  confirmacion.innerHTML = `
+    <strong>✅ Cambio de Mesa Realizado</strong>
+    <p class="mb-0">Pedido movido de Mesa ${mesaOrigen} a Mesa ${mesaDestino}</p>
+    ${productosEnCocina.length > 0 ? 
+      `<p class="mb-0 small">Se imprimió un nuevo ticket de cocina con la información del cambio</p>` : 
+      `<p class="mb-0 small">El pedido ha sido movido exitosamente</p>`
+    }
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  `;
+  
+  document.body.appendChild(confirmacion);
+  
+  // Auto-remover después de 5 segundos
+  setTimeout(() => {
+    if (confirmacion.parentNode) {
+      confirmacion.style.animation = 'slideOutRight 0.5s ease';
+      setTimeout(() => {
+        if (confirmacion.parentNode) {
+          confirmacion.remove();
+        }
+      }, 500);
+    }
+  }, 5000);
+}
+
 // Función para venta rápida (productos listos)
 function ventaRapida() {
   // Crear un pedido temporal para venta rápida sin mesa
@@ -3942,6 +4123,24 @@ function imprimirTicketCocina(mesa, productos) {
       </div>
     `;
   }
+
+  // Información de cambio de mesa si existe
+  let infoCambioMesa = '';
+  if (pedidoCompleto && pedidoCompleto.cambioMesa) {
+    infoCambioMesa = `
+      <div class="cambio-mesa-info" style="border: 2px solid #ff6b00; padding: 2mm; margin: 1mm 0; background: #fff3e0; text-align: center;">
+        <div style="font-weight: bold; font-size: 16px; color: #ff6b00; margin-bottom: 1mm;">
+          ⚠️ CAMBIO DE MESA
+        </div>
+        <div style="font-size: 14px;">
+          Mesa ${pedidoCompleto.cambioMesa.origen} → Mesa ${pedidoCompleto.cambioMesa.destino}
+        </div>
+        <div style="font-size: 12px; color: #666; margin-top: 1mm;">
+          ${pedidoCompleto.cambioMesa.fecha}
+        </div>
+      </div>
+    `;
+  }
   
   const contenido = `
     <div class="header text-center">
@@ -3950,6 +4149,8 @@ function imprimirTicketCocina(mesa, productos) {
       <div class="mb-1" style="font-size: 18px; font-weight: bold;">Ronda: ${pedidoCompleto && pedidoCompleto.ronda ? pedidoCompleto.ronda : 1}</div>
       <div class="mb-1">${new Date().toLocaleString()}</div>
     </div>
+    
+    ${infoCambioMesa}
     
     ${infoCliente}
     
@@ -7125,6 +7326,24 @@ function mostrarVistaPreviaRecibo() {
     }
   }
 
+  // Información de cambio de mesa si existe
+  let infoCambioMesa = '';
+  if (pedido.cambioMesa) {
+    infoCambioMesa = `
+      <div class="border-top" style="border-top: 2px solid #ff6b00; padding-top: 2mm; margin-top: 2mm; background: #fff3e0;">
+        <div class="mb-1" style="text-align: center;">
+          <strong style="color: #ff6b00; font-size: 14px;">⚠️ CAMBIO DE MESA</strong>
+        </div>
+        <div class="mb-1" style="text-align: center; font-size: 13px;">
+          Pedido movido de Mesa <strong>${pedido.cambioMesa.origen}</strong> a Mesa <strong>${pedido.cambioMesa.destino}</strong>
+        </div>
+        <div class="mb-1" style="text-align: center; font-size: 11px; color: #666;">
+          Fecha del cambio: ${pedido.cambioMesa.fecha}
+        </div>
+      </div>
+    `;
+  }
+
   const contenidoRecibo = `
     <div class="logo-container">
       ${localStorage.getItem('logoNegocio') ? 
@@ -7142,6 +7361,7 @@ function mostrarVistaPreviaRecibo() {
     </div>
     
     ${infoAdicional}
+    ${infoCambioMesa}
     
     <table>
       <thead>
@@ -7355,6 +7575,24 @@ function generarReciboPreliminar() {
     }
   }
 
+  // Información de cambio de mesa si existe
+  let infoCambioMesa = '';
+  if (pedido.cambioMesa) {
+    infoCambioMesa = `
+      <div class="border-top" style="border-top: 2px solid #ff6b00; padding-top: 2mm; margin-top: 2mm; background: #fff3e0;">
+        <div class="mb-1" style="text-align: center;">
+          <strong style="color: #ff6b00; font-size: 14px;">⚠️ CAMBIO DE MESA</strong>
+        </div>
+        <div class="mb-1" style="text-align: center; font-size: 13px;">
+          Pedido movido de Mesa <strong>${pedido.cambioMesa.origen}</strong> a Mesa <strong>${pedido.cambioMesa.destino}</strong>
+        </div>
+        <div class="mb-1" style="text-align: center; font-size: 11px; color: #666;">
+          Fecha del cambio: ${pedido.cambioMesa.fecha}
+        </div>
+      </div>
+    `;
+  }
+
   const contenidoRecibo = `
     <div class="logo-container">
       ${localStorage.getItem('logoNegocio') ? 
@@ -7372,6 +7610,7 @@ function generarReciboPreliminar() {
     </div>
     
     ${infoAdicional}
+    ${infoCambioMesa}
     
     <table>
       <thead>
