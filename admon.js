@@ -350,10 +350,156 @@ function guardarConfigHorarioOperacion() {
   alert(activo ? 'Configuración guardada. El día laboral terminará a las ' + hora + ':00.' : 'Configuración guardada. El día cambiará a las 12:00 (medianoche).');
 }
 
+// Funciones para configuración de Pantalla de Cocina
+function cargarConfigPantallaCocina() {
+  const activada = localStorage.getItem('pantallaCocinaActivada') !== 'false'; // Por defecto activada
+  const sonido = localStorage.getItem('cocinaSonidoActivado') !== 'false'; // Por defecto activado
+  
+  // Obtener intervalo, si no existe o es 2 (valor antiguo), usar 30 por defecto
+  let intervalo = localStorage.getItem('cocinaIntervaloActualizacion');
+  if (!intervalo || intervalo === '2') {
+    intervalo = '30';
+    // Guardar el nuevo valor por defecto
+    localStorage.setItem('cocinaIntervaloActualizacion', '30');
+  }
+  
+  const chkActivada = document.getElementById('pantallaCocinaActivada');
+  const chkSonido = document.getElementById('cocinaSonidoActivado');
+  const inputIntervalo = document.getElementById('cocinaIntervaloActualizacion');
+  
+  if (chkActivada) chkActivada.checked = activada;
+  if (chkSonido) chkSonido.checked = sonido;
+  if (inputIntervalo) {
+    inputIntervalo.value = intervalo;
+    console.log('✅ Intervalo cargado en el campo:', intervalo);
+  }
+}
+
+function guardarConfigPantallaCocina() {
+  const chkActivada = document.getElementById('pantallaCocinaActivada');
+  const chkSonido = document.getElementById('cocinaSonidoActivado');
+  const inputIntervalo = document.getElementById('cocinaIntervaloActualizacion');
+  
+  const activada = chkActivada && chkActivada.checked;
+  const sonido = chkSonido && chkSonido.checked;
+  let intervalo = 30; // Valor por defecto: 30 segundos
+  
+  if (inputIntervalo) {
+    const v = parseInt(inputIntervalo.value, 10);
+    if (!isNaN(v) && v >= 1 && v <= 60) {
+      intervalo = v;
+    } else {
+      console.warn('Valor de intervalo inválido:', inputIntervalo.value, 'usando 30 por defecto');
+      intervalo = 30;
+    }
+  }
+  
+  console.log('Guardando intervalo de actualización:', intervalo, 'segundos');
+  
+  localStorage.setItem('pantallaCocinaActivada', activada ? 'true' : 'false');
+  localStorage.setItem('cocinaSonidoActivado', sonido ? 'true' : 'false');
+  localStorage.setItem('cocinaIntervaloActualizacion', String(intervalo));
+  
+  // Verificar que se guardó correctamente
+  const valorGuardado = localStorage.getItem('cocinaIntervaloActualizacion');
+  console.log('✅ Intervalo guardado en localStorage:', valorGuardado, 'segundos');
+  console.log('✅ Verificación - Valor leído de localStorage:', localStorage.getItem('cocinaIntervaloActualizacion'));
+  
+  // Disparar eventos de storage para que otras ventanas se actualicen
+  window.dispatchEvent(new StorageEvent('storage', {
+    key: 'pantallaCocinaActivada',
+    newValue: activada ? 'true' : 'false'
+  }));
+  
+  window.dispatchEvent(new StorageEvent('storage', {
+    key: 'cocinaIntervaloActualizacion',
+    newValue: String(intervalo)
+  }));
+  
+  console.log('✅ Eventos de storage disparados para intervalo:', intervalo, 'segundos');
+  
+  alert('✅ Configuración de pantalla de cocina guardada correctamente.');
+  
+  // Si se activó, intentar abrir la pantalla
+  if (activada) {
+    setTimeout(() => {
+      abrirPantallaCocinaDesdeAdmin();
+    }, 500);
+  }
+}
+
+// Función para abrir pantalla de cocina desde administración
+function abrirPantallaCocinaDesdeAdmin() {
+  // Si ya hay una ventana abierta, enfocarla
+  if (window.ventanaCocina && !window.ventanaCocina.closed) {
+    window.ventanaCocina.focus();
+    return;
+  }
+  
+  // Detectar si hay segunda pantalla
+  let tieneSegundaPantalla = false;
+  try {
+    // Verificar si hay múltiples pantallas
+    if (screen.width > window.innerWidth + window.screenX) {
+      tieneSegundaPantalla = true;
+    }
+  } catch (e) {
+    console.error('Error al detectar segunda pantalla:', e);
+  }
+  
+  // Configuración de la ventana
+  const width = 1920;
+  const height = 1080;
+  let left = 0;
+  let top = 0;
+  
+  if (tieneSegundaPantalla) {
+    // Abrir en segunda pantalla (asumiendo que está a la derecha)
+    left = screen.width;
+    top = 0;
+  } else {
+    // Abrir en pantalla principal pero maximizada
+    left = 0;
+    top = 0;
+  }
+  
+  const features = `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes,location=no,status=no`;
+  
+  const ventana = window.open('cocina.html', 'PantallaCocina', features);
+  
+  // Guardar referencia globalmente
+  window.ventanaCocina = ventana;
+  
+  if (ventana) {
+    // Intentar maximizar
+    setTimeout(() => {
+      try {
+        if (ventana && !ventana.closed) {
+          ventana.focus();
+          console.log('Pantalla de cocina abierta. Presiona F11 para pantalla completa.');
+        }
+      } catch (e) {
+        console.error('Error al configurar ventana de cocina:', e);
+      }
+    }, 500);
+  } else {
+    alert('No se pudo abrir la pantalla de cocina. Por favor, verifica que los bloqueadores de ventanas emergentes estén desactivados.');
+  }
+}
+
+// Alias para compatibilidad
+function abrirPantallaCocina() {
+  abrirPantallaCocinaDesdeAdmin();
+}
+
 // Event listener único para DOMContentLoaded
 document.addEventListener('DOMContentLoaded', function() {
     // Verificar acceso de administración primero
     verificarAccesoAdministracion();
+    
+    // Cargar configuraciones
+    cargarConfigHorarioOperacion();
+    cargarConfigPantallaCocina();
 });
 
 // Funciones para Categorías
@@ -451,6 +597,20 @@ function agregarProducto() {
 
     window.productos.push(producto);
     localStorage.setItem('productos', JSON.stringify(window.productos));
+    
+    // Actualizar productosFiltrados con todos los productos (resetear filtro)
+    productosFiltrados = [...window.productos];
+    
+    // Limpiar campo de búsqueda si existe
+    const buscarProducto = document.getElementById('buscarProducto');
+    if (buscarProducto) {
+        buscarProducto.value = '';
+    }
+    
+    // Resetear a la primera página
+    paginaActualProductos = 1;
+    
+    // Recargar la vista de productos
     cargarProductos();
     
     // Limpiar campos

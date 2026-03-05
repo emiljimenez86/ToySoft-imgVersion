@@ -567,8 +567,8 @@ function actualizarDatosCierreModal() {
         });
         const totalGastos = gastosHoy.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
         
-        // Calcular balance final
-        const balanceFinal = totalVentas - totalGastos;
+        // Calcular balance final (ventas - gastos - todos los domicilios)
+        const balanceFinal = totalVentas - totalGastos - totalDomiciliosModal;
         
         // Mostrar últimos y próximos consecutivos DOM/REC en el modal
         try {
@@ -1032,6 +1032,724 @@ function guardarHistorialVentas() {
 function guardarHistorialCocina() {
   // Guardar todo el historial de cocina
   localStorage.setItem('historialCocina', JSON.stringify(historialCocina));
+}
+
+// ===== SISTEMA DE PANTALLA DE COCINA =====
+
+// Variable global para la ventana de cocina
+let ventanaCocina = null;
+// También disponible en window para acceso desde otras páginas
+window.ventanaCocina = null;
+
+// Función para obtener pedidos pendientes en cocina
+function obtenerPedidosPendientesCocina() {
+  try {
+    const historialCocina = JSON.parse(localStorage.getItem('historialCocina') || '[]');
+    const pedidosListosIds = obtenerIdsPedidosListos(); // Usar función auxiliar para compatibilidad
+    
+    // Obtener fecha de hoy para filtrar
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    
+    // Filtrar solo los pedidos que:
+    // 1. No están marcados como listos
+    // 2. Son del día actual
+    const pendientes = historialCocina.filter(pedido => {
+      // Verificar que no esté marcado como listo
+      if (pedidosListosIds.includes(pedido.id)) {
+        return false;
+      }
+      
+      // Verificar que sea del día actual
+      try {
+        let fechaPedido = null;
+        
+        // Intentar parsear la fecha del pedido
+        // Priorizar fecha ISO si existe, sino usar fecha (puede ser formato local)
+        const fechaAUsar = pedido.fecha || pedido.fechaMostrar;
+        
+        if (fechaAUsar) {
+          if (typeof fechaAUsar === 'string') {
+            // Intentar parsear como fecha ISO primero (más confiable)
+            const fechaISO = new Date(fechaAUsar);
+            if (!isNaN(fechaISO.getTime())) {
+              fechaPedido = fechaISO;
+            } else {
+              // Si no es ISO, intentar parsear como formato local
+              fechaPedido = parseFechaSeguro(fechaAUsar);
+            }
+          } else if (fechaAUsar instanceof Date) {
+            fechaPedido = fechaAUsar;
+          }
+        }
+        
+        if (!fechaPedido) {
+          console.warn('No se pudo parsear fecha del pedido:', pedido);
+          return false; // Si no se puede parsear la fecha, no mostrar
+        }
+        
+        // Comparar solo año, mes y día
+        const fechaPedidoNormalizada = new Date(fechaPedido);
+        fechaPedidoNormalizada.setHours(0, 0, 0, 0);
+        
+        return esMismaFechaLocal(fechaPedidoNormalizada, hoy);
+      } catch (e) {
+        console.error('Error al parsear fecha del pedido:', e, pedido);
+        return false; // Si hay error al parsear, no mostrar
+      }
+    });
+
+    // Ordenar por fecha (más antiguos primero)
+    pendientes.sort((a, b) => {
+      const fechaA = new Date(a.fecha || 0);
+      const fechaB = new Date(b.fecha || 0);
+      return fechaA - fechaB;
+    });
+
+    return pendientes;
+  } catch (error) {
+    console.error('Error al obtener pedidos pendientes:', error);
+    return [];
+  }
+}
+
+// Función para marcar pedido como listo
+function marcarPedidoListo(pedidoId) {
+  try {
+    let pedidosListos = JSON.parse(localStorage.getItem('pedidosCocinaListos') || '[]');
+    
+    // Migrar estructura antigua (array de IDs) a nueva (array de objetos)
+    if (pedidosListos.length > 0 && typeof pedidosListos[0] === 'number') {
+      // Es la estructura antigua, convertir a nueva
+      pedidosListos = pedidosListos.map(id => ({
+        id: id,
+        fechaHoraListo: new Date().toISOString(),
+        fechaHoraListoMostrar: new Date().toLocaleString()
+      }));
+    }
+    
+    // Verificar si el pedido ya está marcado como listo
+    const yaMarcado = pedidosListos.some(p => (typeof p === 'object' ? p.id : p) === pedidoId);
+    
+    if (!yaMarcado) {
+      // Agregar el pedido con la fecha/hora
+      const fechaHoraListo = new Date().toISOString();
+      const fechaHoraListoMostrar = new Date().toLocaleString();
+      
+      pedidosListos.push({
+        id: pedidoId,
+        fechaHoraListo: fechaHoraListo,
+        fechaHoraListoMostrar: fechaHoraListoMostrar
+      });
+      
+      localStorage.setItem('pedidosCocinaListos', JSON.stringify(pedidosListos));
+      console.log('✅ Pedido marcado como listo. ID:', pedidoId, 'Hora:', fechaHoraListoMostrar);
+      console.log('✅ Total pedidos listos:', pedidosListos.length);
+      
+      // Disparar evento personalizado para notificar a otras ventanas
+      window.dispatchEvent(new CustomEvent('pedidoMarcadoListo', { detail: { pedidoId } }));
+      
+      // Actualizar panel flotante si existe
+      actualizarPanelCocina();
+      
+      // Mostrar confirmación
+      mostrarConfirmacionPedidoListo(pedidoId);
+      
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('Error al marcar pedido como listo:', error);
+    return false;
+  }
+}
+
+// Función auxiliar para obtener IDs de pedidos listos (compatibilidad)
+function obtenerIdsPedidosListos() {
+  try {
+    const pedidosListos = JSON.parse(localStorage.getItem('pedidosCocinaListos') || '[]');
+    // Si es la estructura antigua (array de números), devolverla tal cual
+    if (pedidosListos.length > 0 && typeof pedidosListos[0] === 'number') {
+      return pedidosListos;
+    }
+    // Si es la nueva estructura (array de objetos), extraer los IDs
+    return pedidosListos.map(p => p.id);
+  } catch (error) {
+    console.error('Error al obtener IDs de pedidos listos:', error);
+    return [];
+  }
+}
+
+// Función auxiliar para obtener información completa de un pedido listo
+function obtenerInfoPedidoListo(pedidoId) {
+  try {
+    const pedidosListos = JSON.parse(localStorage.getItem('pedidosCocinaListos') || '[]');
+    const pedido = pedidosListos.find(p => (typeof p === 'object' ? p.id : null) === pedidoId);
+    return pedido || null;
+  } catch (error) {
+    console.error('Error al obtener info de pedido listo:', error);
+    return null;
+  }
+}
+
+// Función para mostrar confirmación de pedido marcado como listo
+function mostrarConfirmacionPedidoListo(pedidoId) {
+  const pedido = historialCocina.find(p => p.id === pedidoId);
+  if (!pedido) return;
+  
+  const codigo = pedido.mesa.startsWith('DOM-') ? `DOMICILIO ${pedido.mesa.replace('DOM-', '')}` :
+                 pedido.mesa.startsWith('REC-') ? `RECOGER ${pedido.mesa.replace('REC-', '')}` :
+                 `MESA ${pedido.mesa}`;
+  
+  const confirmacion = document.createElement('div');
+  confirmacion.className = 'alert alert-success alert-dismissible fade show position-fixed';
+  confirmacion.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px; animation: slideInRight 0.5s ease;';
+  confirmacion.innerHTML = `
+    <strong>✅ Pedido Marcado como Listo</strong>
+    <p class="mb-0">${codigo}</p>
+    <p class="mb-0 small">El pedido ha sido removido de la pantalla de cocina</p>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  `;
+  
+  document.body.appendChild(confirmacion);
+  
+  // Auto-remover después de 3 segundos
+  setTimeout(() => {
+    if (confirmacion.parentNode) {
+      confirmacion.style.animation = 'slideOutRight 0.5s ease';
+      setTimeout(() => {
+        if (confirmacion.parentNode) {
+          confirmacion.remove();
+        }
+      }, 500);
+    }
+  }, 3000);
+}
+
+// Función para formatear código de pedido
+function formatearCodigoPedidoCocina(mesa) {
+  if (mesa.startsWith('DOM-')) {
+    return `DOM-${mesa.replace('DOM-', '')}`;
+  } else if (mesa.startsWith('REC-')) {
+    return `REC-${mesa.replace('REC-', '')}`;
+  } else {
+    return `MESA ${mesa}`;
+  }
+}
+
+// Función para actualizar panel flotante de cocina
+function actualizarPanelCocina() {
+  const panel = document.getElementById('panelCocinaFlotante');
+  if (!panel) return;
+  
+  // Si la pantalla de cocina está desactivada en administración,
+  // no mostrar el panel flotante aunque haya pedidos
+  const cocinaActivada = localStorage.getItem('pantallaCocinaActivada');
+  if (cocinaActivada === 'false') {
+    panel.style.display = 'none';
+    return;
+  }
+  
+  const pedidos = obtenerPedidosPendientesCocina();
+  const contador = document.getElementById('contadorCocinaFlotante');
+  const lista = document.getElementById('listaPedidosCocina');
+  
+  if (contador) {
+    contador.textContent = pedidos.length;
+  }
+  
+  if (lista) {
+    if (pedidos.length === 0) {
+      lista.innerHTML = '<div class="text-muted text-center p-2">No hay pedidos pendientes</div>';
+      panel.style.display = 'none';
+    } else {
+      lista.innerHTML = pedidos.slice(0, 5).map(pedido => {
+        const codigo = formatearCodigoPedidoCocina(pedido.mesa);
+        // Acortar código si es muy largo para que quepa en 140px
+        const codigoCorto = codigo.length > 12 ? codigo.substring(0, 10) + '...' : codigo;
+        return `
+          <div class="d-flex justify-content-between align-items-center p-1 border-bottom border-secondary" style="font-size: 0.75rem;">
+            <span class="text-white text-truncate" style="max-width: 80px;" title="${codigo}">${codigoCorto}</span>
+            <button class="btn btn-sm btn-success" onclick="marcarPedidoListo(${pedido.id})" title="Marcar como listo" style="padding: 2px 6px; font-size: 0.7rem;">
+              <i class="fas fa-check"></i>
+            </button>
+          </div>
+        `;
+      }).join('');
+      if (pedidos.length > 5) {
+        lista.innerHTML += `<div class="text-center p-1"><small class="text-muted" style="font-size: 0.7rem;">+${pedidos.length - 5} más</small></div>`;
+      }
+      panel.style.display = 'block';
+    }
+  }
+}
+
+// Función para actualizar badge de cocina en la barra superior
+function actualizarBadgeCocina() {
+  const badge = document.getElementById('badgeCocinaPOS');
+  if (!badge) return;
+  
+  const pedidos = obtenerPedidosPendientesCocina();
+  if (pedidos.length > 0) {
+    badge.textContent = pedidos.length;
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// Función para abrir pantalla de cocina
+function abrirPantallaCocina() {
+  // Verificar si ya hay una ventana abierta (usando window para acceso global)
+  if (typeof window.ventanaCocina !== 'undefined' && window.ventanaCocina && !window.ventanaCocina.closed) {
+    window.ventanaCocina.focus();
+    return;
+  }
+  
+  // Detectar si hay segunda pantalla
+  let tieneSegundaPantalla = false;
+  try {
+    if (typeof detectarSegundaPantalla === 'function') {
+      tieneSegundaPantalla = detectarSegundaPantalla();
+    }
+  } catch (e) {
+    console.error('Error al detectar segunda pantalla:', e);
+  }
+  
+  // Configuración de la ventana
+  const width = 1920;
+  const height = 1080;
+  let left = 0;
+  let top = 0;
+  
+  if (tieneSegundaPantalla) {
+    // Abrir en segunda pantalla (asumiendo que está a la derecha)
+    left = screen.width;
+    top = 0;
+  } else {
+    // Abrir en pantalla principal pero maximizada
+    left = 0;
+    top = 0;
+  }
+  
+  const features = `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes,location=no,status=no`;
+  
+  const ventana = window.open('cocina.html', 'PantallaCocina', features);
+  
+  // Guardar referencia globalmente
+  window.ventanaCocina = ventana;
+  if (typeof ventanaCocina !== 'undefined') {
+    ventanaCocina = ventana;
+  }
+  
+  if (ventana) {
+    // Intentar maximizar
+    setTimeout(() => {
+      try {
+        if (ventana && !ventana.closed) {
+          ventana.focus();
+          // Intentar entrar en pantalla completa (requiere interacción del usuario)
+          console.log('Pantalla de cocina abierta. Presiona F11 para pantalla completa.');
+        }
+      } catch (e) {
+        console.error('Error al configurar ventana de cocina:', e);
+      }
+    }, 500);
+  } else {
+    alert('No se pudo abrir la pantalla de cocina. Por favor, verifica que los bloqueadores de ventanas emergentes estén desactivados.');
+  }
+}
+
+// Función para detectar segunda pantalla
+function detectarSegundaPantalla() {
+  try {
+    // Verificar si hay múltiples pantallas
+    // En algunos navegadores, screen.width puede ser mayor que window.screenX + window.innerWidth
+    // cuando hay una segunda pantalla
+    if (screen.width > window.innerWidth + window.screenX) {
+      return true;
+    }
+    
+    // Verificar usando la API de múltiples pantallas (si está disponible)
+    if (window.screen && window.screen.mozScreens) {
+      return window.screen.mozScreens.length > 1;
+    }
+    
+    // Verificar usando la API estándar (experimental)
+    if (window.screen && window.screen.isExtended) {
+      return window.screen.isExtended;
+    }
+    
+    // Método alternativo: verificar si hay espacio más allá de la ventana principal
+    return false; // Por defecto, asumir que no hay segunda pantalla
+  } catch (error) {
+    console.error('Error al detectar segunda pantalla:', error);
+    return false;
+  }
+}
+
+// Función para verificar y mostrar/ocultar botón de cocina según configuración
+function actualizarVisibilidadBotónCocina() {
+  const btnCocina = document.getElementById('btnCocinaPOS');
+  if (!btnCocina) return;
+  
+  // Verificar si la pantalla de cocina está activada
+  let cocinaActivada = localStorage.getItem('pantallaCocinaActivada');
+  if (cocinaActivada === null) {
+    // Si no existe la configuración, activarla por defecto
+    localStorage.setItem('pantallaCocinaActivada', 'true');
+    cocinaActivada = 'true';
+  }
+  cocinaActivada = cocinaActivada !== 'false';
+  
+  // Mostrar u ocultar el botón según la configuración
+  if (cocinaActivada) {
+    btnCocina.style.display = 'inline-block';
+  } else {
+    btnCocina.style.display = 'none';
+  }
+}
+
+// Función para inicializar sistema de cocina
+function inicializarSistemaCocina() {
+  // Actualizar visibilidad del botón
+  actualizarVisibilidadBotónCocina();
+  
+  // Verificar si la pantalla de cocina está activada (por defecto activada si no existe la configuración)
+  let cocinaActivada = localStorage.getItem('pantallaCocinaActivada');
+  if (cocinaActivada === null) {
+    // Si no existe la configuración, activarla por defecto
+    localStorage.setItem('pantallaCocinaActivada', 'true');
+    cocinaActivada = 'true';
+  }
+  cocinaActivada = cocinaActivada !== 'false';
+  
+  if (cocinaActivada) {
+    // Intentar abrir automáticamente si hay segunda pantalla
+    setTimeout(() => {
+      if (detectarSegundaPantalla()) {
+        abrirPantallaCocina();
+      }
+    }, 2000);
+    
+    // Obtener intervalo configurado (por defecto 30 segundos)
+    const intervaloConfig = localStorage.getItem('cocinaIntervaloActualizacion');
+    console.log('🔍 DEBUG app.js - Intervalo leído:', intervaloConfig);
+    let intervaloNum = 30; // Valor por defecto: 30 segundos
+    if (intervaloConfig) {
+      const parsed = parseInt(intervaloConfig, 10);
+      if (!isNaN(parsed) && parsed >= 1 && parsed <= 60) {
+        intervaloNum = parsed;
+      }
+    }
+    const intervaloMs = intervaloNum * 1000;
+    console.log('✅ app.js - Usando intervalo de:', intervaloNum, 'segundos');
+    
+    // Actualizar panel flotante y badge según intervalo configurado
+    setInterval(() => {
+      actualizarPanelCocina();
+      actualizarBadgeCocina();
+    }, intervaloMs);
+    
+    // Actualizar panel y badge inicial
+    actualizarPanelCocina();
+    actualizarBadgeCocina();
+    
+    // Escuchar cambios en el intervalo de actualización
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'cocinaIntervaloActualizacion') {
+        // Recargar la página para aplicar el nuevo intervalo
+        // (más simple que manejar múltiples intervalos)
+        location.reload();
+      }
+    });
+  } else {
+    // Si está desactivada, ocultar también el panel flotante
+    const panel = document.getElementById('panelCocinaFlotante');
+    if (panel) {
+      panel.style.display = 'none';
+    }
+  }
+  
+  // Escuchar cambios en localStorage para actualizar panel y visibilidad del botón
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'historialCocina' || e.key === 'pedidosCocinaListos') {
+      actualizarPanelCocina();
+      actualizarBadgeCocina();
+    }
+    if (e.key === 'pantallaCocinaActivada') {
+      actualizarVisibilidadBotónCocina();
+      // Reinicializar sistema si se activa
+      if (localStorage.getItem('pantallaCocinaActivada') !== 'false') {
+        inicializarSistemaCocina();
+      }
+    }
+  });
+  
+  // También escuchar eventos personalizados (para cambios en la misma ventana)
+  window.addEventListener('pedidoMarcadoListo', () => {
+    actualizarPanelCocina();
+    actualizarBadgeCocina();
+  });
+}
+
+// Función para obtener pedidos listos de cocina (del día actual)
+function obtenerPedidosListosCocina() {
+  try {
+    const historialCocina = JSON.parse(localStorage.getItem('historialCocina') || '[]');
+    const pedidosListos = JSON.parse(localStorage.getItem('pedidosCocinaListos') || '[]');
+    const pedidosListosIds = obtenerIdsPedidosListos();
+    
+    // Obtener fecha de hoy para filtrar
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    
+    // Filtrar solo los pedidos que:
+    // 1. Están marcados como listos
+    // 2. Son del día actual
+    const listos = historialCocina.filter(pedido => {
+      // Verificar que esté marcado como listo
+      if (!pedidosListosIds.includes(pedido.id)) {
+        return false;
+      }
+      
+      // Agregar información de fecha/hora de marcado como listo
+      const infoListo = pedidosListos.find(p => (typeof p === 'object' ? p.id : p) === pedido.id);
+      if (infoListo && typeof infoListo === 'object') {
+        pedido.fechaHoraListo = infoListo.fechaHoraListo;
+        pedido.fechaHoraListoMostrar = infoListo.fechaHoraListoMostrar || infoListo.fechaHoraListo;
+      }
+      
+      // Verificar que sea del día actual
+      try {
+        let fechaPedido = null;
+        const fechaAUsar = pedido.fecha || pedido.fechaMostrar;
+        
+        if (fechaAUsar) {
+          if (typeof fechaAUsar === 'string') {
+            const fechaISO = new Date(fechaAUsar);
+            if (!isNaN(fechaISO.getTime())) {
+              fechaPedido = fechaISO;
+            }
+          } else if (fechaAUsar instanceof Date) {
+            fechaPedido = fechaAUsar;
+          }
+        }
+        
+        if (!fechaPedido) {
+          return false;
+        }
+        
+        const fechaPedidoNormalizada = new Date(fechaPedido);
+        fechaPedidoNormalizada.setHours(0, 0, 0, 0);
+        
+        return fechaPedidoNormalizada.getTime() === hoy.getTime();
+      } catch (e) {
+        return false;
+      }
+    });
+
+    // Ordenar por fecha de marcado como listo (más recientes primero)
+    listos.sort((a, b) => {
+      const fechaA = new Date(a.fechaHoraListo || a.fecha || 0);
+      const fechaB = new Date(b.fechaHoraListo || b.fecha || 0);
+      return fechaB - fechaA;
+    });
+
+    return listos;
+  } catch (error) {
+    console.error('Error al obtener pedidos listos:', error);
+    return [];
+  }
+}
+
+// Función para mostrar modal completo de pedidos en cocina
+function mostrarModalPedidosCocina() {
+  const pedidosPendientes = obtenerPedidosPendientesCocina();
+  const pedidosListos = obtenerPedidosListosCocina();
+  
+  // Contenido de pedidos pendientes
+  let contenidoPendientes = '';
+  if (pedidosPendientes.length === 0) {
+    contenidoPendientes = `
+      <div class="text-center p-5">
+        <i class="fas fa-utensils fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">No hay pedidos pendientes en cocina</h5>
+      </div>
+    `;
+  } else {
+    contenidoPendientes = pedidosPendientes.map(pedido => {
+      const codigo = formatearCodigoPedidoCocina(pedido.mesa);
+      const productos = (pedido.items || []).map(item => {
+        const detalle = item.detalles ? ` <small class="text-muted">(${item.detalles})</small>` : '';
+        return `<li class="mb-1" style="padding: 5px; background: rgba(255, 107, 53, 0.1); border-left: 3px solid #ff6b35; margin-bottom: 5px;">${item.cantidad}x ${item.nombre}${detalle}</li>`;
+      }).join('');
+      
+      let infoCliente = '';
+      if (pedido.cliente) {
+        infoCliente = `<p class="mb-1"><strong>Cliente:</strong> ${pedido.cliente}</p>`;
+        if (pedido.telefono) {
+          infoCliente += `<p class="mb-1"><strong>Tel:</strong> ${pedido.telefono}</p>`;
+        }
+        if (pedido.direccion && pedido.mesa.startsWith('DOM-')) {
+          infoCliente += `<p class="mb-1"><strong>Dirección:</strong> ${pedido.direccion}</p>`;
+        }
+        if (pedido.horaRecoger && pedido.mesa.startsWith('REC-')) {
+          infoCliente += `<p class="mb-1"><strong>Hora Recoger:</strong> ${pedido.horaRecoger}</p>`;
+        }
+      }
+      
+      return `
+        <div class="card bg-dark mb-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+              <div>
+                <h5 class="text-warning mb-1">${codigo}</h5>
+                <p class="text-muted mb-0"><small>Ronda ${pedido.ronda || 1} - ${pedido.fechaMostrar || pedido.fecha || ''}</small></p>
+              </div>
+              <button class="btn btn-success btn-lg" onclick="marcarPedidoListo(${pedido.id}); mostrarModalPedidosCocina();">
+                <i class="fas fa-check-circle"></i> Marcar como Listo
+              </button>
+            </div>
+            ${infoCliente}
+            <div class="mt-3">
+              <strong class="text-info"><i class="fas fa-list"></i> Productos:</strong>
+              <ul class="mb-0 mt-2" style="list-style-type: none; padding-left: 0;">
+                ${productos || '<li class="text-muted">No hay productos</li>'}
+              </ul>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+  
+  // Contenido de pedidos listos
+  let contenidoListos = '';
+  if (pedidosListos.length === 0) {
+    contenidoListos = `
+      <div class="text-center p-5">
+        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+        <h5 class="text-muted">No hay pedidos listos</h5>
+      </div>
+    `;
+  } else {
+    contenidoListos = pedidosListos.map(pedido => {
+      const codigo = formatearCodigoPedidoCocina(pedido.mesa);
+      const productos = (pedido.items || []).map(item => {
+        const detalle = item.detalles ? ` <small class="text-muted">(${item.detalles})</small>` : '';
+        return `<li class="mb-1" style="padding: 5px; background: rgba(255, 107, 53, 0.1); border-left: 3px solid #ff6b35; margin-bottom: 5px;">${item.cantidad}x ${item.nombre}${detalle}</li>`;
+      }).join('');
+      
+      let infoCliente = '';
+      if (pedido.cliente) {
+        infoCliente = `<p class="mb-1"><strong>Cliente:</strong> ${pedido.cliente}</p>`;
+        if (pedido.telefono) {
+          infoCliente += `<p class="mb-1"><strong>Tel:</strong> ${pedido.telefono}</p>`;
+        }
+        if (pedido.direccion && pedido.mesa.startsWith('DOM-')) {
+          infoCliente += `<p class="mb-1"><strong>Dirección:</strong> ${pedido.direccion}</p>`;
+        }
+        if (pedido.horaRecoger && pedido.mesa.startsWith('REC-')) {
+          infoCliente += `<p class="mb-1"><strong>Hora Recoger:</strong> ${pedido.horaRecoger}</p>`;
+        }
+      }
+      
+      const fechaListo = pedido.fechaHoraListoMostrar || pedido.fechaHoraListo || 'N/A';
+      
+      return `
+        <div class="card bg-dark mb-3 border-success">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+              <div>
+                <h5 class="text-success mb-1">${codigo} <i class="fas fa-check-circle"></i></h5>
+                <p class="text-muted mb-0"><small>Ronda ${pedido.ronda || 1} - ${pedido.fechaMostrar || pedido.fecha || ''}</small></p>
+                <p class="text-success mb-0 mt-1"><small><i class="fas fa-clock"></i> Listo desde: ${fechaListo}</small></p>
+              </div>
+            </div>
+            ${infoCliente}
+            <div class="mt-3">
+              <strong class="text-info"><i class="fas fa-list"></i> Productos:</strong>
+              <ul class="mb-0 mt-2" style="list-style-type: none; padding-left: 0;">
+                ${productos || '<li class="text-muted">No hay productos</li>'}
+              </ul>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+  
+  // Crear o actualizar modal
+  let modal = document.getElementById('modalPedidosCocina');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'modalPedidosCocina';
+    modal.className = 'modal fade';
+    modal.setAttribute('tabindex', '-1');
+    modal.setAttribute('aria-labelledby', 'modalPedidosCocinaLabel');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(modal);
+  }
+  
+  modal.innerHTML = `
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-height: 90vh;">
+      <div class="modal-content bg-dark" style="max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="modal-header border-secondary flex-shrink-0">
+          <h5 class="modal-title text-info" id="modalPedidosCocinaLabel">
+            <i class="fas fa-utensils"></i> Pedidos en Cocina
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" style="overflow-y: auto; flex: 1; min-height: 0;">
+          <!-- Nav tabs -->
+          <ul class="nav nav-tabs mb-3" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="pendientes-tab" data-bs-toggle="tab" data-bs-target="#pendientes" type="button" role="tab">
+                Pendientes <span class="badge bg-warning">${pedidosPendientes.length}</span>
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="listos-tab" data-bs-toggle="tab" data-bs-target="#listos" type="button" role="tab">
+                Listos <span class="badge bg-success">${pedidosListos.length}</span>
+              </button>
+            </li>
+          </ul>
+          
+          <!-- Tab content -->
+          <div class="tab-content">
+            <div class="tab-pane fade show active" id="pendientes" role="tabpanel">
+              ${contenidoPendientes}
+            </div>
+            <div class="tab-pane fade" id="listos" role="tabpanel">
+              ${contenidoListos}
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-secondary flex-shrink-0">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+          <button type="button" class="btn btn-info" onclick="abrirPantallaCocina()">
+            <i class="fas fa-tv"></i> Abrir Pantalla de Cocina
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Mostrar modal usando Bootstrap
+  const bsModal = new bootstrap.Modal(modal);
+  bsModal.show();
+}
+
+// Función para cerrar modal de pedidos en cocina
+function cerrarModalPedidosCocina() {
+  const modal = document.getElementById('modalPedidosCocina');
+  if (modal) {
+    const bsModal = bootstrap.Modal.getInstance(modal);
+    if (bsModal) {
+      bsModal.hide();
+    }
+  }
 }
 
 // ===== SISTEMA DE RECORDATORIOS DE TAREAS =====
@@ -2686,7 +3404,8 @@ function enviarACocina() {
   // Agregar al historial de cocina
   const ordenCocina = {
     id: Date.now(),
-    fecha: new Date().toLocaleString(),
+    fecha: new Date().toISOString(), // Guardar en formato ISO para mejor compatibilidad
+    fechaMostrar: new Date().toLocaleString(), // Fecha formateada para mostrar
     mesa: mesaSeleccionada,
     items: productosNuevos,
     cliente: pedido.cliente || null,
@@ -2708,6 +3427,10 @@ function enviarACocina() {
   
   // Mostrar inmediatamente la vista previa del ticket de cocina para imprimir
   imprimirTicketCocina(mesaSeleccionada, productosNuevos);
+  
+  // Actualizar panel flotante de cocina
+  actualizarPanelCocina();
+  actualizarBadgeCocina();
 }
 
 // Función para mostrar confirmación de productos enviados a cocina
@@ -2851,11 +3574,26 @@ function procesarCambioMesa() {
 
   // Actualizar historial de cocina para productos que ya estaban en cocina
   const productosEnCocina = pedidoOrigen.items.filter(item => item.estado === 'en_cocina');
+  
+  // Obtener IDs de pedidos listos para no eliminar pedidos ya marcados como listos
+  const pedidosListosIds = obtenerIdsPedidosListos();
+  
+  // Eliminar del historial de cocina todos los pedidos pendientes de la mesa origen
+  // (solo los que NO están marcados como listos)
+  historialCocina = historialCocina.filter(pedido => {
+    // Si el pedido es de la mesa origen y NO está marcado como listo, eliminarlo
+    if (pedido.mesa === mesaOrigen && !pedidosListosIds.includes(pedido.id)) {
+      return false; // Eliminar este pedido
+    }
+    return true; // Mantener este pedido
+  });
+  
   if (productosEnCocina.length > 0) {
     // Crear un nuevo ticket de cocina con la información del cambio
     const ordenCocinaCambio = {
       id: Date.now(),
-      fecha: fechaCambio,
+      fecha: new Date().toISOString(), // Guardar en formato ISO
+      fechaMostrar: fechaCambio, // Fecha formateada para mostrar
       mesa: mesaDestino,
       items: productosEnCocina,
       cliente: pedidoOrigen.cliente || null,
@@ -2871,11 +3609,17 @@ function procesarCambioMesa() {
     };
     
     historialCocina.push(ordenCocinaCambio);
-    guardarHistorialCocina();
   }
+  
+  // Guardar el historial actualizado
+  guardarHistorialCocina();
 
   // Guardar cambios
   guardarMesas();
+
+  // Actualizar panel flotante y badge de cocina después del cambio
+  actualizarPanelCocina();
+  actualizarBadgeCocina();
 
   // Cambiar la mesa seleccionada a la nueva mesa
   mesaSeleccionada = mesaDestino;
@@ -2966,8 +3710,10 @@ function mostrarReciboVentaRapida(venta) {
         <style>
           body { 
             font-family: monospace;
-            font-size: 14px;
-            width: 57mm;
+            /* Aumentamos tamaño para que se vea más grande en cocina */
+            font-size: 18px;
+            /* Que use todo el ancho disponible del papel (58mm, 80mm, etc.) */
+            width: 100%;
             margin: 0;
             padding: 1mm;
           }
@@ -2979,12 +3725,12 @@ function mostrarReciboVentaRapida(venta) {
             width: 100%;
             border-collapse: collapse;
             margin: 1mm 0;
-            font-size: 14px;
+            font-size: 18px;
           }
           th, td { 
             padding: 0.5mm;
             text-align: left;
-            font-size: 14px;
+            font-size: 18px;
           }
           .border-top { 
             border-top: 1px dashed #000;
@@ -3906,8 +4652,9 @@ function obtenerVentanaImpresion() {
         <style>
           body { 
             font-family: monospace;
-            font-size: 14px;
-            width: 57mm;
+            /* Aumentamos bastante el tamaño para mejorar legibilidad */
+            font-size: 22px;
+            width: 100%;
             margin: 0;
             padding: 1mm;
           }
@@ -3919,12 +4666,12 @@ function obtenerVentanaImpresion() {
             width: 100%;
             border-collapse: collapse;
             margin: 1mm 0;
-            font-size: 14px;
+            font-size: 22px;
           }
           th, td { 
             padding: 0.5mm;
             text-align: left;
-            font-size: 14px;
+            font-size: 22px;
           }
           .border-top { 
             border-top: 1px dashed #000;
@@ -3975,11 +4722,11 @@ function obtenerVentanaImpresion() {
               display: none;
             }
             @page {
+              /* Sin tamaño fijo: que use el ancho real del papel */
               margin: 0;
-              size: 57mm auto;
             }
             body {
-              width: 57mm;
+              width: 100%;
             }
           }
         </style>
@@ -4041,9 +4788,9 @@ function mostrarVistaPreviaPedido() {
   
   const contenido = `
     <div class="header text-center">
-      <h2 style="margin: 0; font-size: 24px; font-weight: bold;">COCINA</h2>
-      <div class="mb-1" style="font-size: 20px; font-weight: bold;">Mesa: ${mesa}</div>
-      <div class="mb-1" style="font-size: 18px; font-weight: bold;">Ronda: ${pedidoCompleto && pedidoCompleto.ronda ? pedidoCompleto.ronda : 1}</div>
+      <h2 style="margin: 0; font-size: 28px; font-weight: bold;">COCINA</h2>
+      <div class="mb-1" style="font-size: 22px; font-weight: bold;">Mesa: ${mesa}</div>
+      <div class="mb-1" style="font-size: 20px; font-weight: bold;">Ronda: ${pedidoCompleto && pedidoCompleto.ronda ? pedidoCompleto.ronda : 1}</div>
       <div class="mb-1">${new Date().toLocaleString()}</div>
     </div>
     
@@ -4144,9 +4891,9 @@ function imprimirTicketCocina(mesa, productos) {
   
   const contenido = `
     <div class="header text-center">
-      <h2 style="margin: 0; font-size: 24px; font-weight: bold;">COCINA</h2>
-      <div class="mb-1" style="font-size: 20px; font-weight: bold;">Mesa: ${mesa}</div>
-      <div class="mb-1" style="font-size: 18px; font-weight: bold;">Ronda: ${pedidoCompleto && pedidoCompleto.ronda ? pedidoCompleto.ronda : 1}</div>
+      <h2 style="margin: 0; font-size: 28px; font-weight: bold;">COCINA</h2>
+      <div class="mb-1" style="font-size: 22px; font-weight: bold;">Mesa: ${mesa}</div>
+      <div class="mb-1" style="font-size: 20px; font-weight: bold;">Ronda: ${pedidoCompleto && pedidoCompleto.ronda ? pedidoCompleto.ronda : 1}</div>
       <div class="mb-1">${new Date().toLocaleString()}</div>
     </div>
     
@@ -4263,11 +5010,11 @@ function imprimirTicketCocina(mesa, productos) {
               display: none;
             }
             @page {
+              /* Sin forzar tamaño: que el driver use el ancho real del papel */
               margin: 0;
-              size: 57mm auto;
             }
             body {
-              width: 57mm;
+              width: 100%;
             }
           }
         </style>
@@ -5362,8 +6109,15 @@ function mostrarModalCierreDiario() {
         
         console.log(`📊 Ventas del día: ${ventasHoy.length}`);
         
-        // Calcular totales simples
-        const totalVentas = ventasHoy.reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
+        // Calcular totales con mixto desglosado: efectivo y transferencia incluyen la parte mixta
+        const calculos = calcularTotalesVentas(ventasHoy);
+        const totalVentas = calculos.totalGeneral;
+        const totalEfectivo = calculos.totalEfectivo;
+        const totalTransferencia = calculos.totalTransferencia;
+        const totalTarjeta = calculos.totalTarjeta;
+        const totalCredito = calculos.totalCredito;
+        const totalMixto = calculos.totalMixto;
+        
         const totalesDomiciliariosAbrir = {};
         const totalDomicilios = ventasHoy.reduce((sum, v) => {
             const valorDom = parseFloat(v.valorDomicilio) || 0;
@@ -5373,21 +6127,6 @@ function mostrarModalCierreDiario() {
             }
             return sum + valorDom;
         }, 0);
-        const totalEfectivo = ventasHoy
-            .filter(v => v.metodoPago === 'efectivo')
-            .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
-        const totalTransferencia = ventasHoy
-            .filter(v => v.metodoPago === 'transferencia')
-            .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
-        const totalTarjeta = ventasHoy
-            .filter(v => v.metodoPago === 'tarjeta')
-            .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
-        const totalCredito = ventasHoy
-            .filter(v => v.metodoPago === 'credito')
-            .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
-        const totalMixto = ventasHoy
-            .filter(v => v.metodoPago === 'mixto')
-            .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
         
         // Obtener gastos del día (también respetando último cierre si existe)
         const gastos = JSON.parse(localStorage.getItem('gastos') || '[]');
@@ -5406,8 +6145,8 @@ function mostrarModalCierreDiario() {
         });
         const totalGastos = gastosHoy.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
         
-        // Calcular balance final
-        const balanceFinal = totalVentas - totalGastos;
+        // Calcular balance final (ventas - gastos - todos los domicilios)
+        const balanceFinal = totalVentas - totalGastos - totalDomicilios;
         
         // Actualizar valores en el modal
         document.getElementById('totalVentasHoy').textContent = `$ ${totalVentas.toLocaleString()}`;
@@ -5426,6 +6165,88 @@ function mostrarModalCierreDiario() {
         if(document.getElementById('totalMixtoHoy')) document.getElementById('totalMixtoHoy').textContent = `$ ${totalMixto.toLocaleString()}`;
         document.getElementById('totalGastosHoy').textContent = `$ ${totalGastos.toLocaleString()}`;
         document.getElementById('balanceFinal').textContent = `$ ${balanceFinal.toLocaleString()}`;
+        
+        // Efectivo que queda en caja: efectivo entrado - gastos - domicilios pagados en efectivo
+        const domiciliosEnEfectivo = ventasHoy
+            .filter(v => ((v.metodoPago || '').toLowerCase() === 'efectivo' || (v.metodoPago || '').toLowerCase() === 'mixto') && (parseFloat(v.valorDomicilio) || 0) > 0)
+            .reduce((sum, v) => sum + (parseFloat(v.valorDomicilio) || 0), 0);
+        const efectivoQueQueda = totalEfectivo - totalGastos - domiciliosEnEfectivo;
+        const elEfEnt = document.getElementById('efectivoEntradoCierre');
+        const elGast = document.getElementById('gastosRestarCierre');
+        const elDomEf = document.getElementById('domiciliosEfectivoCierre');
+        const elEfQueda = document.getElementById('efectivoQueQuedaCierre');
+        if (elEfEnt) elEfEnt.textContent = `$ ${totalEfectivo.toLocaleString()}`;
+        if (elGast) elGast.textContent = `$ ${totalGastos.toLocaleString()}`;
+        if (elDomEf) elDomEf.textContent = `$ ${domiciliosEnEfectivo.toLocaleString()}`;
+        if (elEfQueda) elEfQueda.textContent = `$ ${efectivoQueQueda.toLocaleString()}`;
+        
+        // Ventas Rápidas / Ventas Mesas (igual que en la impresión)
+        const sr = document.getElementById('seccionVentasRapidasCierre');
+        const sm = document.getElementById('seccionVentasMesasCierre');
+        if (sr) {
+            if (calculos.totalVentasRapidas > 0) {
+                sr.style.display = 'block';
+                const elTr = document.getElementById('totalVentasRapidasHoy');
+                const elEr = document.getElementById('totalEfectivoRapidasHoy');
+                const elTrr = document.getElementById('totalTransferenciaRapidasHoy');
+                const elTar = document.getElementById('totalTarjetaRapidasHoy');
+                const elCr = document.getElementById('totalCreditoRapidasHoy');
+                const elMr = document.getElementById('totalMixtoRapidasHoy');
+                if (elTr) elTr.textContent = `$ ${calculos.totalVentasRapidas.toLocaleString()}`;
+                if (elEr) elEr.textContent = `$ ${(calculos.efectivoRapidas || 0).toLocaleString()}`;
+                if (elTrr) elTrr.textContent = `$ ${(calculos.transferenciaRapidas || 0).toLocaleString()}`;
+                if (elTar) elTar.textContent = `$ ${(calculos.tarjetaRapidas || 0).toLocaleString()}`;
+                if (elCr) elCr.textContent = `$ ${(calculos.creditoRapidas || 0).toLocaleString()}`;
+                if (elMr) elMr.textContent = `$ ${(calculos.mixtoRapidas || 0).toLocaleString()}`;
+            } else {
+                sr.style.display = 'none';
+            }
+        }
+        if (sm) {
+            if (calculos.totalVentasMesas > 0) {
+                sm.style.display = 'block';
+                const elTm = document.getElementById('totalVentasMesasHoy');
+                const elEm = document.getElementById('totalEfectivoMesasHoy');
+                const elTrm = document.getElementById('totalTransferenciaMesasHoy');
+                const elTam = document.getElementById('totalTarjetaMesasHoy');
+                const elCm = document.getElementById('totalCreditoMesasHoy');
+                const elMm = document.getElementById('totalMixtoMesasHoy');
+                if (elTm) elTm.textContent = `$ ${calculos.totalVentasMesas.toLocaleString()}`;
+                if (elEm) elEm.textContent = `$ ${(calculos.efectivoMesas || 0).toLocaleString()}`;
+                if (elTrm) elTrm.textContent = `$ ${(calculos.transferenciaMesas || 0).toLocaleString()}`;
+                if (elTam) elTam.textContent = `$ ${(calculos.tarjetaMesas || 0).toLocaleString()}`;
+                if (elCm) elCm.textContent = `$ ${(calculos.creditoMesas || 0).toLocaleString()}`;
+                if (elMm) elMm.textContent = `$ ${(calculos.mixtoMesas || 0).toLocaleString()}`;
+            } else {
+                sm.style.display = 'none';
+            }
+        }
+        
+        // Detalle de gastos
+        const detalleGastosEl = document.getElementById('detalleGastosCierre');
+        if (detalleGastosEl) {
+            detalleGastosEl.innerHTML = gastosHoy.length === 0 ? '' :
+                gastosHoy.map(g => `${g.descripcion || 'Gasto'}: $ ${(parseFloat(g.monto) || 0).toLocaleString()}`).join('<br>');
+        }
+        
+        // Último DOM / REC
+        const ultimoDom = parseInt(localStorage.getItem('contadorDomicilios')) || 0;
+        const ultimoRec = parseInt(localStorage.getItem('contadorRecoger')) || 0;
+        const elDom = document.getElementById('ultimoDomCierre');
+        const elRec = document.getElementById('ultimoRecCierre');
+        if (elDom) elDom.textContent = 'D' + ultimoDom;
+        if (elRec) elRec.textContent = 'R' + ultimoRec;
+        
+        // Créditos pendientes (ventas con método crédito del período)
+        const creditosHoy = ventasHoy.filter(v => (v.metodoPago || '').toLowerCase() === 'credito' || (v.metodoPago || '').toLowerCase() === 'crédito');
+        const detallesCreditosEl = document.getElementById('detallesCreditos');
+        if (detallesCreditosEl) {
+            if (creditosHoy.length === 0) {
+                detallesCreditosEl.innerHTML = 'No hay créditos pendientes en este período.';
+            } else {
+                detallesCreditosEl.innerHTML = creditosHoy.map(c => `${c.cliente || 'Cliente'}: $ ${(parseFloat(c.total) || 0).toLocaleString()}`).join('<br>');
+            }
+        }
         
         // Limpiar campos del modal
         document.getElementById('nombreCierre').value = '';
@@ -5495,23 +6316,14 @@ function guardarCierreDiario() {
             }
         });
 
-        // 3. CALCULAR TOTALES SIMPLES
-        const totalVentas = ventasHoy.reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
-        const totalEfectivo = ventasHoy
-            .filter(v => v.metodoPago === 'efectivo')
-            .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
-        const totalTransferencia = ventasHoy
-            .filter(v => v.metodoPago === 'transferencia')
-            .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
-        const totalTarjeta = ventasHoy
-            .filter(v => v.metodoPago === 'tarjeta')
-            .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
-        const totalCredito = ventasHoy
-            .filter(v => v.metodoPago === 'credito')
-            .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
-        const totalMixto = ventasHoy
-            .filter(v => v.metodoPago === 'mixto')
-            .reduce((sum, v) => sum + (parseFloat(v.total) || 0), 0);
+        // 3. CALCULAR TOTALES CON MIXTO DESGLOSADO (efectivo y transferencia incluyen la parte mixta)
+        const calculos = calcularTotalesVentas(ventasHoy);
+        const totalVentas = calculos.totalGeneral;
+        const totalEfectivo = calculos.totalEfectivo;
+        const totalTransferencia = calculos.totalTransferencia;
+        const totalTarjeta = calculos.totalTarjeta;
+        const totalCredito = calculos.totalCredito;
+        const totalMixto = calculos.totalMixto;
         
         // 4. OBTENER GASTOS
         const gastos = JSON.parse(localStorage.getItem('gastos') || '[]');
@@ -5525,10 +6337,7 @@ function guardarCierreDiario() {
         });
         const totalGastos = gastosHoy.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
 
-        // 5. CALCULAR BALANCE
-        const balanceFinal = totalVentas - totalGastos;
-        
-        // Domicilios y por domiciliario (para impresión)
+        // Domicilios y por domiciliario (para impresión y balance)
         const totalesDomiciliariosCierre = {};
         const totalDomiciliosCierre = ventasHoy.reduce((sum, v) => {
             const valorDom = parseFloat(v.valorDomicilio) || 0;
@@ -5538,6 +6347,9 @@ function guardarCierreDiario() {
             }
             return sum + valorDom;
         }, 0);
+
+        // 5. CALCULAR BALANCE (ventas - gastos - todos los domicilios)
+        const balanceFinal = totalVentas - totalGastos - totalDomiciliosCierre;
         
         // 6. CREAR OBJETO DE CIERRE
         const cierre = {
@@ -6227,8 +7039,14 @@ function imprimirBalanceDiario(datosCierre = null) {
             return sum + valorDom;
         }, 0);
 
-        // Calcular balance final
-        const balanceFinal = totalVentas - totalGastos;
+        // Calcular balance final (ventas - gastos - todos los domicilios)
+        const balanceFinal = totalVentas - totalGastos - totalDomicilios;
+
+        // Efectivo que queda en caja: efectivo - gastos - domicilios pagados en efectivo/mixto
+        const domiciliosEnEfectivoPrint = ventasHoy
+            .filter(v => ((v.metodoPago || '').toLowerCase() === 'efectivo' || (v.metodoPago || '').toLowerCase() === 'mixto') && (parseFloat(v.valorDomicilio) || 0) > 0)
+            .reduce((sum, v) => sum + (parseFloat(v.valorDomicilio) || 0), 0);
+        const efectivoQueQuedaPrint = totalEfectivo - totalGastos - domiciliosEnEfectivoPrint;
 
         // Obtener información del cierre
         let nombreCierre, nombreRecibe, montoBaseCaja, detalles;
@@ -6365,6 +7183,14 @@ function imprimirBalanceDiario(datosCierre = null) {
                     <div class="border-top">
                         <div class="mb-1"><strong>Gastos</strong></div>
                         <div class="mb-1">Total: $ ${totalGastos.toLocaleString()}</div>
+                    </div>
+                    
+                    <div class="border-top">
+                        <div class="mb-1"><strong>Efectivo en caja</strong></div>
+                        <div class="mb-1">Efectivo entrado: $ ${totalEfectivo.toLocaleString()}</div>
+                        <div class="mb-1">Menos gastos: $ ${totalGastos.toLocaleString()}</div>
+                        <div class="mb-1">Menos domicilios (efectivo): $ ${domiciliosEnEfectivoPrint.toLocaleString()}</div>
+                        <div class="mb-1 total-row">= Efectivo que queda: $ ${efectivoQueQuedaPrint.toLocaleString()}</div>
                     </div>
                     
                     <div class="border-top">
@@ -7817,6 +8643,8 @@ function imprimirBalancePorPeriodo(tipoPeriodo) {
             }
             totalVentas += total;
         });
+        // Total domicilios del período (todos: efectivo y transferencia)
+        const totalDomiciliosPeriodo = ventasFiltradas.reduce((sum, v) => sum + (parseFloat(v.valorDomicilio) || 0), 0);
         // Obtener gastos del período
         const gastos = JSON.parse(localStorage.getItem('historialGastos')) || [];
 console.log('[BALANCE] Fuente de gastos: historialGastos', gastos);
@@ -7825,8 +8653,8 @@ console.log('[BALANCE] Fuente de gastos: historialGastos', gastos);
             return fechaGasto >= fechaInicio && fechaGasto <= fechaFin;
         });
         const totalGastos = gastosFiltrados.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
-        // Calcular balance final
-        const balanceFinal = totalVentas - totalGastos;
+        // Calcular balance final (ventas - gastos - todos los domicilios)
+        const balanceFinal = totalVentas - totalGastos - totalDomiciliosPeriodo;
         // Formatear fechas para mostrar
         const formatoFecha = (fecha) => {
             return fecha.toLocaleDateString('es-ES', {
@@ -9613,15 +10441,44 @@ if (elTotalDom) elTotalDom.textContent = `$ ${totalDomiciliosBalance.toLocaleStr
 const resumenGastos = document.getElementById('resumenGastos');
 resumenGastos.innerHTML = '';
 
+// 1) Detalle línea por línea
 gastosFiltrados.forEach(gasto => {
   const fila = document.createElement('tr');
   const descripcion = gasto.descripcion || 'Sin descripción';
-  const categoria = gasto.categoria ? ` (${gasto.categoria})` : '';
+  const categoria = gasto.categoria || 'sin-categoria';
   fila.innerHTML = `
-    <td>${descripcion}${categoria}</td>
+    <td>${descripcion} <small class="text-muted">(${categoria})</small></td>
     <td style="text-align:right;">$${(parseFloat(gasto.monto) || 0).toLocaleString()}</td>
   `;
   resumenGastos.appendChild(fila);
+});
+
+// 2) Totales por categoría
+const totalesPorCategoria = {};
+gastosFiltrados.forEach(gasto => {
+  const categoria = (gasto.categoria || 'sin-categoria').toLowerCase();
+  const monto = parseFloat(gasto.monto) || 0;
+  totalesPorCategoria[categoria] = (totalesPorCategoria[categoria] || 0) + monto;
+});
+
+// Separador visual
+if (Object.keys(totalesPorCategoria).length > 0) {
+  const filaSeparador = document.createElement('tr');
+  filaSeparador.innerHTML = `
+    <td colspan="2" class="text-center" style="font-weight:bold; border-top: 2px solid #ccc;">
+      Totales por categoría
+    </td>
+  `;
+  resumenGastos.appendChild(filaSeparador);
+}
+
+Object.entries(totalesPorCategoria).forEach(([categoria, monto]) => {
+  const filaCat = document.createElement('tr');
+  filaCat.innerHTML = `
+    <td><strong>${categoria}</strong></td>
+    <td style="text-align:right;"><strong>$${monto.toLocaleString()}</strong></td>
+  `;
+  resumenGastos.appendChild(filaCat);
 });
 
 // Actualizar total de gastos

@@ -428,6 +428,47 @@
             </div>
         </div>
 
+        <!-- Configuración de Pantalla de Cocina -->
+        <div class="card bg-dark text-white mb-4">
+            <div class="card-header">
+                <h2 class="mb-0 fs-3 fs-md-2"><i class="fas fa-tv me-2"></i>Pantalla de Cocina</h2>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">Configura la pantalla de cocina que se mostrará en el televisor. Los pedidos se mostrarán automáticamente cuando se envíen a cocina.</p>
+                
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="pantallaCocinaActivada">
+                    <label class="form-check-label" for="pantallaCocinaActivada">Activar pantalla de cocina</label>
+                    <small class="text-muted d-block mt-1">Cuando está activada, se abrirá automáticamente en una segunda pantalla si está conectada</small>
+                </div>
+                
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="cocinaSonidoActivado">
+                    <label class="form-check-label" for="cocinaSonidoActivado">Activar sonido de notificación</label>
+                    <small class="text-muted d-block mt-1">Reproduce un sonido cuando llega un nuevo pedido a cocina</small>
+                </div>
+                
+                <div class="row g-2 align-items-center mb-3">
+                    <div class="col-auto">
+                        <label for="cocinaIntervaloActualizacion" class="form-label mb-0">Intervalo de actualización (segundos):</label>
+                    </div>
+                    <div class="col-auto">
+                        <input type="number" id="cocinaIntervaloActualizacion" class="form-control" min="1" max="60" value="30" style="width: 5rem;">
+                        <small class="text-muted d-block mt-1">Tiempo entre actualizaciones automáticas (1-60 segundos)</small>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <button type="button" class="btn btn-info" onclick="guardarConfigPantallaCocina()">
+                        <i class="fas fa-save me-1"></i>Guardar configuración
+                    </button>
+                    <button type="button" class="btn btn-outline-info ms-2" onclick="abrirPantallaCocina()">
+                        <i class="fas fa-tv me-1"></i>Abrir Pantalla de Cocina Ahora
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Configuración de EmailJS -->
         <div class="mt-5 mb-4">
             <div class="card bg-dark text-white">
