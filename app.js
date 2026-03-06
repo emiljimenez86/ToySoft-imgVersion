@@ -1244,8 +1244,8 @@ function actualizarPanelCocina() {
   
   // Si la pantalla de cocina está desactivada en administración,
   // no mostrar el panel flotante aunque haya pedidos
-  const cocinaActivada = localStorage.getItem('pantallaCocinaActivada');
-  if (cocinaActivada === 'false') {
+  const cocinaActivada = localStorage.getItem('pantallaCocinaActivada') === 'true';
+  if (!cocinaActivada) {
     panel.style.display = 'none';
     return;
   }
@@ -1394,13 +1394,7 @@ function actualizarVisibilidadBotónCocina() {
   if (!btnCocina) return;
   
   // Verificar si la pantalla de cocina está activada
-  let cocinaActivada = localStorage.getItem('pantallaCocinaActivada');
-  if (cocinaActivada === null) {
-    // Si no existe la configuración, activarla por defecto
-    localStorage.setItem('pantallaCocinaActivada', 'true');
-    cocinaActivada = 'true';
-  }
-  cocinaActivada = cocinaActivada !== 'false';
+  const cocinaActivada = localStorage.getItem('pantallaCocinaActivada') === 'true';
   
   // Mostrar u ocultar el botón según la configuración
   if (cocinaActivada) {
@@ -1415,14 +1409,8 @@ function inicializarSistemaCocina() {
   // Actualizar visibilidad del botón
   actualizarVisibilidadBotónCocina();
   
-  // Verificar si la pantalla de cocina está activada (por defecto activada si no existe la configuración)
-  let cocinaActivada = localStorage.getItem('pantallaCocinaActivada');
-  if (cocinaActivada === null) {
-    // Si no existe la configuración, activarla por defecto
-    localStorage.setItem('pantallaCocinaActivada', 'true');
-    cocinaActivada = 'true';
-  }
-  cocinaActivada = cocinaActivada !== 'false';
+  // Verificar si la pantalla de cocina está activada
+  const cocinaActivada = localStorage.getItem('pantallaCocinaActivada') === 'true';
   
   if (cocinaActivada) {
     // Intentar abrir automáticamente si hay segunda pantalla
@@ -1480,7 +1468,7 @@ function inicializarSistemaCocina() {
     if (e.key === 'pantallaCocinaActivada') {
       actualizarVisibilidadBotónCocina();
       // Reinicializar sistema si se activa
-      if (localStorage.getItem('pantallaCocinaActivada') !== 'false') {
+      if (localStorage.getItem('pantallaCocinaActivada') === 'true') {
         inicializarSistemaCocina();
       }
     }
@@ -7739,26 +7727,62 @@ function mostrarHistorialVentas() {
 // Función para mostrar historial de cocina
 function mostrarHistorialCocina() {
   const tablaHistorial = document.getElementById('tablaHistorialCocina');
+  if (!tablaHistorial) {
+    console.error('No se encontró la tabla de historial de cocina');
+    return;
+  }
+
   const cuerpoTabla = tablaHistorial.querySelector('tbody');
+  if (!cuerpoTabla) {
+    console.error('La tabla de historial de cocina no tiene <tbody>');
+    return;
+  }
+
   cuerpoTabla.innerHTML = '';
 
   // Obtener la fecha seleccionada del input
-  const fechaSeleccionada = document.getElementById('fechaHistorialCocina').value;
-  const fechaFiltro = fechaSeleccionada ? new Date(fechaSeleccionada) : new Date();
+  const inputFecha = document.getElementById('fechaHistorialCocina');
+  const valorFecha = inputFecha ? inputFecha.value : '';
+  const fechaFiltro = valorFecha ? new Date(valorFecha) : new Date();
 
-  // Filtrar órdenes por fecha
+  // Filtrar órdenes por fecha usando helpers robustos de fecha
   const ordenesFiltradas = historialCocina.filter(orden => {
-    const fechaOrden = new Date(orden.fecha);
-    return fechaOrden.toDateString() === fechaFiltro.toDateString();
+    try {
+      const fechaAUsar = orden.fecha || orden.fechaMostrar;
+      if (!fechaAUsar) {
+        return false;
+      }
+      return esMismaFechaLocal(fechaAUsar, fechaFiltro);
+    } catch (e) {
+      console.error('Error al filtrar orden de cocina por fecha:', e, orden);
+      return false;
+    }
   });
 
   ordenesFiltradas.forEach(orden => {
     const fila = document.createElement('tr');
+
+    // Formatear fecha de manera segura
+    const baseFecha = orden.fecha || orden.fechaMostrar;
+    let fechaFormateada = '-';
+    if (baseFecha) {
+      const fechaParseada = parseFechaSeguro(baseFecha);
+      if (fechaParseada) {
+        fechaFormateada = fechaParseada.toLocaleString();
+      } else {
+        fechaFormateada = baseFecha;
+      }
+    }
+
+    const itemsTexto = Array.isArray(orden.items)
+      ? orden.items.map(item => item.nombre).join(', ')
+      : '-';
+
     fila.innerHTML = `
-      <td>${orden.fecha}</td>
-      <td>${orden.mesa || orden.tipo}</td>
+      <td>${fechaFormateada}</td>
+      <td>${orden.mesa || orden.tipo || '-'}</td>
       <td>${orden.cliente || '-'}</td>
-      <td>${orden.items.map(item => item.nombre).join(', ')}</td>
+      <td>${itemsTexto}</td>
       <td>
         <button class="btn btn-sm btn-info" onclick="reimprimirTicketCocina('${orden.id}')">
           <i class="fas fa-print"></i>
