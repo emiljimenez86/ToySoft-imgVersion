@@ -159,9 +159,12 @@
                             <option value="otros">Otros</option>
                         </select>
                     </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button class="btn btn-primary w-100" onclick="guardarGasto()">
+                    <div class="col-md-2 d-flex align-items-end gap-2 flex-wrap">
+                        <button type="button" class="btn btn-primary flex-grow-1" id="btnGuardarGasto" onclick="guardarGasto()">
                             <i class="fas fa-save me-2"></i>Guardar
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary d-none" id="btnCancelarEdicionGasto" onclick="cancelarEdicionGasto()" title="Cancelar edición">
+                            <i class="fas fa-times"></i>
                         </button>
                     </div>
                 </div>

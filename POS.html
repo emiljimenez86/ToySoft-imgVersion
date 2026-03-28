@@ -550,6 +550,23 @@
               </table>
             </div>
 
+            <!-- Buscador de productos (sin depender de categoría) -->
+            <div class="mb-3">
+              <label for="buscarProductoPOS" class="form-label fw-bold text-info">
+                <i class="fas fa-search"></i> Buscar producto
+              </label>
+              <div class="input-group">
+                <input type="text" id="buscarProductoPOS" class="form-control bg-dark text-white border-info" 
+                       placeholder="Escriba nombre o categoría del producto..." 
+                       autocomplete="off"
+                       oninput="buscarProductosPOS(this.value.trim())" />
+                <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('buscarProductoPOS').value=''; buscarProductosPOS('');" title="Limpiar búsqueda">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+              <div id="mensajeBusquedaPOS" class="form-text text-muted small mt-1" style="display: none;"></div>
+            </div>
+
             <!-- Contenedor de cuadrícula visual de productos -->
             <div id="productosGrid" class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3" style="margin-top:10px;"></div>
 

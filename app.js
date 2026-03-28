@@ -2681,6 +2681,10 @@ function verificarAcceso() {
 
 // Función para mostrar todos los productos
 function mostrarTodosLosProductos() {
+  const inputBusqueda = document.getElementById('buscarProductoPOS');
+  if (inputBusqueda) inputBusqueda.value = '';
+  const msgBusqueda = document.getElementById('mensajeBusquedaPOS');
+  if (msgBusqueda) { msgBusqueda.style.display = 'none'; msgBusqueda.textContent = ''; }
   console.log('Mostrando todos los productos...');
   console.log('Total de productos:', productos.length);
   mostrarProductosFiltrados(productos);
@@ -2688,11 +2692,55 @@ function mostrarTodosLosProductos() {
 
 // Función para filtrar productos por categoría
 function filtrarProductosPorCategoria(categoria) {
+  const inputBusqueda = document.getElementById('buscarProductoPOS');
+  if (inputBusqueda) inputBusqueda.value = '';
+  const msgBusqueda = document.getElementById('mensajeBusquedaPOS');
+  if (msgBusqueda) { msgBusqueda.style.display = 'none'; msgBusqueda.textContent = ''; }
   console.log('Filtrando productos por categoría:', categoria);
   console.log('Productos totales:', productos);
   const productosFiltrados = productos.filter(p => p.categoria === categoria);
   console.log('Productos filtrados:', productosFiltrados);
   mostrarProductosFiltrados(productosFiltrados);
+}
+
+// Buscador de productos en POS: busca por nombre y categoría en todos los productos (Administración)
+function buscarProductosPOS(termino) {
+  const productosGrid = document.getElementById('productosGrid');
+  const mensajeBusqueda = document.getElementById('mensajeBusquedaPOS');
+  if (!productosGrid) return;
+
+  if (mensajeBusqueda) {
+    mensajeBusqueda.style.display = 'none';
+    mensajeBusqueda.textContent = '';
+  }
+
+  if (!termino) {
+    mostrarTodosLosProductos();
+    return;
+  }
+
+  const terminoLower = termino.toLowerCase();
+  const productosFiltrados = productos.filter(p => {
+    const nombre = (p.nombre || '').toLowerCase();
+    const categoria = (p.categoria || '').toLowerCase();
+    const codigo = (p.codigo || '').toLowerCase();
+    return nombre.includes(terminoLower) || categoria.includes(terminoLower) || codigo.includes(terminoLower);
+  });
+
+  mostrarProductosFiltrados(productosFiltrados);
+
+  if (mensajeBusqueda && termino.length > 0) {
+    mensajeBusqueda.style.display = 'block';
+    if (productosFiltrados.length === 0) {
+      mensajeBusqueda.textContent = 'No se encontraron productos con "' + termino + '".';
+      mensajeBusqueda.classList.remove('text-success');
+      mensajeBusqueda.classList.add('text-warning');
+    } else {
+      mensajeBusqueda.textContent = productosFiltrados.length + ' producto(s) encontrado(s).';
+      mensajeBusqueda.classList.remove('text-warning');
+      mensajeBusqueda.classList.add('text-success');
+    }
+  }
 }
 
 // Función para formatear precio (sin decimales)
@@ -8053,6 +8101,7 @@ console.log('[BALANCE] Fuente de gastos: historialGastos', gastos);
 
 function mostrarGastos() {
     const tablaGastos = document.getElementById('tablaGastos');
+    if (!tablaGastos) return;
     const cuerpoTabla = tablaGastos.querySelector('tbody');
     cuerpoTabla.innerHTML = '';
     
